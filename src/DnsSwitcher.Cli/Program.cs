@@ -1,10 +1,30 @@
+using DnsSwitcher.Core.Services;
 using DnsSwitcher.Infrastructure.Windows;
 using DnsSwitcher.Infrastructure.Windows.Configuration;
 using DnsSwitcher.Infrastructure.Windows.Logging;
 using Microsoft.Extensions.Logging;
 
-var exitCode = await RunAsync(args).ConfigureAwait(false);
-return exitCode;
+try
+{
+    var exitCode = await RunAsync(args).ConfigureAwait(false);
+    return exitCode;
+}
+catch (AppConfigValidationException exception)
+{
+    Console.Error.WriteLine("profiles.json is invalid:");
+
+    foreach (var error in exception.Errors)
+    {
+        Console.Error.WriteLine($"  - {error.Path}: {error.Message} ({error.Code})");
+    }
+
+    return 3;
+}
+catch (InvalidDataException exception)
+{
+    Console.Error.WriteLine(exception.Message);
+    return 3;
+}
 
 static async Task<int> RunAsync(string[] args)
 {
@@ -49,6 +69,10 @@ static async Task<int> RunAsync(string[] args)
             await PrintStatusAsync(host).ConfigureAwait(false);
             return 0;
 
+        case "validate":
+            await ValidateProfilesAsync(host).ConfigureAwait(false);
+            return 0;
+
         case "switch":
         case "enable":
         case "disable":
@@ -73,6 +97,7 @@ static void PrintHelp()
           dns-switcher init     Create profiles.json if it does not exist
           dns-switcher list     List configured DNS profiles
           dns-switcher status   Show current skeleton DNS status
+          dns-switcher validate Validate profiles.json
 
         Planned:
           dns-switcher switch <profile-id>
@@ -107,6 +132,7 @@ static async Task PrintProfilesAsync(WindowsDnsSwitcherHost host)
             : " ";
 
         Console.WriteLine($"{activeMarker} {profile.Id} - {profile.Name}");
+        Console.WriteLine($"    Mode: {profile.Mode}");
         Console.WriteLine($"    IPv4: {string.Join(", ", profile.Ipv4)}");
 
         if (profile.Ipv6.Count > 0)
@@ -127,4 +153,10 @@ static async Task PrintStatusAsync(WindowsDnsSwitcherHost host)
     Console.WriteLine($"Config active profile: {activeProfile?.Name ?? "<none>"}");
     Console.WriteLine($"System managed by app: {dnsStatus.IsManaged}");
     Console.WriteLine($"System DNS details: {dnsStatus.Details}");
+}
+
+static async Task ValidateProfilesAsync(WindowsDnsSwitcherHost host)
+{
+    _ = await host.ProfileStore.LoadAsync().ConfigureAwait(false);
+    Console.WriteLine($"profiles.json is valid: {host.Paths.ProfilesFilePath}");
 }

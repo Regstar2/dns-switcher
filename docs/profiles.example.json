@@ -6,6 +6,7 @@
       "id": "cloudflare",
       "name": "Cloudflare",
       "description": "Cloudflare public DNS",
+      "mode": "static",
       "ipv4": [
         "1.1.1.1",
         "1.0.0.1"
@@ -19,6 +20,7 @@
       "id": "google",
       "name": "Google Public DNS",
       "description": "Google public DNS",
+      "mode": "static",
       "ipv4": [
         "8.8.8.8",
         "8.8.4.4"
@@ -27,6 +29,14 @@
         "2001:4860:4860::8888",
         "2001:4860:4860::8844"
       ]
+    },
+    {
+      "id": "dhcp",
+      "name": "Automatic DNS",
+      "description": "Use DNS servers from DHCP.",
+      "mode": "dhcp",
+      "ipv4": [],
+      "ipv6": []
     }
   ]
 }

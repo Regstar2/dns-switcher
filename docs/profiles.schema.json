@@ -34,6 +34,7 @@
       "required": [
         "id",
         "name",
+        "mode",
         "ipv4",
         "ipv6"
       ],
@@ -53,6 +54,13 @@
             "null"
           ]
         },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "static",
+            "dhcp"
+          ]
+        },
         "ipv4": {
           "type": "array",
           "items": {
@@ -67,7 +75,55 @@
             "format": "ipv6"
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "dhcp"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "ipv4": {
+                "maxItems": 0
+              },
+              "ipv6": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "static"
+              }
+            }
+          },
+          "then": {
+            "anyOf": [
+              {
+                "properties": {
+                  "ipv4": {
+                    "minItems": 1
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "ipv6": {
+                    "minItems": 1
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
     }
   }
 }

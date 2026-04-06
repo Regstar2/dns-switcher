@@ -8,6 +8,8 @@ public sealed record DnsProfile
 
     public string? Description { get; init; }
 
+    public ProfileMode Mode { get; init; } = ProfileMode.Static;
+
     public List<string> Ipv4 { get; init; } = [];
 
     public List<string> Ipv6 { get; init; } = [];

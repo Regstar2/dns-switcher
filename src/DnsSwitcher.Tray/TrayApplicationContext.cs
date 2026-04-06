@@ -44,6 +44,7 @@ public sealed class TrayApplicationContext : ApplicationContext
 
         MessageBox.Show(
             $"Active profile: {configuration.ActiveProfileId ?? "<none>"}{Environment.NewLine}" +
+            $"Profiles configured: {configuration.Profiles.Count}{Environment.NewLine}" +
             $"System DNS: {status.Details}{Environment.NewLine}" +
             $"Profiles: {host.Paths.ProfilesFilePath}",
             "DnsSwitcher",

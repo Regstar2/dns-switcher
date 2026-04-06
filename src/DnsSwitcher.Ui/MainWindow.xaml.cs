@@ -28,7 +28,7 @@ public partial class MainWindow : Window
                 ? "* "
                 : string.Empty;
 
-            ProfilesListBox.Items.Add($"{activeMarker}{profile.Name} ({profile.Id}) - IPv4: {string.Join(", ", profile.Ipv4)}");
+            ProfilesListBox.Items.Add($"{activeMarker}{profile.Name} ({profile.Id}) - {profile.Mode} - IPv4: {string.Join(", ", profile.Ipv4)}");
         }
     }
 }

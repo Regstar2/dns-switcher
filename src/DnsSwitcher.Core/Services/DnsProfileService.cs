@@ -10,7 +10,7 @@ public sealed class DnsProfileService(IProfileStore profileStore)
         return profileStore.EnsureCreatedAsync(cancellationToken);
     }
 
-    public Task<DnsConfiguration> GetConfigurationAsync(CancellationToken cancellationToken = default)
+    public Task<AppConfig> GetConfigurationAsync(CancellationToken cancellationToken = default)
     {
         return profileStore.LoadAsync(cancellationToken);
     }

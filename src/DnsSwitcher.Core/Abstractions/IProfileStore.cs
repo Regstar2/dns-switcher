@@ -6,7 +6,7 @@ public interface IProfileStore
 {
     Task EnsureCreatedAsync(CancellationToken cancellationToken = default);
 
-    Task<DnsConfiguration> LoadAsync(CancellationToken cancellationToken = default);
+    Task<AppConfig> LoadAsync(CancellationToken cancellationToken = default);
 
-    Task SaveAsync(DnsConfiguration configuration, CancellationToken cancellationToken = default);
+    Task SaveAsync(AppConfig configuration, CancellationToken cancellationToken = default);
 }
