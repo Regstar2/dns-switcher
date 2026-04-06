@@ -1,0 +1,31 @@
+<Window x:Class="DnsSwitcher.Ui.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="DnsSwitcher" Height="420" Width="720">
+  <Grid Margin="16">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <StackPanel>
+      <TextBlock Text="DnsSwitcher" FontSize="24" FontWeight="SemiBold" />
+      <TextBlock Text="v0.1 skeleton: portable config, shared core, CLI/UI/tray clients." Margin="0,4,0,0" />
+    </StackPanel>
+
+    <TextBox x:Name="PathsTextBox"
+             Grid.Row="1"
+             Margin="0,16,0,16"
+             IsReadOnly="True"
+             TextWrapping="Wrap"
+             VerticalScrollBarVisibility="Auto" />
+
+    <GroupBox Grid.Row="2" Header="Profiles">
+      <ListBox x:Name="ProfilesListBox" />
+    </GroupBox>
+  </Grid>
+</Window>
