@@ -69,6 +69,10 @@ static async Task<int> RunAsync(string[] args)
             await PrintStatusAsync(host).ConfigureAwait(false);
             return 0;
 
+        case "adapters":
+            await PrintAdaptersAsync(host).ConfigureAwait(false);
+            return 0;
+
         case "validate":
             await ValidateProfilesAsync(host).ConfigureAwait(false);
             return 0;
@@ -96,6 +100,7 @@ static void PrintHelp()
           dns-switcher paths    Show portable config/log paths
           dns-switcher init     Create profiles.json if it does not exist
           dns-switcher list     List configured DNS profiles
+          dns-switcher adapters List detected network adapters
           dns-switcher status   Show current skeleton DNS status
           dns-switcher validate Validate profiles.json
 
@@ -151,6 +156,7 @@ static async Task PrintStatusAsync(WindowsDnsSwitcherHost host)
     Console.WriteLine($"Portable data: {host.Paths.AppDirectory}");
     Console.WriteLine($"Config active profile id: {configuration.ActiveProfileId ?? "<none>"}");
     Console.WriteLine($"Config active profile: {activeProfile?.Name ?? "<none>"}");
+    Console.WriteLine($"Selected adapter: {dnsStatus.AdapterName ?? "<none>"}");
     Console.WriteLine($"System managed by app: {dnsStatus.IsManaged}");
     Console.WriteLine($"System DNS details: {dnsStatus.Details}");
 }
@@ -159,4 +165,33 @@ static async Task ValidateProfilesAsync(WindowsDnsSwitcherHost host)
 {
     _ = await host.ProfileStore.LoadAsync().ConfigureAwait(false);
     Console.WriteLine($"profiles.json is valid: {host.Paths.ProfilesFilePath}");
+}
+
+static async Task PrintAdaptersAsync(WindowsDnsSwitcherHost host)
+{
+    var adapters = await host.NetworkAdapterService.GetAdaptersAsync().ConfigureAwait(false);
+    var selectedAdapter = await host.NetworkAdapterService.GetDefaultAdapterAsync().ConfigureAwait(false);
+
+    if (adapters.Count == 0)
+    {
+        Console.WriteLine("No network adapters detected.");
+        return;
+    }
+
+    foreach (var adapter in adapters.OrderBy(adapter => adapter.Name, StringComparer.OrdinalIgnoreCase))
+    {
+        var selectedMarker = selectedAdapter?.Id == adapter.Id ? "*" : " ";
+        Console.WriteLine($"{selectedMarker} {adapter.Name}");
+        Console.WriteLine($"    Id: {adapter.Id}");
+        Console.WriteLine($"    Active: {adapter.IsActive}");
+        Console.WriteLine($"    Physical: {adapter.IsPhysical}");
+        Console.WriteLine($"    Loopback: {adapter.IsLoopback}");
+        Console.WriteLine($"    Gateway: {adapter.HasDefaultGateway}");
+        Console.WriteLine($"    Stacks: {adapter.SupportedStacks}");
+
+        if (adapter.InterfaceIndex is not null)
+        {
+            Console.WriteLine($"    Interface index: {adapter.InterfaceIndex}");
+        }
+    }
 }

@@ -26,6 +26,7 @@ dotnet build DnsSwitcher.sln
 dotnet test DnsSwitcher.sln
 dotnet run --project src/DnsSwitcher.Cli -- paths
 dotnet run --project src/DnsSwitcher.Cli -- list
+dotnet run --project src/DnsSwitcher.Cli -- adapters
 dotnet run --project src/DnsSwitcher.Cli -- status
 dotnet run --project src/DnsSwitcher.Cli -- validate
 ```
@@ -44,3 +45,16 @@ DNS switching itself is intentionally not implemented in v0.1. It will require a
   - `Dhcp` profiles with static DNS addresses;
   - `Static` profiles without DNS addresses;
   - unknown `activeProfileId`.
+
+## v0.3 scope
+
+- Platform-neutral network adapter model and selection logic in `DnsSwitcher.Core`.
+- Windows adapter discovery using `NetworkInterface`.
+- Adapter facts:
+  - active;
+  - physical;
+  - loopback;
+  - supported IP stacks;
+  - default gateway presence.
+- Default adapter selection heuristics with unit tests.
+- CLI command `adapters` for manual inspection.

@@ -1,5 +1,6 @@
 using DnsSwitcher.Core.Abstractions;
 using DnsSwitcher.Core.Services;
+using DnsSwitcher.Infrastructure.Windows.Adapters;
 using DnsSwitcher.Infrastructure.Windows.Configuration;
 using DnsSwitcher.Infrastructure.Windows.Dns;
 using Microsoft.Extensions.Logging;
@@ -14,7 +15,9 @@ public sealed class WindowsDnsSwitcherHost : IDisposable
         LoggerFactory = loggerFactory;
 
         ProfileStore = new JsonDnsProfileStore(paths, loggerFactory.CreateLogger<JsonDnsProfileStore>());
-        DnsManager = new WindowsDnsManager(loggerFactory.CreateLogger<WindowsDnsManager>());
+        NetworkAdapterProvider = new WindowsNetworkAdapterProvider(loggerFactory.CreateLogger<WindowsNetworkAdapterProvider>());
+        NetworkAdapterService = new NetworkAdapterService(NetworkAdapterProvider);
+        DnsManager = new WindowsDnsManager(NetworkAdapterService, loggerFactory.CreateLogger<WindowsDnsManager>());
         ProfileService = new DnsProfileService(ProfileStore);
     }
 
@@ -23,6 +26,10 @@ public sealed class WindowsDnsSwitcherHost : IDisposable
     public ILoggerFactory LoggerFactory { get; }
 
     public IProfileStore ProfileStore { get; }
+
+    public INetworkAdapterProvider NetworkAdapterProvider { get; }
+
+    public NetworkAdapterService NetworkAdapterService { get; }
 
     public IDnsManager DnsManager { get; }
 
