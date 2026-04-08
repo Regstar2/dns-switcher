@@ -11,12 +11,19 @@ public sealed class PortableAppPaths : IAppPaths
     public const string LogFileName = "dns-switcher.log";
 
     public PortableAppPaths(string appDirectory)
+        : this(appDirectory, Path.Combine(Path.GetFullPath(appDirectory), ConfigDirectoryName, ProfilesFileName))
+    {
+    }
+
+    public PortableAppPaths(string appDirectory, string profilesFilePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(appDirectory);
+        ArgumentException.ThrowIfNullOrWhiteSpace(profilesFilePath);
 
         AppDirectory = Path.GetFullPath(appDirectory);
-        ConfigDirectory = Path.Combine(AppDirectory, ConfigDirectoryName);
-        ProfilesFilePath = Path.Combine(ConfigDirectory, ProfilesFileName);
+        ProfilesFilePath = Path.GetFullPath(profilesFilePath);
+        ConfigDirectory = Path.GetDirectoryName(ProfilesFilePath)
+            ?? throw new InvalidOperationException("Config directory could not be determined.");
         LogDirectory = Path.Combine(AppDirectory, LogsDirectoryName);
         LogFilePath = Path.Combine(LogDirectory, LogFileName);
     }
@@ -34,6 +41,23 @@ public sealed class PortableAppPaths : IAppPaths
     public static PortableAppPaths CreateDefault()
     {
         return new PortableAppPaths(Path.Combine(AppContext.BaseDirectory, DataDirectoryName));
+    }
+
+    public static PortableAppPaths CreateFromConfigPath(string configPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(configPath);
+
+        var fullPath = Path.GetFullPath(configPath);
+
+        if (Directory.Exists(fullPath) || !Path.HasExtension(fullPath))
+        {
+            return new PortableAppPaths(fullPath);
+        }
+
+        var configDirectory = Path.GetDirectoryName(fullPath)
+            ?? throw new InvalidOperationException("Config directory could not be determined.");
+
+        return new PortableAppPaths(configDirectory, fullPath);
     }
 
     public void EnsureDirectories()

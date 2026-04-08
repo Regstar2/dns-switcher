@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\DnsSwitcher.Cli\DnsSwitcher.Cli.csproj" />
     <ProjectReference Include="..\..\src\DnsSwitcher.Core\DnsSwitcher.Core.csproj" />
     <ProjectReference Include="..\..\src\DnsSwitcher.Infrastructure.Windows\DnsSwitcher.Infrastructure.Windows.csproj" />
   </ItemGroup>

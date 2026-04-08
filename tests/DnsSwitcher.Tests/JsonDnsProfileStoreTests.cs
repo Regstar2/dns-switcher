@@ -74,12 +74,56 @@ public sealed class JsonDnsProfileStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task SaveAsync_WritesProfileMetadataCollections()
+    {
+        var paths = new PortableAppPaths(rootPath);
+        var store = new JsonDnsProfileStore(paths, NullLogger<JsonDnsProfileStore>.Instance);
+
+        var configuration = new AppConfig
+        {
+            Profiles =
+            [
+                new DnsProfile
+                {
+                    Id = "metadata-sample",
+                    Name = "Metadata sample",
+                    Mode = ProfileMode.Static,
+                    Ipv4 = ["1.1.1.1"],
+                    Tags = ["sample", "local"],
+                    TestDomains = ["example.com"],
+                    TestUrls = ["https://example.com/"],
+                },
+            ],
+        };
+
+        await store.SaveAsync(configuration);
+
+        var json = await File.ReadAllTextAsync(paths.ProfilesFilePath);
+
+        Assert.Contains("\"tags\": [", json);
+        Assert.Contains("\"testDomains\": [", json);
+        Assert.Contains("\"testUrls\": [", json);
+        Assert.Contains("\"id\": \"metadata-sample\"", json);
+    }
+
+    [Fact]
     public void CreateDefault_UsesPortableDataDirectory()
     {
         var paths = PortableAppPaths.CreateDefault();
 
         Assert.EndsWith(Path.Combine("data", "config", "profiles.json"), paths.ProfilesFilePath);
         Assert.EndsWith(Path.Combine("data", "logs", "dns-switcher.log"), paths.LogFilePath);
+    }
+
+    [Fact]
+    public void CreateFromConfigPath_UsesExplicitProfilesFilePath()
+    {
+        var configPath = Path.Combine(rootPath, "custom", "profiles.custom.json");
+
+        var paths = PortableAppPaths.CreateFromConfigPath(configPath);
+
+        Assert.Equal(Path.GetFullPath(configPath), paths.ProfilesFilePath);
+        Assert.Equal(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(configPath))!, "logs"), paths.LogDirectory);
     }
 
     public void Dispose()

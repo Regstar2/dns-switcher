@@ -73,7 +73,7 @@ public sealed class DnsSwitchServiceTests
 
         public bool ResetToDhcpWasCalled { get; private set; }
 
-        public Task<DnsStatus> GetStatusAsync(CancellationToken cancellationToken = default)
+        public Task<DnsStatus> GetStatusAsync(string? adapterIdOrName = null, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(new DnsStatus(
                 IsManaged: false,
@@ -85,13 +85,13 @@ public sealed class DnsSwitchServiceTests
                 Details: string.Empty));
         }
 
-        public Task ApplyProfileAsync(DnsProfile profile, CancellationToken cancellationToken = default)
+        public Task ApplyProfileAsync(DnsProfile profile, string? adapterIdOrName = null, CancellationToken cancellationToken = default)
         {
             AppliedProfile = profile;
             return Task.CompletedTask;
         }
 
-        public Task ResetToDhcpAsync(CancellationToken cancellationToken = default)
+        public Task ResetToDhcpAsync(string? adapterIdOrName = null, CancellationToken cancellationToken = default)
         {
             ResetToDhcpWasCalled = true;
             return Task.CompletedTask;

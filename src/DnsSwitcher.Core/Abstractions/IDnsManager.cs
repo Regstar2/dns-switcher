@@ -4,9 +4,9 @@ namespace DnsSwitcher.Core.Abstractions;
 
 public interface IDnsManager
 {
-    Task<DnsStatus> GetStatusAsync(CancellationToken cancellationToken = default);
+    Task<DnsStatus> GetStatusAsync(string? adapterIdOrName = null, CancellationToken cancellationToken = default);
 
-    Task ApplyProfileAsync(DnsProfile profile, CancellationToken cancellationToken = default);
+    Task ApplyProfileAsync(DnsProfile profile, string? adapterIdOrName = null, CancellationToken cancellationToken = default);
 
-    Task ResetToDhcpAsync(CancellationToken cancellationToken = default);
+    Task ResetToDhcpAsync(string? adapterIdOrName = null, CancellationToken cancellationToken = default);
 }

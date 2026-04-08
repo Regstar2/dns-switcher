@@ -74,6 +74,27 @@
             "type": "string",
             "format": "ipv6"
           }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "testDomains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "testUrls": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          }
         }
       },
       "allOf": [

@@ -7,7 +7,7 @@ namespace DnsSwitcher.Tests;
 public sealed class WindowsDnsCommandBuilderTests
 {
     [Fact]
-    public void BuildApplyScript_ResetsEmptyFamilyToDhcp()
+    public void BuildApplyCommands_ResetsEmptyFamilyToDhcp()
     {
         var profile = new DnsProfile
         {
@@ -18,14 +18,17 @@ public sealed class WindowsDnsCommandBuilderTests
             Ipv6 = [],
         };
 
-        var script = WindowsDnsCommandBuilder.BuildApplyScript("Wi-Fi", NetworkStackSupport.Ipv4 | NetworkStackSupport.Ipv6, profile);
+        var commands = WindowsDnsCommandBuilder.BuildApplyCommands("12", "Wi-Fi", NetworkStackSupport.Ipv4 | NetworkStackSupport.Ipv6, profile);
 
-        Assert.Contains("Set-DnsClientServerAddress -InterfaceAlias 'Wi-Fi' -ServerAddresses @('8.8.8.8', '8.8.4.4') -AddressFamily IPv4", script);
-        Assert.Contains("Set-DnsClientServerAddress -InterfaceAlias 'Wi-Fi' -ResetServerAddresses -AddressFamily IPv6", script);
+        Assert.Collection(
+            commands,
+            command => Assert.Equal("interface ipv4 set dnsservers name=\"12\" source=static address=8.8.8.8 validate=no", command.Arguments),
+            command => Assert.Equal("interface ipv4 add dnsservers name=\"12\" address=8.8.4.4 index=2 validate=no", command.Arguments),
+            command => Assert.Equal("interface ipv6 set dnsservers name=\"12\" source=dhcp", command.Arguments));
     }
 
     [Fact]
-    public void BuildApplyScript_Throws_WhenProfileRequiresUnsupportedStack()
+    public void BuildApplyCommands_Throws_WhenProfileRequiresUnsupportedStack()
     {
         var profile = new DnsProfile
         {
@@ -36,17 +39,17 @@ public sealed class WindowsDnsCommandBuilderTests
         };
 
         var exception = Assert.Throws<DnsOperationFailedException>(() =>
-            WindowsDnsCommandBuilder.BuildApplyScript("Ethernet", NetworkStackSupport.Ipv4, profile));
+            WindowsDnsCommandBuilder.BuildApplyCommands("7", "Ethernet", NetworkStackSupport.Ipv4, profile));
 
         Assert.Contains("does not support IPv6", exception.Message);
     }
 
     [Fact]
-    public void BuildResetScript_UsesOnlySupportedFamilies()
+    public void BuildResetCommands_UsesOnlySupportedFamilies()
     {
-        var script = WindowsDnsCommandBuilder.BuildResetScript("Ethernet", NetworkStackSupport.Ipv4);
+        var commands = WindowsDnsCommandBuilder.BuildResetCommands("Ethernet", NetworkStackSupport.Ipv4);
 
-        Assert.Contains("AddressFamily IPv4", script);
-        Assert.DoesNotContain("AddressFamily IPv6", script);
+        Assert.Single(commands);
+        Assert.Equal("interface ipv4 set dnsservers name=\"Ethernet\" source=dhcp", commands[0].Arguments);
     }
 }

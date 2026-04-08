@@ -2,8 +2,8 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Net.NetworkInformation;
 using System.Runtime.Versioning;
+using System.Globalization;
 using System.Security.Principal;
-using System.Text;
 using DnsSwitcher.Core.Abstractions;
 using DnsSwitcher.Core.Exceptions;
 using DnsSwitcher.Core.Models;
@@ -19,12 +19,17 @@ public sealed class WindowsDnsManager(
     DnsProfileService profileService,
     ILogger<WindowsDnsManager> logger) : IDnsManager
 {
-    public async Task<DnsStatus> GetStatusAsync(CancellationToken cancellationToken = default)
+    public async Task<DnsStatus> GetStatusAsync(string? adapterIdOrName = null, CancellationToken cancellationToken = default)
     {
-        var selectedAdapter = await networkAdapterService.GetDefaultAdapterAsync(cancellationToken).ConfigureAwait(false);
+        var selectedAdapter = await networkAdapterService.GetSelectedAdapterAsync(adapterIdOrName, cancellationToken).ConfigureAwait(false);
 
         if (selectedAdapter is null)
         {
+            if (!string.IsNullOrWhiteSpace(adapterIdOrName))
+            {
+                throw new NetworkAdapterNotFoundException($"Network adapter '{adapterIdOrName}' was not found.");
+            }
+
             return new DnsStatus(
                 IsManaged: false,
                 MatchedProfileId: null,
@@ -77,16 +82,16 @@ public sealed class WindowsDnsManager(
         return status;
     }
 
-    public Task ApplyProfileAsync(DnsProfile profile, CancellationToken cancellationToken = default)
+    public Task ApplyProfileAsync(DnsProfile profile, string? adapterIdOrName = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(profile);
 
-        return ApplyProfileCoreAsync(profile, cancellationToken);
+        return ApplyProfileCoreAsync(profile, adapterIdOrName, cancellationToken);
     }
 
-    public Task ResetToDhcpAsync(CancellationToken cancellationToken = default)
+    public Task ResetToDhcpAsync(string? adapterIdOrName = null, CancellationToken cancellationToken = default)
     {
-        return ResetToDhcpCoreAsync(cancellationToken);
+        return ResetToDhcpCoreAsync(adapterIdOrName, cancellationToken);
     }
 
     private static string BuildDetails(string adapterName, DnsMode mode, string? matchedProfileName)
@@ -179,34 +184,47 @@ public sealed class WindowsDnsManager(
         return ipv4.Mode == ipv6.Mode ? ipv4.Mode : DnsMode.Mixed;
     }
 
-    private async Task ApplyProfileCoreAsync(DnsProfile profile, CancellationToken cancellationToken)
+    private async Task ApplyProfileCoreAsync(DnsProfile profile, string? adapterIdOrName, CancellationToken cancellationToken)
     {
-        var targetAdapter = await ResolveTargetAdapterAsync(cancellationToken).ConfigureAwait(false);
+        var targetAdapter = await ResolveTargetAdapterAsync(adapterIdOrName, cancellationToken).ConfigureAwait(false);
         EnsureAdministrator();
 
-        var script = WindowsDnsCommandBuilder.BuildApplyScript(targetAdapter.Name, targetAdapter.SupportedStacks, profile);
-        await ExecutePowerShellAsync(script, $"apply DNS profile '{profile.Id}'", cancellationToken).ConfigureAwait(false);
+        var interfaceTarget = GetInterfaceTarget(targetAdapter);
+        var commands = WindowsDnsCommandBuilder.BuildApplyCommands(
+            interfaceTarget,
+            targetAdapter.Name,
+            targetAdapter.SupportedStacks,
+            profile);
+
+        await ExecuteCommandsAsync(commands, $"apply DNS profile '{profile.Id}'", cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Applied DNS profile {ProfileId} to adapter {AdapterName}.", profile.Id, targetAdapter.Name);
     }
 
-    private async Task ResetToDhcpCoreAsync(CancellationToken cancellationToken)
+    private async Task ResetToDhcpCoreAsync(string? adapterIdOrName, CancellationToken cancellationToken)
     {
-        var targetAdapter = await ResolveTargetAdapterAsync(cancellationToken).ConfigureAwait(false);
+        var targetAdapter = await ResolveTargetAdapterAsync(adapterIdOrName, cancellationToken).ConfigureAwait(false);
         EnsureAdministrator();
 
-        var script = WindowsDnsCommandBuilder.BuildResetScript(targetAdapter.Name, targetAdapter.SupportedStacks);
-        await ExecutePowerShellAsync(script, $"reset DNS to DHCP on adapter '{targetAdapter.Name}'", cancellationToken).ConfigureAwait(false);
+        var interfaceTarget = GetInterfaceTarget(targetAdapter);
+        var commands = WindowsDnsCommandBuilder.BuildResetCommands(interfaceTarget, targetAdapter.SupportedStacks);
+
+        await ExecuteCommandsAsync(commands, $"reset DNS to DHCP on adapter '{targetAdapter.Name}'", cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Reset DNS to DHCP on adapter {AdapterName}.", targetAdapter.Name);
     }
 
-    private async Task<NetworkAdapter> ResolveTargetAdapterAsync(CancellationToken cancellationToken)
+    private async Task<NetworkAdapter> ResolveTargetAdapterAsync(string? adapterIdOrName, CancellationToken cancellationToken)
     {
-        var selectedAdapter = await networkAdapterService.GetDefaultAdapterAsync(cancellationToken).ConfigureAwait(false);
+        var selectedAdapter = await networkAdapterService.GetSelectedAdapterAsync(adapterIdOrName, cancellationToken).ConfigureAwait(false);
 
         if (selectedAdapter is null)
         {
+            if (!string.IsNullOrWhiteSpace(adapterIdOrName))
+            {
+                throw new NetworkAdapterNotFoundException($"Network adapter '{adapterIdOrName}' was not found.");
+            }
+
             throw new NetworkAdapterNotFoundException("No suitable network adapter was selected.");
         }
 
@@ -238,21 +256,37 @@ public sealed class WindowsDnsManager(
         }
     }
 
-    private async Task ExecutePowerShellAsync(string script, string operationDescription, CancellationToken cancellationToken)
+    private static string GetInterfaceTarget(NetworkAdapter adapter)
     {
-        var encodedCommand = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
+        return adapter.InterfaceIndex?.ToString(CultureInfo.InvariantCulture) ?? adapter.Name;
+    }
+
+    private async Task ExecuteCommandsAsync(
+        IReadOnlyList<WindowsProcessCommand> commands,
+        string operationDescription,
+        CancellationToken cancellationToken)
+    {
+        foreach (var command in commands)
+        {
+            await ExecuteCommandAsync(command, operationDescription, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task ExecuteCommandAsync(
+        WindowsProcessCommand command,
+        string operationDescription,
+        CancellationToken cancellationToken)
+    {
         using var process = new Process
         {
             StartInfo = new ProcessStartInfo
             {
-                FileName = "powershell.exe",
-                Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand {encodedCommand}",
+                FileName = command.FileName,
+                Arguments = command.Arguments,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8,
             },
         };
 
@@ -260,12 +294,12 @@ public sealed class WindowsDnsManager(
         {
             if (!process.Start())
             {
-                throw new DnsOperationFailedException($"Failed to start PowerShell to {operationDescription}.");
+                throw new DnsOperationFailedException($"Failed to start '{command.FileName}' to {operationDescription}.");
             }
         }
         catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
         {
-            throw new DnsOperationFailedException($"Failed to start PowerShell to {operationDescription}.", exception);
+            throw new DnsOperationFailedException($"Failed to start '{command.FileName}' to {operationDescription}.", exception);
         }
 
         using var cancellationRegistration = cancellationToken.Register(() =>
@@ -299,14 +333,20 @@ public sealed class WindowsDnsManager(
                 ? standardError
                 : !string.IsNullOrWhiteSpace(standardOutput)
                     ? standardOutput
-                    : $"PowerShell exited with code {process.ExitCode}.";
+                    : $"{command.FileName} exited with code {process.ExitCode}.";
 
-            throw new DnsOperationFailedException($"Failed to {operationDescription}: {details}");
+            throw new DnsOperationFailedException(
+                $"Failed to {operationDescription}. Command: {command.FileName} {command.Arguments}. Details: {details}");
         }
 
         if (!string.IsNullOrWhiteSpace(standardOutput))
         {
-            logger.LogDebug("PowerShell output for operation '{OperationDescription}': {Output}", operationDescription, standardOutput);
+            logger.LogDebug(
+                "Command output for operation '{OperationDescription}' ({CommandFileName} {CommandArguments}): {Output}",
+                operationDescription,
+                command.FileName,
+                command.Arguments,
+                standardOutput);
         }
     }
 }

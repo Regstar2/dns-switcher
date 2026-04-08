@@ -13,4 +13,10 @@ public sealed record DnsProfile
     public List<string> Ipv4 { get; init; } = [];
 
     public List<string> Ipv6 { get; init; } = [];
+
+    public List<string> Tags { get; init; } = [];
+
+    public List<string> TestDomains { get; init; } = [];
+
+    public List<string> TestUrls { get; init; } = [];
 }

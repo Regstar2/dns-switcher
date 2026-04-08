@@ -24,14 +24,14 @@ Windows utility for quickly managing DNS profiles.
 ```powershell
 dotnet build DnsSwitcher.sln
 dotnet test DnsSwitcher.sln
-dotnet run --project src/DnsSwitcher.Cli -- paths
-dotnet run --project src/DnsSwitcher.Cli -- list
+dotnet run --project src/DnsSwitcher.Cli
+dotnet run --project src/DnsSwitcher.Cli -- profiles
 dotnet run --project src/DnsSwitcher.Cli -- adapters
 dotnet run --project src/DnsSwitcher.Cli -- status
-dotnet run --project src/DnsSwitcher.Cli -- validate
-dotnet run --project src/DnsSwitcher.Cli -- switch <profile-id>
-dotnet run --project src/DnsSwitcher.Cli -- enable <profile-id>
-dotnet run --project src/DnsSwitcher.Cli -- disable
+dotnet run --project src/DnsSwitcher.Cli -- apply <profile-id>
+dotnet run --project src/DnsSwitcher.Cli -- reset
+dotnet run --project src/DnsSwitcher.Cli -- validate-config
+dotnet run --project src/DnsSwitcher.Cli -- help
 ```
 
 Changing DNS settings requires administrator privileges on Windows.
@@ -83,3 +83,34 @@ Changing DNS settings requires administrator privileges on Windows.
   - adapter disabled;
   - insufficient privileges;
   - failed Windows DNS command execution.
+
+## v0.6 scope
+
+- Console/CLI MVP with two modes:
+  - interactive console menu when started without arguments;
+  - command mode when started with arguments.
+- Commands:
+  - `profiles`
+  - `adapters`
+  - `status`
+  - `apply <profile-id>`
+  - `reset`
+  - `validate-config`
+- Global options:
+  - `--adapter <id|name>`
+  - `--config <path>`
+- Improved help and stable exit codes for command mode.
+- Legacy aliases preserved:
+  - `list -> profiles`
+  - `switch`, `enable -> apply`
+  - `disable -> reset`
+  - `validate -> validate-config`
+
+## Cross-Cutting Requirements
+
+- `paths` was removed from the public CLI surface. It was only a portable-debug helper, not a user scenario.
+- Russian language support and full i18n are required for the final product.
+- All user-facing strings in CLI, UI and tray should move to a centralized localization mechanism.
+- English should remain as a fallback language.
+- Centralized profile catalogs/import sources are a valid next step, but are not implemented yet.
+- Private DNS profiles must stay in local ignored config files and must not be committed to the repository.
