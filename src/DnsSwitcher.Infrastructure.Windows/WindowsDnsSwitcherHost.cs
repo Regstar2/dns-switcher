@@ -1,6 +1,7 @@
 using System.Runtime.Versioning;
 using DnsSwitcher.Core.Abstractions;
 using DnsSwitcher.Core.Services;
+using DnsSwitcher.Infrastructure.Windows.Agent;
 using DnsSwitcher.Infrastructure.Windows.Adapters;
 using DnsSwitcher.Infrastructure.Windows.Configuration;
 using DnsSwitcher.Infrastructure.Windows.Dns;
@@ -22,6 +23,9 @@ public sealed class WindowsDnsSwitcherHost : IDisposable
         ProfileService = new DnsProfileService(ProfileStore);
         DnsManager = new WindowsDnsManager(NetworkAdapterService, ProfileService, loggerFactory.CreateLogger<WindowsDnsManager>());
         DnsSwitchService = new DnsSwitchService(ProfileService, DnsManager);
+        AgentClient = new NamedPipeDnsAgentClient(loggerFactory.CreateLogger<NamedPipeDnsAgentClient>());
+        AgentDnsSwitchService = new AgentAwareDnsSwitchService(ProfileService, DnsSwitchService, AgentClient);
+        AgentServiceManager = new WindowsAgentServiceManager(loggerFactory.CreateLogger<WindowsAgentServiceManager>());
     }
 
     public PortableAppPaths Paths { get; }
@@ -39,6 +43,12 @@ public sealed class WindowsDnsSwitcherHost : IDisposable
     public DnsProfileService ProfileService { get; }
 
     public DnsSwitchService DnsSwitchService { get; }
+
+    public IDnsAgentClient AgentClient { get; }
+
+    public AgentAwareDnsSwitchService AgentDnsSwitchService { get; }
+
+    public IAgentServiceManager AgentServiceManager { get; }
 
     public void Dispose()
     {

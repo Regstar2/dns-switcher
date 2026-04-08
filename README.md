@@ -31,8 +31,10 @@ dotnet run --project src/DnsSwitcher.Cli -- status
 dotnet run --project src/DnsSwitcher.Cli -- apply <profile-id>
 dotnet run --project src/DnsSwitcher.Cli -- reset
 dotnet run --project src/DnsSwitcher.Cli -- validate-config
+dotnet run --project src/DnsSwitcher.Cli -- service status
 dotnet run --project src/DnsSwitcher.Cli -- help
 dotnet run --project src/DnsSwitcher.Tray
+dotnet run --project src/DnsSwitcher.Agent.Windows
 ```
 
 Changing DNS settings requires administrator privileges on Windows.
@@ -118,6 +120,22 @@ Changing DNS settings requires administrator privileges on Windows.
 - Current DNS status is shown directly in the tray tooltip and menu header.
 - Tray state refreshes automatically and after each DNS switch operation.
 - Double-clicking the tray icon opens a detailed status dialog.
+
+## v0.7.1 scope
+
+- Prepare the architecture for removing Administrator requirements from tray forever.
+- Implement the first agent/service foundation for removing repeated elevation:
+  - privileged Windows Service;
+  - non-elevated `Tray`, `UI`, and normal `CLI`;
+  - Named Pipes between clients and the service.
+- Add CLI service commands:
+  - `service install`
+  - `service uninstall`
+  - `service start`
+  - `service stop`
+  - `service status`
+- Document the service install model and the portable-app constraint.
+- Detailed plan: `docs/v0.7.1-privileged-access-plan.md`
 
 ## Cross-Cutting Requirements
 

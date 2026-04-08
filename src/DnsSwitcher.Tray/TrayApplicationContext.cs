@@ -177,7 +177,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         var profile = profileSelectionService.GetProfileToEnable(configuration, status, preferredProfileId)
             ?? throw new DnsOperationFailedException("No static DNS profiles are configured.");
 
-        await host.DnsSwitchService.ApplyProfileAsync(profile.Id).ConfigureAwait(true);
+        await host.AgentDnsSwitchService.ApplyProfileAsync(profile.Id).ConfigureAwait(true);
 
         preferredProfileId = profile.Id;
         ShowSuccess($"DNS enabled: {profile.Name}");
@@ -190,7 +190,7 @@ public sealed class TrayApplicationContext : ApplicationContext
 
         SyncPreferredProfile(configuration, status);
 
-        await host.DnsSwitchService.ResetToDhcpAsync().ConfigureAwait(true);
+        await host.AgentDnsSwitchService.ResetToDhcpAsync().ConfigureAwait(true);
         ShowSuccess("DNS disabled. DHCP is now active.");
     }
 
@@ -204,7 +204,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         var profile = profileSelectionService.GetNextProfile(configuration, status, preferredProfileId)
             ?? throw new DnsOperationFailedException("No static DNS profiles are configured.");
 
-        await host.DnsSwitchService.ApplyProfileAsync(profile.Id).ConfigureAwait(true);
+        await host.AgentDnsSwitchService.ApplyProfileAsync(profile.Id).ConfigureAwait(true);
 
         preferredProfileId = profile.Id;
         ShowSuccess($"DNS switched: {profile.Name}");
@@ -212,7 +212,7 @@ public sealed class TrayApplicationContext : ApplicationContext
 
     private async Task ApplyProfileAsync(string profileId)
     {
-        await host.DnsSwitchService.ApplyProfileAsync(profileId).ConfigureAwait(true);
+        await host.AgentDnsSwitchService.ApplyProfileAsync(profileId).ConfigureAwait(true);
         preferredProfileId = profileId;
 
         var profile = await host.ProfileService.GetRequiredProfileAsync(profileId).ConfigureAwait(true);

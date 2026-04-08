@@ -60,13 +60,14 @@ public static class CliArgumentParser
         }
 
         var commandArgument = positionals.Count > 1 ? positionals[1] : null;
+        var secondaryArgument = positionals.Count > 2 ? positionals[2] : null;
 
         if (!ValidateArguments(command, positionals.Count, out var error))
         {
             return CliParseResult.Failure(error);
         }
 
-        return CliParseResult.Success(new CliInvocation(command, commandArgument, adapterSelection, configPath));
+        return CliParseResult.Success(new CliInvocation(command, commandArgument, adapterSelection, configPath, secondaryArgument));
     }
 
     private static bool IsHelpToken(string token)
@@ -142,6 +143,9 @@ public static class CliArgumentParser
             case "validate":
                 command = CliCommand.ValidateConfig;
                 return true;
+            case "service":
+                command = CliCommand.Service;
+                return true;
             case "help":
                 command = CliCommand.Help;
                 return true;
@@ -153,15 +157,16 @@ public static class CliArgumentParser
 
     private static bool ValidateArguments(CliCommand command, int positionalCount, out string error)
     {
-        var expectedCount = command switch
+        var isValid = command switch
         {
-            CliCommand.Apply => 2,
+            CliCommand.Apply => positionalCount == 2,
+            CliCommand.Service => positionalCount is 2 or 3,
             CliCommand.Help or CliCommand.Profiles or CliCommand.Adapters or CliCommand.Status
-                or CliCommand.Reset or CliCommand.ValidateConfig => 1,
-            _ => 1,
+                or CliCommand.Reset or CliCommand.ValidateConfig => positionalCount == 1,
+            _ => positionalCount == 1,
         };
 
-        if (positionalCount == expectedCount)
+        if (isValid)
         {
             error = string.Empty;
             return true;
@@ -175,6 +180,7 @@ public static class CliArgumentParser
             CliCommand.Profiles => "Usage: dns-switcher profiles [--config <path>]",
             CliCommand.Adapters => "Usage: dns-switcher adapters [--adapter <id|name>] [--config <path>]",
             CliCommand.ValidateConfig => "Usage: dns-switcher validate-config [--config <path>]",
+            CliCommand.Service => "Usage: dns-switcher service <install|uninstall|start|stop|status> [agent-exe-path]",
             _ => "Invalid command arguments.",
         };
 

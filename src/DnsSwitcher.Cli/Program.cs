@@ -88,6 +88,7 @@ static void PrintHelp()
           dns-switcher apply <profile-id>
           dns-switcher reset
           dns-switcher validate-config
+          dns-switcher service <install|uninstall|start|stop|status> [agent-exe-path]
 
         Options:
           --adapter <id|name>   Use a specific adapter instead of auto-selection
@@ -149,10 +150,14 @@ static async Task PrintStatusAsync(WindowsDnsSwitcherHost host, string? adapterS
     var configuration = await host.ProfileService.GetConfigurationAsync().ConfigureAwait(false);
     var activeProfile = await host.ProfileService.GetActiveProfileAsync().ConfigureAwait(false);
     var dnsStatus = await host.DnsManager.GetStatusAsync(adapterSelection).ConfigureAwait(false);
+    var agentAvailable = await host.AgentDnsSwitchService.IsAgentAvailableAsync().ConfigureAwait(false);
+    var agentServiceStatus = await host.AgentServiceManager.GetStatusAsync().ConfigureAwait(false);
 
     Console.WriteLine($"Portable data: {host.Paths.AppDirectory}");
     Console.WriteLine($"Profiles file: {host.Paths.ProfilesFilePath}");
     Console.WriteLine($"Adapter override: {adapterSelection ?? "<auto>"}");
+    Console.WriteLine($"Agent service status: {agentServiceStatus}");
+    Console.WriteLine($"Agent available: {agentAvailable}");
     Console.WriteLine($"Config active profile id: {configuration.ActiveProfileId ?? "<none>"}");
     Console.WriteLine($"Config active profile: {activeProfile?.Name ?? "<none>"}");
     Console.WriteLine($"Selected adapter: {dnsStatus.AdapterName ?? "<none>"}");
@@ -180,16 +185,56 @@ static async Task<int> ApplyProfileAsync(WindowsDnsSwitcherHost host, string? pr
         return CliExitCodes.InvalidArguments;
     }
 
-    await host.DnsSwitchService.ApplyProfileAsync(profileId, adapterSelection).ConfigureAwait(false);
+    await host.AgentDnsSwitchService.ApplyProfileAsync(profileId, adapterSelection).ConfigureAwait(false);
     Console.WriteLine($"Applied DNS profile '{profileId}' to adapter '{adapterSelection ?? "<auto>"}'.");
     return CliExitCodes.Success;
 }
 
 static async Task<int> ResetToDhcpAsync(WindowsDnsSwitcherHost host, string? adapterSelection)
 {
-    await host.DnsSwitchService.ResetToDhcpAsync(adapterSelection).ConfigureAwait(false);
+    await host.AgentDnsSwitchService.ResetToDhcpAsync(adapterSelection).ConfigureAwait(false);
     Console.WriteLine($"DNS settings were reset to DHCP for adapter '{adapterSelection ?? "<auto>"}'.");
     return CliExitCodes.Success;
+}
+
+static async Task<int> ExecuteServiceCommandAsync(
+    WindowsDnsSwitcherHost host,
+    string? serviceCommand,
+    string? agentPath)
+{
+    if (string.IsNullOrWhiteSpace(serviceCommand))
+    {
+        Console.Error.WriteLine("Service command is required. Usage: dns-switcher service <install|uninstall|start|stop|status> [agent-exe-path]");
+        return CliExitCodes.InvalidArguments;
+    }
+
+    switch (serviceCommand.Trim().ToLowerInvariant())
+    {
+        case "install":
+            await host.AgentServiceManager.InstallAsync(agentPath).ConfigureAwait(false);
+            Console.WriteLine($"DnsSwitcher Agent service installed{(string.IsNullOrWhiteSpace(agentPath) ? string.Empty : $" from '{agentPath}'")}.");
+            return CliExitCodes.Success;
+        case "uninstall":
+            await host.AgentServiceManager.UninstallAsync().ConfigureAwait(false);
+            Console.WriteLine("DnsSwitcher Agent service uninstalled.");
+            return CliExitCodes.Success;
+        case "start":
+            await host.AgentServiceManager.StartAsync().ConfigureAwait(false);
+            Console.WriteLine("DnsSwitcher Agent service started.");
+            return CliExitCodes.Success;
+        case "stop":
+            await host.AgentServiceManager.StopAsync().ConfigureAwait(false);
+            Console.WriteLine("DnsSwitcher Agent service stopped.");
+            return CliExitCodes.Success;
+        case "status":
+            var status = await host.AgentServiceManager.GetStatusAsync().ConfigureAwait(false);
+            Console.WriteLine($"DnsSwitcher Agent service status: {status}");
+            return CliExitCodes.Success;
+        default:
+            Console.Error.WriteLine($"Unknown service command: {serviceCommand}");
+            Console.Error.WriteLine("Usage: dns-switcher service <install|uninstall|start|stop|status> [agent-exe-path]");
+            return CliExitCodes.InvalidArguments;
+    }
 }
 
 static async Task PrintAdaptersAsync(WindowsDnsSwitcherHost host, string? adapterSelection)
@@ -263,6 +308,7 @@ static async Task<int> ExecuteCommandCoreAsync(WindowsDnsSwitcherHost host, CliI
         CliCommand.Apply => await ApplyProfileAsync(host, invocation.CommandArgument, invocation.AdapterSelection).ConfigureAwait(false),
         CliCommand.Reset => await ResetToDhcpAsync(host, invocation.AdapterSelection).ConfigureAwait(false),
         CliCommand.ValidateConfig => await ExecuteAndReturnSuccessAsync(() => ValidateConfigAsync(host)).ConfigureAwait(false),
+        CliCommand.Service => await ExecuteServiceCommandAsync(host, invocation.CommandArgument, invocation.SecondaryArgument).ConfigureAwait(false),
         CliCommand.Help => ExecuteHelp(),
         null => CliExitCodes.Success,
         _ => throw new InvalidOperationException($"Unsupported command: {invocation.Command}"),
@@ -290,6 +336,7 @@ static int HandleException(Exception exception, bool interactive)
         DnsProfileNotFoundException => CliExitCodes.ProfileNotFound,
         NetworkAdapterNotFoundException => CliExitCodes.AdapterError,
         NetworkAdapterDisabledException => CliExitCodes.AdapterError,
+        DnsAgentUnavailableException => CliExitCodes.DnsOperationFailed,
         DnsOperationRequiresAdminException => CliExitCodes.AdminRequired,
         DnsOperationFailedException => CliExitCodes.DnsOperationFailed,
         _ => CliExitCodes.UnexpectedError,
@@ -324,6 +371,7 @@ static void WriteException(Exception exception, bool interactive)
     if (exception is DnsProfileNotFoundException
         or NetworkAdapterNotFoundException
         or NetworkAdapterDisabledException
+        or DnsAgentUnavailableException
         or DnsOperationRequiresAdminException
         or DnsOperationFailedException)
     {
@@ -389,6 +437,7 @@ static void PrintInteractiveHeader(WindowsDnsSwitcherHost host, CliInvocation se
     Console.WriteLine("4. Apply profile");
     Console.WriteLine("5. Reset to DHCP");
     Console.WriteLine("6. Validate config");
+    Console.WriteLine("7. Agent service status");
     Console.WriteLine("0. Exit");
     Console.WriteLine();
 }
@@ -406,6 +455,7 @@ static async Task<CliInvocation?> CreateInteractiveInvocationAsync(
         "4" => await CreateApplyInvocationAsync(host, sessionInvocation).ConfigureAwait(false),
         "5" => sessionInvocation with { Command = CliCommand.Reset },
         "6" => sessionInvocation with { Command = CliCommand.ValidateConfig },
+        "7" => sessionInvocation with { Command = CliCommand.Service, CommandArgument = "status" },
         _ => InvalidInteractiveChoice(),
     };
 }

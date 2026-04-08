@@ -3,11 +3,11 @@ using System.Diagnostics;
 using System.Net.NetworkInformation;
 using System.Runtime.Versioning;
 using System.Globalization;
-using System.Security.Principal;
 using DnsSwitcher.Core.Abstractions;
 using DnsSwitcher.Core.Exceptions;
 using DnsSwitcher.Core.Models;
 using DnsSwitcher.Core.Services;
+using DnsSwitcher.Infrastructure.Windows.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 
@@ -247,10 +247,7 @@ public sealed class WindowsDnsManager(
 
     private static void EnsureAdministrator()
     {
-        using var identity = WindowsIdentity.GetCurrent();
-        var principal = new WindowsPrincipal(identity);
-
-        if (!principal.IsInRole(WindowsBuiltInRole.Administrator))
+        if (!WindowsPrivilegeHelper.IsAdministratorOrLocalSystem())
         {
             throw new DnsOperationRequiresAdminException();
         }

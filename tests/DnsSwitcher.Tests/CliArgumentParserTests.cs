@@ -45,4 +45,16 @@ public sealed class CliArgumentParserTests
         Assert.False(result.IsSuccess);
         Assert.Contains("Usage: dns-switcher apply <profile-id>", result.ErrorMessage);
     }
+
+    [Fact]
+    public void Parse_ReadsServiceCommand_AndOptionalAgentPath()
+    {
+        var result = CliArgumentParser.Parse(["service", "install", "C:\\tools\\DnsSwitcher.Agent.Windows.exe"]);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Invocation);
+        Assert.Equal(CliCommand.Service, result.Invocation!.Command);
+        Assert.Equal("install", result.Invocation.CommandArgument);
+        Assert.Equal("C:\\tools\\DnsSwitcher.Agent.Windows.exe", result.Invocation.SecondaryArgument);
+    }
 }

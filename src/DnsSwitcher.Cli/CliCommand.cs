@@ -9,4 +9,5 @@ public enum CliCommand
     Apply = 4,
     Reset = 5,
     ValidateConfig = 6,
+    Service = 7,
 }
