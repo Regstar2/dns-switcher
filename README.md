@@ -32,6 +32,7 @@ dotnet run --project src/DnsSwitcher.Cli -- apply <profile-id>
 dotnet run --project src/DnsSwitcher.Cli -- reset
 dotnet run --project src/DnsSwitcher.Cli -- validate-config
 dotnet run --project src/DnsSwitcher.Cli -- help
+dotnet run --project src/DnsSwitcher.Tray
 ```
 
 Changing DNS settings requires administrator privileges on Windows.
@@ -105,6 +106,18 @@ Changing DNS settings requires administrator privileges on Windows.
   - `switch`, `enable -> apply`
   - `disable -> reset`
   - `validate -> validate-config`
+
+## v0.7 scope
+
+- Separate tray application with a live tray icon.
+- Tray context menu actions:
+  - `Enable DNS`
+  - `Disable DNS`
+  - `Switch Next`
+  - `Show Profiles`
+- Current DNS status is shown directly in the tray tooltip and menu header.
+- Tray state refreshes automatically and after each DNS switch operation.
+- Double-clicking the tray icon opens a detailed status dialog.
 
 ## Cross-Cutting Requirements
 
