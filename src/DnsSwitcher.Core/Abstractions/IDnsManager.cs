@@ -8,5 +8,5 @@ public interface IDnsManager
 
     Task ApplyProfileAsync(DnsProfile profile, CancellationToken cancellationToken = default);
 
-    Task DisableAsync(CancellationToken cancellationToken = default);
+    Task ResetToDhcpAsync(CancellationToken cancellationToken = default);
 }

@@ -29,9 +29,12 @@ dotnet run --project src/DnsSwitcher.Cli -- list
 dotnet run --project src/DnsSwitcher.Cli -- adapters
 dotnet run --project src/DnsSwitcher.Cli -- status
 dotnet run --project src/DnsSwitcher.Cli -- validate
+dotnet run --project src/DnsSwitcher.Cli -- switch <profile-id>
+dotnet run --project src/DnsSwitcher.Cli -- enable <profile-id>
+dotnet run --project src/DnsSwitcher.Cli -- disable
 ```
 
-DNS switching itself is intentionally not implemented in v0.1. It will require a separate administrator-permission-aware Windows infrastructure layer.
+Changing DNS settings requires administrator privileges on Windows.
 
 ## v0.2 scope
 
@@ -58,3 +61,25 @@ DNS switching itself is intentionally not implemented in v0.1. It will require a
   - default gateway presence.
 - Default adapter selection heuristics with unit tests.
 - CLI command `adapters` for manual inspection.
+
+## v0.4 scope
+
+- Read current DNS status for the selected adapter.
+- Detect effective DNS mode:
+  - `Dhcp`
+  - `Manual`
+  - `Mixed`
+- Read current IPv4 and IPv6 DNS server lists.
+- Match current system DNS settings to a configured profile.
+
+## v0.5 scope
+
+- Apply a DNS profile to the selected adapter.
+- Reset DNS settings to DHCP.
+- Check administrator privileges before changing DNS settings.
+- Handle primary operational errors:
+  - profile not found;
+  - adapter not found;
+  - adapter disabled;
+  - insufficient privileges;
+  - failed Windows DNS command execution.

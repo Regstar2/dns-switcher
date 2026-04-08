@@ -1,8 +1,12 @@
+using System.Runtime.Versioning;
+using DnsSwitcher.Core.Exceptions;
 using DnsSwitcher.Core.Services;
 using DnsSwitcher.Infrastructure.Windows;
 using DnsSwitcher.Infrastructure.Windows.Configuration;
 using DnsSwitcher.Infrastructure.Windows.Logging;
 using Microsoft.Extensions.Logging;
+
+[assembly: SupportedOSPlatform("windows")]
 
 try
 {
@@ -24,6 +28,31 @@ catch (InvalidDataException exception)
 {
     Console.Error.WriteLine(exception.Message);
     return 3;
+}
+catch (DnsProfileNotFoundException exception)
+{
+    Console.Error.WriteLine(exception.Message);
+    return 4;
+}
+catch (NetworkAdapterNotFoundException exception)
+{
+    Console.Error.WriteLine(exception.Message);
+    return 5;
+}
+catch (NetworkAdapterDisabledException exception)
+{
+    Console.Error.WriteLine(exception.Message);
+    return 5;
+}
+catch (DnsOperationRequiresAdminException exception)
+{
+    Console.Error.WriteLine(exception.Message);
+    return 6;
+}
+catch (DnsOperationFailedException exception)
+{
+    Console.Error.WriteLine(exception.Message);
+    return 7;
 }
 
 static async Task<int> RunAsync(string[] args)
@@ -79,9 +108,10 @@ static async Task<int> RunAsync(string[] args)
 
         case "switch":
         case "enable":
+            return await ApplyProfileAsync(host, args.Skip(1).FirstOrDefault()).ConfigureAwait(false);
+
         case "disable":
-            Console.Error.WriteLine($"Command '{command}' is planned after v0.1 and is not implemented yet.");
-            return 2;
+            return await ResetToDhcpAsync(host).ConfigureAwait(false);
 
         default:
             Console.Error.WriteLine($"Unknown command: {command}");
@@ -101,10 +131,8 @@ static void PrintHelp()
           dns-switcher init     Create profiles.json if it does not exist
           dns-switcher list     List configured DNS profiles
           dns-switcher adapters List detected network adapters
-          dns-switcher status   Show current skeleton DNS status
+          dns-switcher status   Show current DNS status
           dns-switcher validate Validate profiles.json
-
-        Planned:
           dns-switcher switch <profile-id>
           dns-switcher enable <profile-id>
           dns-switcher disable
@@ -157,6 +185,12 @@ static async Task PrintStatusAsync(WindowsDnsSwitcherHost host)
     Console.WriteLine($"Config active profile id: {configuration.ActiveProfileId ?? "<none>"}");
     Console.WriteLine($"Config active profile: {activeProfile?.Name ?? "<none>"}");
     Console.WriteLine($"Selected adapter: {dnsStatus.AdapterName ?? "<none>"}");
+    Console.WriteLine($"Current DNS mode: {dnsStatus.Mode}");
+    Console.WriteLine($"Matched profile id: {dnsStatus.MatchedProfileId ?? "<none>"}");
+    Console.WriteLine($"IPv4 mode: {dnsStatus.Ipv4.Mode}");
+    Console.WriteLine($"IPv4 DNS: {(dnsStatus.Ipv4.NameServers.Count == 0 ? "<none>" : string.Join(", ", dnsStatus.Ipv4.NameServers))}");
+    Console.WriteLine($"IPv6 mode: {dnsStatus.Ipv6.Mode}");
+    Console.WriteLine($"IPv6 DNS: {(dnsStatus.Ipv6.NameServers.Count == 0 ? "<none>" : string.Join(", ", dnsStatus.Ipv6.NameServers))}");
     Console.WriteLine($"System managed by app: {dnsStatus.IsManaged}");
     Console.WriteLine($"System DNS details: {dnsStatus.Details}");
 }
@@ -165,6 +199,26 @@ static async Task ValidateProfilesAsync(WindowsDnsSwitcherHost host)
 {
     _ = await host.ProfileStore.LoadAsync().ConfigureAwait(false);
     Console.WriteLine($"profiles.json is valid: {host.Paths.ProfilesFilePath}");
+}
+
+static async Task<int> ApplyProfileAsync(WindowsDnsSwitcherHost host, string? profileId)
+{
+    if (string.IsNullOrWhiteSpace(profileId))
+    {
+        Console.Error.WriteLine("Profile id is required. Usage: dns-switcher switch <profile-id>");
+        return 1;
+    }
+
+    await host.DnsSwitchService.ApplyProfileAsync(profileId).ConfigureAwait(false);
+    Console.WriteLine($"Applied DNS profile: {profileId}");
+    return 0;
+}
+
+static async Task<int> ResetToDhcpAsync(WindowsDnsSwitcherHost host)
+{
+    await host.DnsSwitchService.ResetToDhcpAsync().ConfigureAwait(false);
+    Console.WriteLine("DNS settings were reset to DHCP.");
+    return 0;
 }
 
 static async Task PrintAdaptersAsync(WindowsDnsSwitcherHost host)

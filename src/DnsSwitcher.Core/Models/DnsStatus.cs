@@ -2,7 +2,9 @@ namespace DnsSwitcher.Core.Models;
 
 public sealed record DnsStatus(
     bool IsManaged,
-    string? ActiveProfileId,
+    string? MatchedProfileId,
     string? AdapterName,
-    IReadOnlyList<string> NameServers,
+    DnsMode Mode,
+    DnsServerState Ipv4,
+    DnsServerState Ipv6,
     string Details);

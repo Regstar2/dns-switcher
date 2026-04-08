@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using DnsSwitcher.Core.Abstractions;
 using DnsSwitcher.Core.Services;
 using DnsSwitcher.Infrastructure.Windows.Adapters;
@@ -7,6 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace DnsSwitcher.Infrastructure.Windows;
 
+[SupportedOSPlatform("windows")]
 public sealed class WindowsDnsSwitcherHost : IDisposable
 {
     public WindowsDnsSwitcherHost(PortableAppPaths paths, ILoggerFactory loggerFactory)
@@ -17,8 +19,9 @@ public sealed class WindowsDnsSwitcherHost : IDisposable
         ProfileStore = new JsonDnsProfileStore(paths, loggerFactory.CreateLogger<JsonDnsProfileStore>());
         NetworkAdapterProvider = new WindowsNetworkAdapterProvider(loggerFactory.CreateLogger<WindowsNetworkAdapterProvider>());
         NetworkAdapterService = new NetworkAdapterService(NetworkAdapterProvider);
-        DnsManager = new WindowsDnsManager(NetworkAdapterService, loggerFactory.CreateLogger<WindowsDnsManager>());
         ProfileService = new DnsProfileService(ProfileStore);
+        DnsManager = new WindowsDnsManager(NetworkAdapterService, ProfileService, loggerFactory.CreateLogger<WindowsDnsManager>());
+        DnsSwitchService = new DnsSwitchService(ProfileService, DnsManager);
     }
 
     public PortableAppPaths Paths { get; }
@@ -34,6 +37,8 @@ public sealed class WindowsDnsSwitcherHost : IDisposable
     public IDnsManager DnsManager { get; }
 
     public DnsProfileService ProfileService { get; }
+
+    public DnsSwitchService DnsSwitchService { get; }
 
     public void Dispose()
     {
