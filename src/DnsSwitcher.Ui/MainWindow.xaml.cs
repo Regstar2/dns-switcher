@@ -121,7 +121,7 @@ public partial class MainWindow : Window
     private async void OnTestSitesClicked(object sender, RoutedEventArgs e)
     {
         logger.LogInformation("UI requested site test.");
-        await RunSiteConnectivityTestAsync().ConfigureAwait(true);
+        await RunSiteTestAsync().ConfigureAwait(true);
     }
 
     private async void OnResetClicked(object sender, RoutedEventArgs e)
@@ -607,7 +607,7 @@ public partial class MainWindow : Window
         {
             var result = await App.Host.DnsTester.TestCurrentDnsAsync(GetSelectedAdapterValue()).ConfigureAwait(true);
             SetBusyState(false, showBusyMessage: false);
-            SetOperationStatus(BuildDnsTestSummary(result), isError: result.Status == DnsTestStatus.Failed);
+            SetOperationStatus(DiagnosticTextFormatter.BuildDnsStatusSummary(result), isError: result.Status == DnsTestStatus.Failed);
         }
         catch (Exception exception)
         {
@@ -616,7 +616,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task RunSiteConnectivityTestAsync()
+    private async Task RunSiteTestAsync()
     {
         if (isBusy)
         {
@@ -629,10 +629,10 @@ public partial class MainWindow : Window
         {
             var result = await App.Host.ConnectivityTester.TestCurrentSitesAsync(GetSelectedAdapterValue()).ConfigureAwait(true);
             SetBusyState(false, showBusyMessage: false);
-            SetOperationStatus(BuildSiteConnectivitySummary(result), isError: result.Status is ConnectivityTestStatus.Blocked or ConnectivityTestStatus.Failed);
+            SetOperationStatus(DiagnosticTextFormatter.BuildSiteStatusSummary(result), isError: result.Status is ConnectivityTestStatus.Blocked or ConnectivityTestStatus.Failed);
             TextResultWindow.ShowDialog(
                 "DnsSwitcher Site Test",
-                BuildSiteConnectivityDetails(result),
+                DiagnosticTextFormatter.BuildSiteDetails(result),
                 this);
         }
         catch (Exception exception)
@@ -667,100 +667,4 @@ public partial class MainWindow : Window
             : DateTime.MinValue;
     }
 
-    private static string BuildDnsTestSummary(DnsTestResult result)
-    {
-        var parts = new List<string>
-        {
-            $"DNS test {result.Status}",
-            $"domains: {result.Domains.Count}",
-            $"servers: {result.DnsServers.Count}",
-            $"avg latency: {FormatLatency(result.AverageLatency)}",
-        };
-
-        if (result.DomainResults.Count > 0)
-        {
-            parts.Add(string.Join(
-                "; ",
-                result.DomainResults.Select(domainResult =>
-                    $"{domainResult.Domain}: {domainResult.Status} ({domainResult.SuccessfulAttempts}/{domainResult.TotalAttempts})")));
-        }
-
-        return string.Join(" | ", parts);
-    }
-
-    private static string FormatLatency(TimeSpan? latency)
-    {
-        return latency is null
-            ? "n/a"
-            : $"{Math.Round(latency.Value.TotalMilliseconds, MidpointRounding.AwayFromZero):0} ms";
-    }
-
-    private static string BuildSiteConnectivitySummary(ConnectivityTestResult result)
-    {
-        var parts = new List<string>
-        {
-            $"Site test {result.Status}",
-            $"urls: {result.Urls.Count}",
-            $"avg latency: {FormatLatency(result.AverageLatency)}",
-        };
-
-        if (result.UrlResults.Count > 0)
-        {
-            parts.Add(string.Join(
-                "; ",
-                result.UrlResults.Select(urlResult =>
-                    $"{urlResult.Url}: {urlResult.Status} ({urlResult.SuccessfulAttempts}/{urlResult.TotalAttempts})")));
-        }
-
-        return string.Join(" | ", parts);
-    }
-
-    private static string BuildSiteConnectivityDetails(ConnectivityTestResult result)
-    {
-        var lines = new List<string>
-        {
-            $"Status: {result.Status}",
-            $"Adapter: {result.AdapterName ?? "<none>"}",
-            $"Profile: {FormatProfileLabel(result.ProfileName, result.ProfileId)}",
-            $"Average latency: {FormatLatency(result.AverageLatency)}",
-            string.Empty,
-        };
-
-        if (result.UrlResults.Count == 0)
-        {
-            lines.Add(result.Details);
-            return string.Join(Environment.NewLine, lines);
-        }
-
-        foreach (var urlResult in result.UrlResults)
-        {
-            lines.Add($"{urlResult.Url}");
-            lines.Add($"  Status: {urlResult.Status}");
-            lines.Add($"  Attempts: {urlResult.SuccessfulAttempts}/{urlResult.TotalAttempts}");
-            lines.Add($"  HTTP: {(urlResult.HttpStatusCode?.ToString() ?? "<none>")} via {urlResult.HttpMethod}");
-            lines.Add($"  DNS: {urlResult.Dns.Details}");
-            lines.Add($"  TCP: {urlResult.Connect.Details}");
-
-            if (!string.Equals(urlResult.Tls.Details, "TLS not required.", StringComparison.Ordinal))
-            {
-                lines.Add($"  TLS: {urlResult.Tls.Details}");
-            }
-
-            lines.Add($"  HTTP details: {urlResult.Http.Details}");
-            lines.Add($"  Summary: {urlResult.Details}");
-            lines.Add(string.Empty);
-        }
-
-        lines.Add(result.Details);
-        return string.Join(Environment.NewLine, lines);
-    }
-
-    private static string FormatProfileLabel(string? profileName, string? profileId)
-    {
-        return string.IsNullOrWhiteSpace(profileId)
-            ? "<none>"
-            : string.IsNullOrWhiteSpace(profileName)
-                ? profileId
-                : $"{profileName} ({profileId})";
-    }
 }

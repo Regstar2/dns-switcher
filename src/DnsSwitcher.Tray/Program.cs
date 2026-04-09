@@ -1,6 +1,4 @@
 using DnsSwitcher.Infrastructure.Windows;
-using DnsSwitcher.Infrastructure.Windows.Configuration;
-using DnsSwitcher.Infrastructure.Windows.Logging;
 using DnsSwitcher.Infrastructure.Windows.Presentation;
 using Microsoft.Extensions.Logging;
 
@@ -40,11 +38,7 @@ internal static class Program
 
     private static WindowsDnsSwitcherHost CreateHost()
     {
-        var paths = PortableAppPaths.CreateDefault();
-        paths.EnsureDirectories();
-        var loggerFactory = DnsLogging.CreateLoggerFactory(paths);
-
-        return new WindowsDnsSwitcherHost(paths, loggerFactory);
+        return WindowsDnsSwitcherHostFactory.CreateDefault();
     }
 
     private static void RegisterGlobalExceptionHandlers()

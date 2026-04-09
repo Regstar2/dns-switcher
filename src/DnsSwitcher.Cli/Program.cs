@@ -4,8 +4,7 @@ using DnsSwitcher.Core.Exceptions;
 using DnsSwitcher.Core.Models;
 using DnsSwitcher.Core.Services;
 using DnsSwitcher.Infrastructure.Windows;
-using DnsSwitcher.Infrastructure.Windows.Configuration;
-using DnsSwitcher.Infrastructure.Windows.Logging;
+using DnsSwitcher.Infrastructure.Windows.Presentation;
 using Microsoft.Extensions.Logging;
 
 [assembly: SupportedOSPlatform("windows")]
@@ -68,9 +67,27 @@ static async Task<int> RunAsync(string[] args)
     }
 
     using var host = CreateHost(invocation);
-    await host.ProfileService.EnsureInitializedAsync().ConfigureAwait(false);
+    var logger = host.LoggerFactory.CreateLogger("DnsSwitcher.Cli");
 
-    return await ExecuteCommandWithHandlingAsync(host, invocation, interactive: false).ConfigureAwait(false);
+    try
+    {
+        logger.LogInformation(
+            "DnsSwitcher CLI starting. Command: {Command}. Interactive: {Interactive}. Adapter: {AdapterSelection}. Config: {ConfigPath}",
+            invocation.Command?.ToString() ?? "<interactive>",
+            invocation.IsInteractive,
+            invocation.AdapterSelection ?? "<auto>",
+            invocation.ConfigPath ?? "<default>");
+
+        await host.ProfileService.EnsureInitializedAsync().ConfigureAwait(false);
+        var exitCode = await ExecuteCommandWithHandlingAsync(host, invocation, interactive: false).ConfigureAwait(false);
+        logger.LogInformation("DnsSwitcher CLI finished with exit code {ExitCode}.", exitCode);
+        return exitCode;
+    }
+    catch (Exception exception)
+    {
+        logger.LogError(exception, "DnsSwitcher CLI failed.");
+        throw;
+    }
 }
 
 static void PrintHelp()
@@ -185,11 +202,11 @@ static async Task PrintDnsTestAsync(WindowsDnsSwitcherHost host, string? adapter
 
     Console.WriteLine($"Adapter target: {adapterSelection ?? "<auto>"}");
     Console.WriteLine($"Selected adapter: {result.AdapterName ?? "<none>"}");
-    Console.WriteLine($"Test profile: {FormatProfileLabel(result.ProfileName, result.ProfileId)}");
+    Console.WriteLine($"Test profile: {DiagnosticTextFormatter.FormatProfileLabel(result.ProfileName, result.ProfileId)}");
     Console.WriteLine($"DNS servers: {(result.DnsServers.Count == 0 ? "<none>" : string.Join(", ", result.DnsServers))}");
     Console.WriteLine($"Domains: {(result.Domains.Count == 0 ? "<none>" : string.Join(", ", result.Domains))}");
     Console.WriteLine($"Overall status: {result.Status}");
-    Console.WriteLine($"Average latency: {FormatLatency(result.AverageLatency)}");
+    Console.WriteLine($"Average latency: {DiagnosticTextFormatter.FormatLatency(result.AverageLatency)}");
     Console.WriteLine($"Details: {result.Details}");
 
     if (result.DomainResults.Count == 0)
@@ -204,8 +221,8 @@ static async Task PrintDnsTestAsync(WindowsDnsSwitcherHost host, string? adapter
         Console.WriteLine(
             $"  - {domainResult.Domain}: {domainResult.Status} | " +
             $"success {domainResult.SuccessfulAttempts}/{domainResult.TotalAttempts} | " +
-            $"avg {FormatLatency(domainResult.AverageLatency)} | " +
-            $"best {FormatLatency(domainResult.BestLatency)}");
+            $"avg {DiagnosticTextFormatter.FormatLatency(domainResult.AverageLatency)} | " +
+            $"best {DiagnosticTextFormatter.FormatLatency(domainResult.BestLatency)}");
         Console.WriteLine($"    {domainResult.Details}");
     }
 }
@@ -216,10 +233,10 @@ static async Task PrintSiteConnectivityTestAsync(WindowsDnsSwitcherHost host, st
 
     Console.WriteLine($"Adapter target: {adapterSelection ?? "<auto>"}");
     Console.WriteLine($"Selected adapter: {result.AdapterName ?? "<none>"}");
-    Console.WriteLine($"Test profile: {FormatProfileLabel(result.ProfileName, result.ProfileId)}");
+    Console.WriteLine($"Test profile: {DiagnosticTextFormatter.FormatProfileLabel(result.ProfileName, result.ProfileId)}");
     Console.WriteLine($"URLs: {(result.Urls.Count == 0 ? "<none>" : string.Join(", ", result.Urls))}");
     Console.WriteLine($"Overall status: {result.Status}");
-    Console.WriteLine($"Average latency: {FormatLatency(result.AverageLatency)}");
+    Console.WriteLine($"Average latency: {DiagnosticTextFormatter.FormatLatency(result.AverageLatency)}");
     Console.WriteLine($"Details: {result.Details}");
 
     if (result.UrlResults.Count == 0)
@@ -234,7 +251,7 @@ static async Task PrintSiteConnectivityTestAsync(WindowsDnsSwitcherHost host, st
         Console.WriteLine(
             $"  - {urlResult.Url}: {urlResult.Status} | " +
             $"success {urlResult.SuccessfulAttempts}/{urlResult.TotalAttempts} | " +
-            $"avg {FormatLatency(urlResult.AverageLatency)} | " +
+            $"avg {DiagnosticTextFormatter.FormatLatency(urlResult.AverageLatency)} | " +
             $"http {(urlResult.HttpStatusCode?.ToString() ?? "<none>")} via {urlResult.HttpMethod}");
         Console.WriteLine($"    DNS: {urlResult.Dns.Details}");
         Console.WriteLine($"    TCP: {urlResult.Connect.Details}");
@@ -340,19 +357,7 @@ static async Task PrintAdaptersAsync(WindowsDnsSwitcherHost host, string? adapte
 
 static WindowsDnsSwitcherHost CreateHost(CliInvocation invocation)
 {
-    var paths = string.IsNullOrWhiteSpace(invocation.ConfigPath)
-        ? PortableAppPaths.CreateDefault()
-        : PortableAppPaths.CreateFromConfigPath(invocation.ConfigPath);
-
-    paths.EnsureDirectories();
-
-    var loggerFactory = LoggerFactory.Create(builder =>
-    {
-        builder.SetMinimumLevel(LogLevel.Information);
-        builder.AddProvider(new FileLoggerProvider(paths.LogFilePath));
-    });
-
-    return new WindowsDnsSwitcherHost(paths, loggerFactory);
+    return WindowsDnsSwitcherHostFactory.Create(invocation.ConfigPath);
 }
 
 static async Task<int> ExecuteCommandWithHandlingAsync(
@@ -360,12 +365,15 @@ static async Task<int> ExecuteCommandWithHandlingAsync(
     CliInvocation invocation,
     bool interactive)
 {
+    var logger = host.LoggerFactory.CreateLogger("DnsSwitcher.Cli");
+
     try
     {
         return await ExecuteCommandCoreAsync(host, invocation).ConfigureAwait(false);
     }
     catch (Exception exception)
     {
+        logger.LogError(exception, "CLI command {Command} failed.", invocation.Command?.ToString() ?? "<interactive>");
         return HandleException(exception, interactive);
     }
 }
@@ -609,22 +617,6 @@ static void PauseInteractive()
     Console.WriteLine();
     Console.Write("Press Enter to continue...");
     Console.ReadLine();
-}
-
-static string FormatLatency(TimeSpan? latency)
-{
-    return latency is null
-        ? "n/a"
-        : $"{Math.Round(latency.Value.TotalMilliseconds, MidpointRounding.AwayFromZero):0} ms";
-}
-
-static string FormatProfileLabel(string? profileName, string? profileId)
-{
-    return string.IsNullOrWhiteSpace(profileId)
-        ? "<none>"
-        : string.IsNullOrWhiteSpace(profileName)
-            ? profileId
-            : $"{profileName} ({profileId})";
 }
 
 static void TryConfigureConsoleEncoding()

@@ -135,6 +135,84 @@ public sealed class DnsTesterTests
         Assert.Contains("No DNS servers", result.Details);
     }
 
+    [Fact]
+    public async Task TestCurrentDnsAsync_ReturnsFailed_WhenAnyDomainFailsCompletely()
+    {
+        var configuration = AppConfig.CreateDefault();
+        var profileStore = new InMemoryProfileStore(configuration);
+        var dnsManager = new FakeDnsManager(new DnsStatus(
+            IsManaged: true,
+            MatchedProfileId: "google",
+            AdapterName: "Wi-Fi",
+            Mode: DnsMode.Manual,
+            Ipv4: new DnsServerState(DnsMode.Manual, ["8.8.8.8"]),
+            Ipv6: new DnsServerState(DnsMode.Manual, []),
+            Details: string.Empty));
+        var queryClient = new FakeDnsQueryClient
+        {
+            ResultsByDomain =
+            {
+                ["google.com"] = new Queue<DnsQueryProbeResult>(
+                [
+                    CreateSuccessfulProbe("8.8.8.8", 30),
+                    CreateSuccessfulProbe("8.8.8.8", 31),
+                    CreateSuccessfulProbe("8.8.8.8", 32),
+                ]),
+                ["github.com"] = new Queue<DnsQueryProbeResult>(
+                [
+                    CreateFailedProbe("8.8.8.8", "DNS query timed out."),
+                    CreateFailedProbe("8.8.8.8", "DNS query timed out."),
+                    CreateFailedProbe("8.8.8.8", "DNS query timed out."),
+                ]),
+            },
+        };
+        var tester = new DnsTester(new DnsProfileService(profileStore), dnsManager, queryClient, NullLogger<DnsTester>.Instance);
+
+        var result = await tester.TestCurrentDnsAsync();
+
+        Assert.Equal(DnsTestStatus.Failed, result.Status);
+        Assert.Contains(result.DomainResults, domainResult => domainResult.Domain == "github.com" && domainResult.Status == DnsTestStatus.Failed);
+    }
+
+    [Fact]
+    public async Task TestCurrentDnsAsync_ReturnsSlow_WhenAverageLatencyExceedsThreshold()
+    {
+        var configuration = AppConfig.CreateDefault();
+        var profileStore = new InMemoryProfileStore(configuration);
+        var dnsManager = new FakeDnsManager(new DnsStatus(
+            IsManaged: true,
+            MatchedProfileId: "google",
+            AdapterName: "Wi-Fi",
+            Mode: DnsMode.Manual,
+            Ipv4: new DnsServerState(DnsMode.Manual, ["8.8.8.8"]),
+            Ipv6: new DnsServerState(DnsMode.Manual, []),
+            Details: string.Empty));
+        var queryClient = new FakeDnsQueryClient
+        {
+            ResultsByDomain =
+            {
+                ["google.com"] = new Queue<DnsQueryProbeResult>(
+                [
+                    CreateSuccessfulProbe("8.8.8.8", 750),
+                    CreateSuccessfulProbe("8.8.8.8", 700),
+                    CreateSuccessfulProbe("8.8.8.8", 720),
+                ]),
+                ["github.com"] = new Queue<DnsQueryProbeResult>(
+                [
+                    CreateSuccessfulProbe("8.8.8.8", 680),
+                    CreateSuccessfulProbe("8.8.8.8", 690),
+                    CreateSuccessfulProbe("8.8.8.8", 710),
+                ]),
+            },
+        };
+        var tester = new DnsTester(new DnsProfileService(profileStore), dnsManager, queryClient, NullLogger<DnsTester>.Instance);
+
+        var result = await tester.TestCurrentDnsAsync();
+
+        Assert.Equal(DnsTestStatus.Slow, result.Status);
+        Assert.All(result.DomainResults, domainResult => Assert.Equal(DnsTestStatus.Slow, domainResult.Status));
+    }
+
     private static DnsQueryProbeResult CreateSuccessfulProbe(string serverAddress, double latencyMs)
     {
         return new DnsQueryProbeResult(

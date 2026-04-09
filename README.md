@@ -259,6 +259,20 @@ Changing DNS settings requires administrator privileges on Windows.
   - status can show no selected adapter
   - tests return a result instead of crashing
 
+## v0.11 scope
+
+- Expand automated coverage for:
+  - config parsing and metadata round-trip
+  - validation rules
+  - adapter selection
+  - profile matching
+  - DNS test result interpretation
+- Extract shared Windows client bootstrap into a common host factory.
+- Extract shared DNS/site test text formatting used by CLI, UI, and tray.
+- Reduce duplicated formatting and startup code across clients.
+- Clean up client-specific naming around site test flows and shared helpers.
+- Remove small technical leftovers introduced during earlier MVP stages so the codebase is easier to present and extend.
+
 ## Cross-Cutting Requirements
 
 - `paths` was removed from the public CLI surface. It was only a portable-debug helper, not a user scenario.

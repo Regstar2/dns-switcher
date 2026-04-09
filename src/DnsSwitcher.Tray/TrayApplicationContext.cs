@@ -269,12 +269,12 @@ public sealed class TrayApplicationContext : ApplicationContext
     {
         logger.LogInformation("Tray requested DNS test.");
         var result = await host.DnsTester.TestCurrentDnsAsync().ConfigureAwait(true);
-        var summary = BuildDnsTestSummary(result);
+        var summary = DiagnosticTextFormatter.BuildDnsBalloonSummary(result);
 
         if (!traySettings.NotificationsEnabled)
         {
             logger.LogInformation("Tray DNS test finished without balloon notification: {Summary}", summary);
-            ShowInformation("DnsSwitcher DNS Test", BuildDnsTestDetails(result));
+            ShowInformation("DnsSwitcher DNS Test", DiagnosticTextFormatter.BuildDnsDetails(result));
             return;
         }
 
@@ -340,11 +340,11 @@ public sealed class TrayApplicationContext : ApplicationContext
     {
         logger.LogInformation("Tray requested site test.");
         var result = await host.ConnectivityTester.TestCurrentSitesAsync().ConfigureAwait(true);
-        var summary = BuildSiteTestSummary(result);
+        var summary = DiagnosticTextFormatter.BuildSiteBalloonSummary(result);
 
         if (!traySettings.NotificationsEnabled)
         {
-            ShowInformation("DnsSwitcher Site Test", BuildSiteTestDetails(result));
+            ShowInformation("DnsSwitcher Site Test", DiagnosticTextFormatter.BuildSiteDetails(result));
             return;
         }
 
@@ -513,119 +513,6 @@ public sealed class TrayApplicationContext : ApplicationContext
     private static string FormatServers(IReadOnlyList<string> servers)
     {
         return servers.Count == 0 ? "<none>" : string.Join(", ", servers);
-    }
-
-    private static string BuildDnsTestSummary(DnsTestResult result)
-    {
-        var averageLatency = result.AverageLatency is null
-            ? "n/a"
-            : $"{Math.Round(result.AverageLatency.Value.TotalMilliseconds, MidpointRounding.AwayFromZero):0} ms";
-
-        return
-            $"DNS test {result.Status}. " +
-            $"Domains: {result.Domains.Count}. " +
-            $"Average latency: {averageLatency}.";
-    }
-
-    private static string BuildSiteTestSummary(ConnectivityTestResult result)
-    {
-        var averageLatency = result.AverageLatency is null
-            ? "n/a"
-            : $"{Math.Round(result.AverageLatency.Value.TotalMilliseconds, MidpointRounding.AwayFromZero):0} ms";
-
-        return
-            $"Site test {result.Status}. " +
-            $"URLs: {result.Urls.Count}. " +
-            $"Average latency: {averageLatency}.";
-    }
-
-    private static string BuildSiteTestDetails(ConnectivityTestResult result)
-    {
-        var lines = new List<string>
-        {
-            $"Status: {result.Status}",
-            $"Adapter: {result.AdapterName ?? "<none>"}",
-            $"Profile: {FormatProfileLabel(result.ProfileName, result.ProfileId)}",
-            $"Average latency: {FormatLatency(result.AverageLatency)}",
-            string.Empty,
-        };
-
-        if (result.UrlResults.Count == 0)
-        {
-            lines.Add(result.Details);
-            return string.Join(Environment.NewLine, lines);
-        }
-
-        foreach (var urlResult in result.UrlResults)
-        {
-            lines.Add($"{urlResult.Url}");
-            lines.Add($"  Status: {urlResult.Status}");
-            lines.Add($"  Attempts: {urlResult.SuccessfulAttempts}/{urlResult.TotalAttempts}");
-            lines.Add($"  HTTP: {(urlResult.HttpStatusCode?.ToString() ?? "<none>")} via {urlResult.HttpMethod}");
-            lines.Add($"  DNS: {urlResult.Dns.Details}");
-            lines.Add($"  TCP: {urlResult.Connect.Details}");
-
-            if (!string.Equals(urlResult.Tls.Details, "TLS not required.", StringComparison.Ordinal))
-            {
-                lines.Add($"  TLS: {urlResult.Tls.Details}");
-            }
-
-            lines.Add($"  HTTP details: {urlResult.Http.Details}");
-            lines.Add($"  Summary: {urlResult.Details}");
-            lines.Add(string.Empty);
-        }
-
-        lines.Add(result.Details);
-        return string.Join(Environment.NewLine, lines);
-    }
-
-    private static string BuildDnsTestDetails(DnsTestResult result)
-    {
-        var lines = new List<string>
-        {
-            $"Status: {result.Status}",
-            $"Adapter: {result.AdapterName ?? "<none>"}",
-            $"Profile: {FormatProfileLabel(result.ProfileName, result.ProfileId)}",
-            $"DNS servers: {(result.DnsServers.Count == 0 ? "<none>" : string.Join(", ", result.DnsServers))}",
-            $"Average latency: {FormatLatency(result.AverageLatency)}",
-            string.Empty,
-            "Domains:",
-        };
-
-        if (result.DomainResults.Count == 0)
-        {
-            lines.Add("  <none>");
-        }
-        else
-        {
-            foreach (var domainResult in result.DomainResults)
-            {
-                lines.Add(
-                    $"  {domainResult.Domain}: {domainResult.Status} | " +
-                    $"{domainResult.SuccessfulAttempts}/{domainResult.TotalAttempts} | " +
-                    $"avg {FormatLatency(domainResult.AverageLatency)}");
-            }
-        }
-
-        lines.Add(string.Empty);
-        lines.Add(result.Details);
-        return string.Join(Environment.NewLine, lines);
-    }
-
-    private static string FormatLatency(TimeSpan? latency)
-    {
-        return latency is null
-            ? "n/a"
-            : $"{Math.Round(latency.Value.TotalMilliseconds, MidpointRounding.AwayFromZero):0} ms";
-    }
-
-    private static string FormatProfileLabel(string? profileName, string? profileId)
-    {
-        return string.IsNullOrWhiteSpace(profileId)
-            ? "<none>"
-            : string.IsNullOrWhiteSpace(profileName)
-                ? profileId
-                : $"{profileName} ({profileId})";
     }
 
     private TraySettings LoadTraySettingsOrDefault()

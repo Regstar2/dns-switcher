@@ -1,7 +1,5 @@
 using System.Windows;
 using DnsSwitcher.Infrastructure.Windows;
-using DnsSwitcher.Infrastructure.Windows.Configuration;
-using DnsSwitcher.Infrastructure.Windows.Logging;
 using DnsSwitcher.Infrastructure.Windows.Presentation;
 using Microsoft.Extensions.Logging;
 
@@ -14,17 +12,13 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
-        var paths = PortableAppPaths.CreateDefault();
-        paths.EnsureDirectories();
-        var loggerFactory = DnsLogging.CreateLoggerFactory(paths);
-
         try
         {
-            Host = new WindowsDnsSwitcherHost(paths, loggerFactory);
-            Logger = loggerFactory.CreateLogger<App>();
+            Host = WindowsDnsSwitcherHostFactory.CreateDefault();
+            Logger = Host.LoggerFactory.CreateLogger<App>();
 
             RegisterGlobalExceptionHandlers();
-            Logger.LogInformation("DnsSwitcher UI starting. Profiles file: {ProfilesFilePath}", paths.ProfilesFilePath);
+            Logger.LogInformation("DnsSwitcher UI starting. Profiles file: {ProfilesFilePath}", Host.Paths.ProfilesFilePath);
 
             base.OnStartup(e);
 
@@ -34,13 +28,12 @@ public partial class App : Application
         }
         catch (Exception exception)
         {
-            loggerFactory.CreateLogger<App>().LogCritical(exception, "DnsSwitcher UI failed during startup.");
+            Host?.LoggerFactory.CreateLogger<App>().LogCritical(exception, "DnsSwitcher UI failed during startup.");
             MessageBox.Show(
                 FriendlyExceptionFormatter.ToUserMessage(exception),
                 "DnsSwitcher",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
-            loggerFactory.Dispose();
             Shutdown(-1);
         }
     }

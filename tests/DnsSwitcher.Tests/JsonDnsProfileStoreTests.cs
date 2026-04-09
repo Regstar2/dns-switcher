@@ -107,6 +107,42 @@ public sealed class JsonDnsProfileStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadAsync_ParsesActiveProfileAndMetadataCollections()
+    {
+        var paths = new PortableAppPaths(rootPath);
+        Directory.CreateDirectory(paths.ConfigDirectory);
+        await File.WriteAllTextAsync(
+            paths.ProfilesFilePath,
+            """
+            {
+              "version": 1,
+              "activeProfileId": "custom",
+              "profiles": [
+                {
+                  "id": "custom",
+                  "name": "Custom DNS",
+                  "mode": "static",
+                  "ipv4": ["1.1.1.1"],
+                  "ipv6": ["2606:4700:4700::1111"],
+                  "tags": ["general", "test"],
+                  "testDomains": ["example.com", "openai.com"],
+                  "testUrls": ["https://example.com/", "https://openai.com/"]
+                }
+              ]
+            }
+            """);
+
+        var store = new JsonDnsProfileStore(paths, NullLogger<JsonDnsProfileStore>.Instance);
+        var configuration = await store.LoadAsync();
+
+        Assert.Equal("custom", configuration.ActiveProfileId);
+        var profile = Assert.Single(configuration.Profiles);
+        Assert.Equal(["general", "test"], profile.Tags);
+        Assert.Equal(["example.com", "openai.com"], profile.TestDomains);
+        Assert.Equal(["https://example.com/", "https://openai.com/"], profile.TestUrls);
+    }
+
+    [Fact]
     public void CreateDefault_UsesPortableDataDirectory()
     {
         var publishedBaseDirectory = Path.Combine(rootPath, "publish", "DnsSwitcher.Ui");
