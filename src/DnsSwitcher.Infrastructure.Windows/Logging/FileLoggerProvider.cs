@@ -5,17 +5,23 @@ namespace DnsSwitcher.Infrastructure.Windows.Logging;
 public sealed class FileLoggerProvider(string filePath) : ILoggerProvider
 {
     private readonly object gate = new();
+    private volatile bool isFaulted;
 
     public ILogger CreateLogger(string categoryName)
     {
-        return new FileLogger(filePath, categoryName, gate);
+        return new FileLogger(
+            filePath,
+            categoryName,
+            gate,
+            () => isFaulted,
+            () => isFaulted = true);
     }
 
     public void Dispose()
     {
     }
 
-    private sealed class FileLogger(string path, string categoryName, object gate) : ILogger
+    private sealed class FileLogger(string path, string categoryName, object gate, Func<bool> isFaulted, Action markFaulted) : ILogger
     {
         public IDisposable BeginScope<TState>(TState state)
             where TState : notnull
@@ -40,20 +46,32 @@ public sealed class FileLoggerProvider(string filePath) : ILoggerProvider
                 return;
             }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(path) ?? ".");
-
-            var line = string.Create(
-                System.Globalization.CultureInfo.InvariantCulture,
-                $"{DateTimeOffset.Now:O} [{logLevel}] {categoryName}: {formatter(state, exception)}");
-
-            lock (gate)
+            if (isFaulted())
             {
-                File.AppendAllText(path, line + Environment.NewLine);
+                return;
+            }
 
-                if (exception is not null)
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(path) ?? ".");
+
+                var line = string.Create(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    $"{DateTimeOffset.Now:O} [{logLevel}] {categoryName}: {formatter(state, exception)}");
+
+                lock (gate)
                 {
-                    File.AppendAllText(path, exception + Environment.NewLine);
+                    File.AppendAllText(path, line + Environment.NewLine);
+
+                    if (exception is not null)
+                    {
+                        File.AppendAllText(path, exception + Environment.NewLine);
+                    }
                 }
+            }
+            catch (Exception)
+            {
+                markFaulted();
             }
         }
     }

@@ -7,7 +7,9 @@ using DnsSwitcher.Core.Exceptions;
 using DnsSwitcher.Core.Models;
 using DnsSwitcher.Core.Services;
 using DnsSwitcher.Infrastructure.Windows.Agent;
+using DnsSwitcher.Infrastructure.Windows.Presentation;
 using DnsSwitcher.Ui.UiModels;
+using Microsoft.Extensions.Logging;
 
 namespace DnsSwitcher.Ui;
 
@@ -26,6 +28,7 @@ public partial class MainWindow : Window
 
     private readonly DispatcherTimer periodicRefreshTimer;
     private readonly DispatcherTimer configRefreshDebounceTimer;
+    private readonly ILogger<MainWindow> logger;
     private bool suppressAdapterSelectionChanged;
     private bool isBusy;
     private bool isRefreshingUi;
@@ -36,6 +39,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        logger = App.Host.LoggerFactory.CreateLogger<MainWindow>();
         periodicRefreshTimer = new DispatcherTimer { Interval = PeriodicRefreshInterval };
         periodicRefreshTimer.Tick += OnPeriodicRefreshTick;
         configRefreshDebounceTimer = new DispatcherTimer { Interval = ConfigRefreshDebounceInterval };
@@ -51,6 +55,7 @@ public partial class MainWindow : Window
 
         try
         {
+            logger.LogInformation("Loading DnsSwitcher UI main window.");
             await App.Host.ProfileService.EnsureInitializedAsync().ConfigureAwait(true);
             InitializeExternalRefresh();
             await RefreshUiAsync("UI loaded.").ConfigureAwait(true);
@@ -83,6 +88,7 @@ public partial class MainWindow : Window
 
     private async void OnRefreshClicked(object sender, RoutedEventArgs e)
     {
+        logger.LogInformation("UI requested reload.");
         await RefreshUiAsync("Configuration and status reloaded from disk and system state.").ConfigureAwait(true);
     }
 
@@ -93,6 +99,8 @@ public partial class MainWindow : Window
             SetOperationStatus("Select a DNS profile first.", isError: true);
             return;
         }
+
+        logger.LogInformation("UI requested apply profile {ProfileId}.", profileItem.Id);
 
         await RunOperationAsync(
             async () =>
@@ -106,16 +114,19 @@ public partial class MainWindow : Window
 
     private async void OnTestCurrentDnsClicked(object sender, RoutedEventArgs e)
     {
+        logger.LogInformation("UI requested DNS test.");
         await RunDnsTestAsync().ConfigureAwait(true);
     }
 
     private async void OnTestSitesClicked(object sender, RoutedEventArgs e)
     {
+        logger.LogInformation("UI requested site test.");
         await RunSiteConnectivityTestAsync().ConfigureAwait(true);
     }
 
     private async void OnResetClicked(object sender, RoutedEventArgs e)
     {
+        logger.LogInformation("UI requested DHCP reset.");
         await RunOperationAsync(
             async () =>
             {
@@ -391,18 +402,8 @@ public partial class MainWindow : Window
 
     private void HandleException(Exception exception, bool showDialog = true)
     {
-        var message = exception switch
-        {
-            AppConfigValidationException validationException => BuildValidationMessage(validationException),
-            InvalidDataException => exception.Message,
-            DnsProfileNotFoundException => exception.Message,
-            NetworkAdapterNotFoundException => exception.Message,
-            NetworkAdapterDisabledException => exception.Message,
-            DnsAgentUnavailableException => exception.Message,
-            DnsOperationRequiresAdminException => exception.Message,
-            DnsOperationFailedException => exception.Message,
-            _ => $"Unexpected error: {exception.Message}",
-        };
+        var message = FriendlyExceptionFormatter.ToUserMessage(exception);
+        logger.LogError(exception, "UI operation failed.");
 
         SetOperationStatus(message, isError: true);
 
@@ -414,13 +415,6 @@ public partial class MainWindow : Window
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
-    }
-
-    private static string BuildValidationMessage(AppConfigValidationException exception)
-    {
-        return "profiles.json is invalid:" + Environment.NewLine + string.Join(
-            Environment.NewLine,
-            exception.Errors.Select(error => $"- {error.Path}: {error.Message} ({error.Code})"));
     }
 
     private static string BuildAdapterDisplayName(NetworkAdapter adapter)

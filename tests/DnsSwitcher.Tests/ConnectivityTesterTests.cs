@@ -1,6 +1,7 @@
 using DnsSwitcher.Core.Abstractions;
 using DnsSwitcher.Core.Models;
 using DnsSwitcher.Core.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DnsSwitcher.Tests;
 
@@ -15,7 +16,7 @@ public sealed class ConnectivityTesterTests
         var probeClient = new FakeSiteProbeClient();
         probeClient.SetSuccessfulResults("https://google.com/");
         probeClient.SetSuccessfulResults("https://github.com/");
-        var tester = new ConnectivityTester(new DnsProfileService(profileStore), dnsManager, probeClient);
+        var tester = new ConnectivityTester(new DnsProfileService(profileStore), dnsManager, probeClient, NullLogger<ConnectivityTester>.Instance);
 
         var result = await tester.TestCurrentSitesAsync();
 
@@ -38,7 +39,7 @@ public sealed class ConnectivityTesterTests
         probeClient.SetSuccessfulResults("https://openai.com/");
         probeClient.SetSuccessfulResults("https://google.com/");
         probeClient.SetSuccessfulResults("https://github.com/");
-        var tester = new ConnectivityTester(new DnsProfileService(profileStore), dnsManager, probeClient);
+        var tester = new ConnectivityTester(new DnsProfileService(profileStore), dnsManager, probeClient, NullLogger<ConnectivityTester>.Instance);
 
         var result = await tester.TestCurrentSitesAsync();
 
@@ -66,7 +67,7 @@ public sealed class ConnectivityTesterTests
         };
         var profileStore = new InMemoryProfileStore(configuration);
         var dnsManager = new FakeDnsManager(CreateStatus(matchedProfileId: null));
-        var tester = new ConnectivityTester(new DnsProfileService(profileStore), dnsManager, new FakeSiteProbeClient());
+        var tester = new ConnectivityTester(new DnsProfileService(profileStore), dnsManager, new FakeSiteProbeClient(), NullLogger<ConnectivityTester>.Instance);
 
         var result = await tester.TestCurrentSitesAsync();
 
@@ -84,7 +85,7 @@ public sealed class ConnectivityTesterTests
         var probeClient = new FakeSiteProbeClient();
         probeClient.SetSuccessfulResults("https://google.com/", 2800, 3000);
         probeClient.SetSuccessfulResults("https://github.com/", 2600, 2900);
-        var tester = new ConnectivityTester(new DnsProfileService(profileStore), dnsManager, probeClient);
+        var tester = new ConnectivityTester(new DnsProfileService(profileStore), dnsManager, probeClient, NullLogger<ConnectivityTester>.Instance);
 
         var result = await tester.TestCurrentSitesAsync();
 
@@ -122,7 +123,7 @@ public sealed class ConnectivityTesterTests
                 ]),
             },
         };
-        var tester = new ConnectivityTester(new DnsProfileService(profileStore), dnsManager, probeClient);
+        var tester = new ConnectivityTester(new DnsProfileService(profileStore), dnsManager, probeClient, NullLogger<ConnectivityTester>.Instance);
 
         var result = await tester.TestCurrentSitesAsync();
 
@@ -150,7 +151,7 @@ public sealed class ConnectivityTesterTests
         };
         var profileStore = new InMemoryProfileStore(configuration);
         var dnsManager = new FakeDnsManager(CreateStatus(matchedProfileId: "invalid"));
-        var tester = new ConnectivityTester(new DnsProfileService(profileStore), dnsManager, new FakeSiteProbeClient());
+        var tester = new ConnectivityTester(new DnsProfileService(profileStore), dnsManager, new FakeSiteProbeClient(), NullLogger<ConnectivityTester>.Instance);
 
         var result = await tester.TestCurrentSitesAsync();
 

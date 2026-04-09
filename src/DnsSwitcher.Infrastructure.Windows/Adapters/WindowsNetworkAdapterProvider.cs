@@ -27,6 +27,8 @@ public sealed class WindowsNetworkAdapterProvider(ILogger<WindowsNetworkAdapterP
         "bluetooth",
     ];
 
+    private int lastLoggedAdapterCount = -1;
+
     public Task<IReadOnlyList<NetworkAdapter>> GetAdaptersAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -36,7 +38,12 @@ public sealed class WindowsNetworkAdapterProvider(ILogger<WindowsNetworkAdapterP
             .Where(adapter => adapter.SupportedStacks != NetworkStackSupport.None)
             .ToList();
 
-        logger.LogInformation("Discovered {AdapterCount} IP-capable network adapter(s).", adapters.Count);
+        if (adapters.Count != lastLoggedAdapterCount)
+        {
+            logger.LogInformation("Discovered {AdapterCount} IP-capable network adapter(s).", adapters.Count);
+            lastLoggedAdapterCount = adapters.Count;
+        }
+
         return Task.FromResult<IReadOnlyList<NetworkAdapter>>(adapters);
     }
 

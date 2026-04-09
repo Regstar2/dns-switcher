@@ -1,6 +1,7 @@
 using DnsSwitcher.Core.Abstractions;
 using DnsSwitcher.Core.Models;
 using DnsSwitcher.Core.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DnsSwitcher.Tests;
 
@@ -37,7 +38,7 @@ public sealed class DnsTesterTests
                 ]),
             },
         };
-        var tester = new DnsTester(new DnsProfileService(profileStore), dnsManager, queryClient);
+        var tester = new DnsTester(new DnsProfileService(profileStore), dnsManager, queryClient, NullLogger<DnsTester>.Instance);
 
         var result = await tester.TestCurrentDnsAsync();
 
@@ -64,7 +65,7 @@ public sealed class DnsTesterTests
             Details: string.Empty));
         var queryClient = new FakeDnsQueryClient();
         queryClient.SetAllDomainsToSuccess(["cloudflare.com", "openai.com", "google.com", "github.com"], "1.1.1.1", 40);
-        var tester = new DnsTester(new DnsProfileService(profileStore), dnsManager, queryClient);
+        var tester = new DnsTester(new DnsProfileService(profileStore), dnsManager, queryClient, NullLogger<DnsTester>.Instance);
 
         var result = await tester.TestCurrentDnsAsync();
 
@@ -104,7 +105,7 @@ public sealed class DnsTesterTests
                 ]),
             },
         };
-        var tester = new DnsTester(new DnsProfileService(profileStore), dnsManager, queryClient);
+        var tester = new DnsTester(new DnsProfileService(profileStore), dnsManager, queryClient, NullLogger<DnsTester>.Instance);
 
         var result = await tester.TestCurrentDnsAsync();
 
@@ -125,7 +126,7 @@ public sealed class DnsTesterTests
             Ipv4: new DnsServerState(DnsMode.Dhcp, []),
             Ipv6: new DnsServerState(DnsMode.Dhcp, []),
             Details: string.Empty));
-        var tester = new DnsTester(new DnsProfileService(profileStore), dnsManager, new FakeDnsQueryClient());
+        var tester = new DnsTester(new DnsProfileService(profileStore), dnsManager, new FakeDnsQueryClient(), NullLogger<DnsTester>.Instance);
 
         var result = await tester.TestCurrentDnsAsync();
 

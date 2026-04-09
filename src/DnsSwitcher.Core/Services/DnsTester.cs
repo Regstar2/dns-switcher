@@ -1,12 +1,14 @@
 using DnsSwitcher.Core.Abstractions;
 using DnsSwitcher.Core.Models;
+using Microsoft.Extensions.Logging;
 
 namespace DnsSwitcher.Core.Services;
 
 public sealed class DnsTester(
     DnsProfileService profileService,
     IDnsManager dnsManager,
-    IDnsQueryClient dnsQueryClient)
+    IDnsQueryClient dnsQueryClient,
+    ILogger<DnsTester> logger)
 {
     private const int AttemptCount = 3;
     private static readonly TimeSpan QueryTimeout = TimeSpan.FromSeconds(2);
@@ -35,6 +37,11 @@ public sealed class DnsTester(
 
         if (dnsServers.Count == 0)
         {
+            logger.LogWarning(
+                "DNS test failed because no DNS servers are configured. Adapter: {AdapterName}. Profile: {ProfileId}",
+                status.AdapterName ?? "<none>",
+                selectedProfile?.Id ?? "<none>");
+
             return new DnsTestResult(
                 AdapterName: status.AdapterName,
                 ProfileId: selectedProfile?.Id,
@@ -57,6 +64,13 @@ public sealed class DnsTester(
         var averageLatency = CalculateAverageLatency(domainResults);
         var overallStatus = ResolveOverallStatus(domainResults);
         var details = BuildResultDetails(dnsServers, domains, domainResults, overallStatus, averageLatency);
+        logger.LogInformation(
+            "DNS test completed. Adapter: {AdapterName}. Profile: {ProfileId}. Status: {Status}. Domains: {DomainCount}. Average latency: {AverageLatencyMs} ms",
+            status.AdapterName ?? "<none>",
+            selectedProfile?.Id ?? "<none>",
+            overallStatus,
+            domains.Count,
+            averageLatency?.TotalMilliseconds);
 
         return new DnsTestResult(
             AdapterName: status.AdapterName,

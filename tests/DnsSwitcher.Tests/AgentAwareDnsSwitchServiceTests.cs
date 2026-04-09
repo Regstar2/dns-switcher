@@ -3,6 +3,7 @@ using DnsSwitcher.Core.Exceptions;
 using DnsSwitcher.Core.Models;
 using DnsSwitcher.Core.Services;
 using DnsSwitcher.Infrastructure.Windows.Agent;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DnsSwitcher.Tests;
 
@@ -15,7 +16,7 @@ public sealed class AgentAwareDnsSwitchServiceTests
         var dnsManager = new FakeDnsManager();
         var directSwitchService = new DnsSwitchService(new DnsProfileService(profileStore), dnsManager);
         var agentClient = new FakeAgentClient { IsAvailable = true };
-        var service = new AgentAwareDnsSwitchService(new DnsProfileService(profileStore), directSwitchService, agentClient);
+        var service = new AgentAwareDnsSwitchService(new DnsProfileService(profileStore), directSwitchService, agentClient, NullLogger<AgentAwareDnsSwitchService>.Instance);
 
         await service.ApplyProfileAsync("google");
 
@@ -31,7 +32,7 @@ public sealed class AgentAwareDnsSwitchServiceTests
         var dnsManager = new FakeDnsManager();
         var directSwitchService = new DnsSwitchService(new DnsProfileService(profileStore), dnsManager);
         var agentClient = new FakeAgentClient { IsAvailable = true };
-        var service = new AgentAwareDnsSwitchService(new DnsProfileService(profileStore), directSwitchService, agentClient);
+        var service = new AgentAwareDnsSwitchService(new DnsProfileService(profileStore), directSwitchService, agentClient, NullLogger<AgentAwareDnsSwitchService>.Instance);
 
         await service.ResetToDhcpAsync();
 
@@ -47,7 +48,7 @@ public sealed class AgentAwareDnsSwitchServiceTests
         var dnsManager = new FakeDnsManager();
         var directSwitchService = new DnsSwitchService(new DnsProfileService(profileStore), dnsManager);
         var agentClient = new FakeAgentClient { IsAvailable = false };
-        var service = new AgentAwareDnsSwitchService(new DnsProfileService(profileStore), directSwitchService, agentClient);
+        var service = new AgentAwareDnsSwitchService(new DnsProfileService(profileStore), directSwitchService, agentClient, NullLogger<AgentAwareDnsSwitchService>.Instance);
 
         await Assert.ThrowsAsync<DnsAgentUnavailableException>(() =>
             service.ApplyProfileAsync("google", allowDirectFallback: false));

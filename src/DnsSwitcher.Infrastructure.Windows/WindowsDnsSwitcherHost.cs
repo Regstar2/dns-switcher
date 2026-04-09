@@ -26,11 +26,11 @@ public sealed class WindowsDnsSwitcherHost : IDisposable
         DnsManager = new WindowsDnsManager(NetworkAdapterService, ProfileService, loggerFactory.CreateLogger<WindowsDnsManager>());
         DnsSwitchService = new DnsSwitchService(ProfileService, DnsManager);
         DnsQueryClient = new UdpDnsQueryClient(loggerFactory.CreateLogger<UdpDnsQueryClient>());
-        DnsTester = new DnsTester(ProfileService, DnsManager, DnsQueryClient);
+        DnsTester = new DnsTester(ProfileService, DnsManager, DnsQueryClient, loggerFactory.CreateLogger<DnsTester>());
         SiteProbeClient = new HttpSiteProbeClient(loggerFactory.CreateLogger<HttpSiteProbeClient>());
-        ConnectivityTester = new ConnectivityTester(ProfileService, DnsManager, SiteProbeClient);
+        ConnectivityTester = new ConnectivityTester(ProfileService, DnsManager, SiteProbeClient, loggerFactory.CreateLogger<ConnectivityTester>());
         AgentClient = new NamedPipeDnsAgentClient(loggerFactory.CreateLogger<NamedPipeDnsAgentClient>());
-        AgentDnsSwitchService = new AgentAwareDnsSwitchService(ProfileService, DnsSwitchService, AgentClient);
+        AgentDnsSwitchService = new AgentAwareDnsSwitchService(ProfileService, DnsSwitchService, AgentClient, loggerFactory.CreateLogger<AgentAwareDnsSwitchService>());
         AgentServiceManager = new WindowsAgentServiceManager(loggerFactory.CreateLogger<WindowsAgentServiceManager>());
     }
 

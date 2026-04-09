@@ -39,10 +39,17 @@ public sealed class JsonTraySettingsStore(IAppPaths paths, ILogger<JsonTraySetti
                 .DeserializeAsync<TraySettings>(stream, SerializerOptions, cancellationToken)
                 .ConfigureAwait(false);
 
+            logger.LogInformation(
+                "Loaded tray settings from {TraySettingsFilePath}. Notifications: {NotificationsEnabled}. Show adapter: {ShowAdapterName}",
+                FilePath,
+                settings?.NotificationsEnabled ?? TraySettings.Default.NotificationsEnabled,
+                settings?.ShowAdapterName ?? TraySettings.Default.ShowAdapterName);
+
             return settings ?? TraySettings.Default;
         }
         catch (JsonException exception)
         {
+            logger.LogWarning(exception, "Failed to parse tray settings from {TraySettingsFilePath}", FilePath);
             throw new InvalidDataException($"Failed to parse tray settings: {FilePath}", exception);
         }
     }
@@ -61,6 +68,30 @@ public sealed class JsonTraySettingsStore(IAppPaths paths, ILogger<JsonTraySetti
                 .ConfigureAwait(false);
         }
 
-        File.Move(tempPath, FilePath, overwrite: true);
+        try
+        {
+            File.Move(tempPath, FilePath, overwrite: true);
+            logger.LogInformation(
+                "Saved tray settings to {TraySettingsFilePath}. Notifications: {NotificationsEnabled}. Show adapter: {ShowAdapterName}",
+                FilePath,
+                settings.NotificationsEnabled,
+                settings.ShowAdapterName);
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                try
+                {
+                    File.Delete(tempPath);
+                }
+                catch (IOException)
+                {
+                }
+                catch (UnauthorizedAccessException)
+                {
+                }
+            }
+        }
     }
 }

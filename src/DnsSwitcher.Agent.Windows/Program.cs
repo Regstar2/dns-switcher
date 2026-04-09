@@ -20,8 +20,8 @@ builder.Services.AddWindowsService(options =>
 });
 
 builder.Logging.ClearProviders();
-builder.Logging.SetMinimumLevel(LogLevel.Information);
 builder.Logging.AddProvider(new FileLoggerProvider(paths.LogFilePath));
+builder.Logging.SetMinimumLevel(LogLevel.Information);
 
 builder.Services.AddSingleton(paths);
 builder.Services.AddSingleton<WindowsDnsSwitcherHost>(serviceProvider =>

@@ -3,6 +3,7 @@ using DnsSwitcher.Core.Models;
 using DnsSwitcher.Core.Services;
 using DnsSwitcher.Infrastructure.Windows;
 using DnsSwitcher.Infrastructure.Windows.Configuration;
+using DnsSwitcher.Infrastructure.Windows.Presentation;
 using DnsSwitcher.Infrastructure.Windows.Tray;
 using Microsoft.Extensions.Logging;
 
@@ -167,6 +168,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         }
         catch (Exception exception)
         {
+            logger.LogError(exception, "Tray state refresh failed.");
             lastConfiguration = null;
             lastStatus = null;
             lastRefreshError = exception;
@@ -194,11 +196,11 @@ public sealed class TrayApplicationContext : ApplicationContext
         }
         catch (DnsSwitchException exception)
         {
-            ShowError("DnsSwitcher", exception.Message);
+            ShowError("DnsSwitcher", exception);
         }
         catch (Exception exception)
         {
-            ShowError("DnsSwitcher", exception.Message);
+            ShowError("DnsSwitcher", exception);
         }
         finally
         {
@@ -209,6 +211,7 @@ public sealed class TrayApplicationContext : ApplicationContext
 
     private async Task EnableDnsAsync()
     {
+        logger.LogInformation("Tray requested DNS enable.");
         var configuration = await host.ProfileService.GetConfigurationAsync().ConfigureAwait(true);
         var status = await host.DnsManager.GetStatusAsync().ConfigureAwait(true);
 
@@ -225,6 +228,7 @@ public sealed class TrayApplicationContext : ApplicationContext
 
     private async Task DisableDnsAsync()
     {
+        logger.LogInformation("Tray requested DHCP reset.");
         var configuration = await host.ProfileService.GetConfigurationAsync().ConfigureAwait(true);
         var status = await host.DnsManager.GetStatusAsync().ConfigureAwait(true);
 
@@ -236,6 +240,7 @@ public sealed class TrayApplicationContext : ApplicationContext
 
     private async Task SwitchNextAsync()
     {
+        logger.LogInformation("Tray requested next DNS profile.");
         var configuration = await host.ProfileService.GetConfigurationAsync().ConfigureAwait(true);
         var status = await host.DnsManager.GetStatusAsync().ConfigureAwait(true);
 
@@ -252,6 +257,7 @@ public sealed class TrayApplicationContext : ApplicationContext
 
     private async Task ApplyProfileAsync(string profileId)
     {
+        logger.LogInformation("Tray requested apply profile {ProfileId}.", profileId);
         await host.AgentDnsSwitchService.ApplyProfileAsync(profileId).ConfigureAwait(true);
         preferredProfileId = profileId;
 
@@ -261,6 +267,7 @@ public sealed class TrayApplicationContext : ApplicationContext
 
     private async Task TestDnsAsync()
     {
+        logger.LogInformation("Tray requested DNS test.");
         var result = await host.DnsTester.TestCurrentDnsAsync().ConfigureAwait(true);
         var summary = BuildDnsTestSummary(result);
 
@@ -283,6 +290,7 @@ public sealed class TrayApplicationContext : ApplicationContext
 
     private async Task ToggleNotificationsAsync()
     {
+        logger.LogInformation("Tray toggled notifications setting.");
         await UpdateTraySettingsAsync(traySettings with
         {
             NotificationsEnabled = !traySettings.NotificationsEnabled,
@@ -291,6 +299,7 @@ public sealed class TrayApplicationContext : ApplicationContext
 
     private async Task ToggleAdapterVisibilityAsync()
     {
+        logger.LogInformation("Tray toggled adapter visibility setting.");
         await UpdateTraySettingsAsync(traySettings with
         {
             ShowAdapterName = !traySettings.ShowAdapterName,
@@ -323,12 +332,13 @@ public sealed class TrayApplicationContext : ApplicationContext
         }
         catch (Exception exception)
         {
-            ShowError("DnsSwitcher", exception.Message);
+            ShowError("DnsSwitcher", exception);
         }
     }
 
     private async Task TestSitesAsync()
     {
+        logger.LogInformation("Tray requested site test.");
         var result = await host.ConnectivityTester.TestCurrentSitesAsync().ConfigureAwait(true);
         var summary = BuildSiteTestSummary(result);
 
@@ -654,14 +664,15 @@ public sealed class TrayApplicationContext : ApplicationContext
         }
         catch (Exception exception)
         {
-            ShowError("DnsSwitcher", exception.Message);
+            ShowError("DnsSwitcher", exception);
         }
     }
 
-    private static void ShowError(string title, string message)
+    private void ShowError(string title, Exception exception)
     {
+        logger.LogError(exception, "Tray operation failed.");
         MessageBox.Show(
-            message,
+            FriendlyExceptionFormatter.ToUserMessage(exception),
             title,
             MessageBoxButtons.OK,
             MessageBoxIcon.Error);

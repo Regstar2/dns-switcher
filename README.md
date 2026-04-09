@@ -235,6 +235,30 @@ Changing DNS settings requires administrator privileges on Windows.
   - `test` checks DNS resolution
   - `test-sites` checks real site accessibility over DNS/TCP/TLS/HTTP
 
+## v0.10 scope
+
+- Add broader file logging across CLI, UI, tray, and agent:
+  - startup and shutdown
+  - configuration load and save
+  - profile apply
+  - DHCP reset
+  - DNS test results
+  - site test results
+  - operational errors
+- Logging is fail-safe:
+  - logger failures no longer crash the application
+- UI and tray use friendlier error messages for common failures:
+  - invalid config
+  - missing or disabled adapters
+  - missing agent
+  - failed DNS operations
+  - file access problems
+- UI and tray register global exception handlers and log unhandled failures before showing a user-facing error.
+- Missing `profiles.json` is still recreated automatically.
+- No-network scenarios degrade gracefully:
+  - status can show no selected adapter
+  - tests return a result instead of crashing
+
 ## Cross-Cutting Requirements
 
 - `paths` was removed from the public CLI surface. It was only a portable-debug helper, not a user scenario.

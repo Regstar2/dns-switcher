@@ -1,12 +1,14 @@
 using DnsSwitcher.Core.Abstractions;
 using DnsSwitcher.Core.Models;
+using Microsoft.Extensions.Logging;
 
 namespace DnsSwitcher.Core.Services;
 
 public sealed class ConnectivityTester(
     DnsProfileService profileService,
     IDnsManager dnsManager,
-    ISiteProbeClient siteProbeClient)
+    ISiteProbeClient siteProbeClient,
+    ILogger<ConnectivityTester> logger)
 {
     private const int AttemptCount = 2;
     private static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(8);
@@ -26,6 +28,11 @@ public sealed class ConnectivityTester(
 
         if (urls.Count == 0)
         {
+            logger.LogWarning(
+                "Site test skipped because no test URLs are configured. Adapter: {AdapterName}. Profile: {ProfileId}",
+                status.AdapterName ?? "<none>",
+                selectedProfile?.Id ?? "<none>");
+
             return new ConnectivityTestResult(
                 AdapterName: status.AdapterName,
                 ProfileId: selectedProfile?.Id,
@@ -46,6 +53,13 @@ public sealed class ConnectivityTester(
 
         var averageLatency = CalculateAverageLatency(urlResults);
         var overallStatus = ResolveOverallStatus(urlResults);
+        logger.LogInformation(
+            "Site test completed. Adapter: {AdapterName}. Profile: {ProfileId}. Status: {Status}. URLs: {UrlCount}. Average latency: {AverageLatencyMs} ms",
+            status.AdapterName ?? "<none>",
+            selectedProfile?.Id ?? "<none>",
+            overallStatus,
+            urls.Count,
+            averageLatency?.TotalMilliseconds);
 
         return new ConnectivityTestResult(
             AdapterName: status.AdapterName,

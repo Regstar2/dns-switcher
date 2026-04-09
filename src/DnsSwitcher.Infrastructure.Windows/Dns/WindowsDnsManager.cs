@@ -30,6 +30,8 @@ public sealed class WindowsDnsManager(
                 throw new NetworkAdapterNotFoundException($"Network adapter '{adapterIdOrName}' was not found.");
             }
 
+            logger.LogInformation("No suitable network adapter was selected while reading DNS status.");
+
             return new DnsStatus(
                 IsManaged: false,
                 MatchedProfileId: null,
@@ -239,6 +241,7 @@ public sealed class WindowsDnsManager(
 
         if (networkInterface.OperationalStatus != OperationalStatus.Up || !selectedAdapter.IsActive)
         {
+            logger.LogWarning("Selected adapter {AdapterName} is disabled or inactive.", selectedAdapter.Name);
             throw new NetworkAdapterDisabledException(selectedAdapter.Name);
         }
 
@@ -331,6 +334,13 @@ public sealed class WindowsDnsManager(
                 : !string.IsNullOrWhiteSpace(standardOutput)
                     ? standardOutput
                     : $"{command.FileName} exited with code {process.ExitCode}.";
+
+            logger.LogWarning(
+                "Command failed for operation '{OperationDescription}'. Command: {CommandFileName} {CommandArguments}. Details: {Details}",
+                operationDescription,
+                command.FileName,
+                command.Arguments,
+                details);
 
             throw new DnsOperationFailedException(
                 $"Failed to {operationDescription}. Command: {command.FileName} {command.Arguments}. Details: {details}");
