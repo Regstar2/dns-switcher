@@ -3,6 +3,7 @@ using DnsSwitcher.Core.Abstractions;
 using DnsSwitcher.Core.Services;
 using DnsSwitcher.Infrastructure.Windows.Agent;
 using DnsSwitcher.Infrastructure.Windows.Adapters;
+using DnsSwitcher.Infrastructure.Windows.ConnectivityTesting;
 using DnsSwitcher.Infrastructure.Windows.Configuration;
 using DnsSwitcher.Infrastructure.Windows.Dns;
 using DnsSwitcher.Infrastructure.Windows.DnsTesting;
@@ -26,6 +27,8 @@ public sealed class WindowsDnsSwitcherHost : IDisposable
         DnsSwitchService = new DnsSwitchService(ProfileService, DnsManager);
         DnsQueryClient = new UdpDnsQueryClient(loggerFactory.CreateLogger<UdpDnsQueryClient>());
         DnsTester = new DnsTester(ProfileService, DnsManager, DnsQueryClient);
+        SiteProbeClient = new HttpSiteProbeClient(loggerFactory.CreateLogger<HttpSiteProbeClient>());
+        ConnectivityTester = new ConnectivityTester(ProfileService, DnsManager, SiteProbeClient);
         AgentClient = new NamedPipeDnsAgentClient(loggerFactory.CreateLogger<NamedPipeDnsAgentClient>());
         AgentDnsSwitchService = new AgentAwareDnsSwitchService(ProfileService, DnsSwitchService, AgentClient);
         AgentServiceManager = new WindowsAgentServiceManager(loggerFactory.CreateLogger<WindowsAgentServiceManager>());
@@ -50,6 +53,10 @@ public sealed class WindowsDnsSwitcherHost : IDisposable
     public IDnsQueryClient DnsQueryClient { get; }
 
     public DnsTester DnsTester { get; }
+
+    public ISiteProbeClient SiteProbeClient { get; }
+
+    public ConnectivityTester ConnectivityTester { get; }
 
     public IDnsAgentClient AgentClient { get; }
 

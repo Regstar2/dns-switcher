@@ -32,6 +32,7 @@ dotnet run --project src/DnsSwitcher.Cli -- status
 dotnet run --project src/DnsSwitcher.Cli -- apply <profile-id>
 dotnet run --project src/DnsSwitcher.Cli -- reset
 dotnet run --project src/DnsSwitcher.Cli -- test
+dotnet run --project src/DnsSwitcher.Cli -- test-sites
 dotnet run --project src/DnsSwitcher.Cli -- validate-config
 dotnet run --project src/DnsSwitcher.Cli -- service status
 dotnet run --project src/DnsSwitcher.Cli -- help
@@ -204,6 +205,35 @@ Changing DNS settings requires administrator privileges on Windows.
   - `Test DNS`
 - v0.9 tests DNS resolution only.
 - `testUrls` stay reserved for a future HTTP/site accessibility check, which is a separate concern from DNS resolution.
+
+## v0.9.1 scope
+
+- Add `ConnectivityTester` as a separate layer from `DnsTester`.
+- Site accessibility testing uses `testUrls`.
+- If the current DNS matches a configured profile, the tester uses that profile's `testUrls`.
+- If the current DNS does not match a configured profile, the tester falls back to the union of configured `testUrls`.
+- If no `testUrls` are configured, the tester returns `NotConfigured`.
+- Each URL is tested in stages:
+  - DNS resolve
+  - TCP connect
+  - TLS handshake for `https`
+  - HTTP probe with `HEAD`, then fallback to `GET` when needed
+- Multiple attempts and latency measurement are used per URL.
+- Final site test status is classified as:
+  - `Ok`
+  - `Slow`
+  - `Blocked`
+  - `Failed`
+  - `NotConfigured`
+- CLI adds:
+  - `test-sites`
+- Desktop UI adds:
+  - `Test Sites`
+- Tray adds:
+  - `Test Sites`
+- `test` and `test-sites` stay separate on purpose:
+  - `test` checks DNS resolution
+  - `test-sites` checks real site accessibility over DNS/TCP/TLS/HTTP
 
 ## Cross-Cutting Requirements
 

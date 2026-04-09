@@ -68,4 +68,15 @@ public sealed class CliArgumentParserTests
         Assert.Equal(CliCommand.Test, result.Invocation!.Command);
         Assert.Equal("Wi-Fi", result.Invocation.AdapterSelection);
     }
+
+    [Fact]
+    public void Parse_ParsesTestSitesCommand_WithConfigOverride()
+    {
+        var result = CliArgumentParser.Parse(["test-sites", "--config", "C:\\dns\\profiles.json"]);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Invocation);
+        Assert.Equal(CliCommand.TestSites, result.Invocation!.Command);
+        Assert.Equal("C:\\dns\\profiles.json", result.Invocation.ConfigPath);
+    }
 }

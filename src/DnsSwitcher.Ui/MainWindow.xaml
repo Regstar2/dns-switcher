@@ -82,6 +82,18 @@
                     Margin="0,0,8,8"
                     Click="OnResetClicked"
                     Content="Reset" />
+            <Button x:Name="TestDnsButton"
+                    Width="92"
+                    Margin="0,0,8,8"
+                    Click="OnTestCurrentDnsClicked"
+                    Content="Test DNS"
+                    ToolTip="Test current DNS servers against configured test domains." />
+            <Button x:Name="TestSitesButton"
+                    Width="92"
+                    Margin="0,0,8,8"
+                    Click="OnTestSitesClicked"
+                    Content="Test Sites"
+                    ToolTip="Test configured site URLs for real connectivity." />
           </WrapPanel>
         </Grid>
       </GroupBox>
@@ -102,9 +114,6 @@
           <Grid Margin="12">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="8" />
-              <ColumnDefinition Width="Auto" />
-              <ColumnDefinition Width="8" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
@@ -112,18 +121,15 @@
                       MinWidth="220"
                       DisplayMemberPath="DisplayName"
                       SelectionChanged="OnAdapterSelectionChanged" />
-            <Button x:Name="ReloadButton"
-                    Grid.Column="2"
-                    Width="84"
-                    Click="OnRefreshClicked"
-                    Content="Reload"
-                    ToolTip="Reload profiles.json and current DNS status from disk, CLI, tray, and system state." />
-            <Button x:Name="TestDnsButton"
-                    Grid.Column="4"
-                    Width="92"
-                    Click="OnTestCurrentDnsClicked"
-                    Content="Test DNS"
-                    ToolTip="Test current DNS servers against configured test domains." />
+            <WrapPanel Grid.Column="1"
+                       Margin="12,0,0,0">
+              <Button x:Name="ReloadButton"
+                      Width="84"
+                      Margin="0,0,8,0"
+                      Click="OnRefreshClicked"
+                      Content="Reload"
+                      ToolTip="Reload profiles.json and current DNS status from disk, CLI, tray, and system state." />
+            </WrapPanel>
           </Grid>
         </GroupBox>
 

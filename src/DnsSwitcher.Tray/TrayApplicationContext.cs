@@ -21,7 +21,9 @@ public sealed class TrayApplicationContext : ApplicationContext
     private readonly ToolStripMenuItem enableDnsMenuItem;
     private readonly ToolStripMenuItem disableDnsMenuItem;
     private readonly ToolStripMenuItem switchNextMenuItem;
+    private readonly ToolStripMenuItem testsMenuItem;
     private readonly ToolStripMenuItem testDnsMenuItem;
+    private readonly ToolStripMenuItem testSitesMenuItem;
     private readonly ToolStripMenuItem profilesMenuItem;
     private readonly ToolStripMenuItem settingsMenuItem;
     private readonly ToolStripMenuItem notificationsMenuItem;
@@ -60,7 +62,9 @@ public sealed class TrayApplicationContext : ApplicationContext
         enableDnsMenuItem = new ToolStripMenuItem("Enable DNS");
         disableDnsMenuItem = new ToolStripMenuItem("Disable DNS");
         switchNextMenuItem = new ToolStripMenuItem("Switch Next");
+        testsMenuItem = new ToolStripMenuItem("Tests");
         testDnsMenuItem = new ToolStripMenuItem("Test DNS");
+        testSitesMenuItem = new ToolStripMenuItem("Test Sites");
         profilesMenuItem = new ToolStripMenuItem("Show Profiles");
         settingsMenuItem = new ToolStripMenuItem("Settings");
         notificationsMenuItem = new ToolStripMenuItem("Show notifications");
@@ -71,12 +75,15 @@ public sealed class TrayApplicationContext : ApplicationContext
         disableDnsMenuItem.Click += async (_, _) => await ExecuteActionAsync(DisableDnsAsync).ConfigureAwait(true);
         switchNextMenuItem.Click += async (_, _) => await ExecuteActionAsync(SwitchNextAsync).ConfigureAwait(true);
         testDnsMenuItem.Click += async (_, _) => await ExecuteActionAsync(TestDnsAsync).ConfigureAwait(true);
+        testSitesMenuItem.Click += async (_, _) => await ExecuteActionAsync(TestSitesAsync).ConfigureAwait(true);
         notificationsMenuItem.Click += async (_, _) => await ToggleNotificationsAsync().ConfigureAwait(true);
         showAdapterNameMenuItem.Click += async (_, _) => await ToggleAdapterVisibilityAsync().ConfigureAwait(true);
         exitMenuItem.Click += (_, _) => ExitThread();
 
         settingsMenuItem.DropDownItems.Add(notificationsMenuItem);
         settingsMenuItem.DropDownItems.Add(showAdapterNameMenuItem);
+        testsMenuItem.DropDownItems.Add(testDnsMenuItem);
+        testsMenuItem.DropDownItems.Add(testSitesMenuItem);
 
         contextMenu = new ContextMenuStrip();
         contextMenu.Items.Add(statusMenuItem);
@@ -85,7 +92,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         contextMenu.Items.Add(enableDnsMenuItem);
         contextMenu.Items.Add(disableDnsMenuItem);
         contextMenu.Items.Add(switchNextMenuItem);
-        contextMenu.Items.Add(testDnsMenuItem);
+        contextMenu.Items.Add(testsMenuItem);
         contextMenu.Items.Add(profilesMenuItem);
         contextMenu.Items.Add(new ToolStripSeparator());
         contextMenu.Items.Add(settingsMenuItem);
@@ -310,16 +317,35 @@ public sealed class TrayApplicationContext : ApplicationContext
                 $"IPv6 DNS: {FormatServers(status.Ipv6.NameServers)}",
             };
 
-            MessageBox.Show(
-                string.Join(Environment.NewLine, lines),
+            ShowInformation(
                 "DnsSwitcher",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
+                string.Join(Environment.NewLine, lines));
         }
         catch (Exception exception)
         {
             ShowError("DnsSwitcher", exception.Message);
         }
+    }
+
+    private async Task TestSitesAsync()
+    {
+        var result = await host.ConnectivityTester.TestCurrentSitesAsync().ConfigureAwait(true);
+        var summary = BuildSiteTestSummary(result);
+
+        if (!traySettings.NotificationsEnabled)
+        {
+            ShowInformation("DnsSwitcher Site Test", BuildSiteTestDetails(result));
+            return;
+        }
+
+        notifyIcon.BalloonTipTitle = "DnsSwitcher";
+        notifyIcon.BalloonTipText = summary;
+        notifyIcon.BalloonTipIcon = result.Status is ConnectivityTestStatus.Blocked or ConnectivityTestStatus.Failed
+            ? ToolTipIcon.Warning
+            : result.Status == ConnectivityTestStatus.Slow
+                ? ToolTipIcon.Warning
+                : ToolTipIcon.Info;
+        notifyIcon.ShowBalloonTip(2500);
     }
 
     private void RebuildProfilesMenu(AppConfig configuration, DnsStatus status)
@@ -375,7 +401,9 @@ public sealed class TrayApplicationContext : ApplicationContext
         enableDnsMenuItem.Enabled = !isActionInProgress && enableProfile is not null;
         disableDnsMenuItem.Enabled = !isActionInProgress && status.Mode != DnsMode.Dhcp;
         switchNextMenuItem.Enabled = !isActionInProgress && nextProfile is not null;
+        testsMenuItem.Enabled = !isActionInProgress;
         testDnsMenuItem.Enabled = !isActionInProgress;
+        testSitesMenuItem.Enabled = !isActionInProgress;
         profilesMenuItem.Enabled = !isActionInProgress && profileSelectionService.GetSwitchableProfiles(configuration).Count > 0;
         settingsMenuItem.Enabled = !isActionInProgress;
         notificationsMenuItem.Checked = traySettings.NotificationsEnabled;
@@ -425,7 +453,9 @@ public sealed class TrayApplicationContext : ApplicationContext
         enableDnsMenuItem.Enabled = false;
         disableDnsMenuItem.Enabled = false;
         switchNextMenuItem.Enabled = false;
+        testsMenuItem.Enabled = false;
         testDnsMenuItem.Enabled = false;
+        testSitesMenuItem.Enabled = false;
         profilesMenuItem.Enabled = false;
         settingsMenuItem.Enabled = false;
     }
@@ -485,6 +515,58 @@ public sealed class TrayApplicationContext : ApplicationContext
             $"DNS test {result.Status}. " +
             $"Domains: {result.Domains.Count}. " +
             $"Average latency: {averageLatency}.";
+    }
+
+    private static string BuildSiteTestSummary(ConnectivityTestResult result)
+    {
+        var averageLatency = result.AverageLatency is null
+            ? "n/a"
+            : $"{Math.Round(result.AverageLatency.Value.TotalMilliseconds, MidpointRounding.AwayFromZero):0} ms";
+
+        return
+            $"Site test {result.Status}. " +
+            $"URLs: {result.Urls.Count}. " +
+            $"Average latency: {averageLatency}.";
+    }
+
+    private static string BuildSiteTestDetails(ConnectivityTestResult result)
+    {
+        var lines = new List<string>
+        {
+            $"Status: {result.Status}",
+            $"Adapter: {result.AdapterName ?? "<none>"}",
+            $"Profile: {FormatProfileLabel(result.ProfileName, result.ProfileId)}",
+            $"Average latency: {FormatLatency(result.AverageLatency)}",
+            string.Empty,
+        };
+
+        if (result.UrlResults.Count == 0)
+        {
+            lines.Add(result.Details);
+            return string.Join(Environment.NewLine, lines);
+        }
+
+        foreach (var urlResult in result.UrlResults)
+        {
+            lines.Add($"{urlResult.Url}");
+            lines.Add($"  Status: {urlResult.Status}");
+            lines.Add($"  Attempts: {urlResult.SuccessfulAttempts}/{urlResult.TotalAttempts}");
+            lines.Add($"  HTTP: {(urlResult.HttpStatusCode?.ToString() ?? "<none>")} via {urlResult.HttpMethod}");
+            lines.Add($"  DNS: {urlResult.Dns.Details}");
+            lines.Add($"  TCP: {urlResult.Connect.Details}");
+
+            if (!string.Equals(urlResult.Tls.Details, "TLS not required.", StringComparison.Ordinal))
+            {
+                lines.Add($"  TLS: {urlResult.Tls.Details}");
+            }
+
+            lines.Add($"  HTTP details: {urlResult.Http.Details}");
+            lines.Add($"  Summary: {urlResult.Details}");
+            lines.Add(string.Empty);
+        }
+
+        lines.Add(result.Details);
+        return string.Join(Environment.NewLine, lines);
     }
 
     private static string BuildDnsTestDetails(DnsTestResult result)
@@ -587,10 +669,6 @@ public sealed class TrayApplicationContext : ApplicationContext
 
     private static void ShowInformation(string title, string message)
     {
-        MessageBox.Show(
-            message,
-            title,
-            MessageBoxButtons.OK,
-            MessageBoxIcon.Information);
+        ResultDialog.ShowDialog(title, message);
     }
 }

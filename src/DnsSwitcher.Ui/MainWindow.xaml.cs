@@ -109,6 +109,11 @@ public partial class MainWindow : Window
         await RunDnsTestAsync().ConfigureAwait(true);
     }
 
+    private async void OnTestSitesClicked(object sender, RoutedEventArgs e)
+    {
+        await RunSiteConnectivityTestAsync().ConfigureAwait(true);
+    }
+
     private async void OnResetClicked(object sender, RoutedEventArgs e)
     {
         await RunOperationAsync(
@@ -340,6 +345,7 @@ public partial class MainWindow : Window
         ResetButton.IsEnabled = !isBusy && hasAdapterOptions;
         ReloadButton.IsEnabled = !isBusy;
         TestDnsButton.IsEnabled = !isBusy;
+        TestSitesButton.IsEnabled = !isBusy;
         AdapterComboBox.IsEnabled = !isBusy;
         ProfilesListBox.IsEnabled = !isBusy;
     }
@@ -616,6 +622,32 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task RunSiteConnectivityTestAsync()
+    {
+        if (isBusy)
+        {
+            return;
+        }
+
+        SetBusyState(true);
+
+        try
+        {
+            var result = await App.Host.ConnectivityTester.TestCurrentSitesAsync(GetSelectedAdapterValue()).ConfigureAwait(true);
+            SetBusyState(false, showBusyMessage: false);
+            SetOperationStatus(BuildSiteConnectivitySummary(result), isError: result.Status is ConnectivityTestStatus.Blocked or ConnectivityTestStatus.Failed);
+            TextResultWindow.ShowDialog(
+                "DnsSwitcher Site Test",
+                BuildSiteConnectivityDetails(result),
+                this);
+        }
+        catch (Exception exception)
+        {
+            HandleException(exception);
+            SetBusyState(false, showBusyMessage: false);
+        }
+    }
+
     private static string? ResolveAdapterSelectionValue(string? selectionValue, IReadOnlyList<NetworkAdapter> adapters)
     {
         if (string.IsNullOrWhiteSpace(selectionValue))
@@ -667,5 +699,74 @@ public partial class MainWindow : Window
         return latency is null
             ? "n/a"
             : $"{Math.Round(latency.Value.TotalMilliseconds, MidpointRounding.AwayFromZero):0} ms";
+    }
+
+    private static string BuildSiteConnectivitySummary(ConnectivityTestResult result)
+    {
+        var parts = new List<string>
+        {
+            $"Site test {result.Status}",
+            $"urls: {result.Urls.Count}",
+            $"avg latency: {FormatLatency(result.AverageLatency)}",
+        };
+
+        if (result.UrlResults.Count > 0)
+        {
+            parts.Add(string.Join(
+                "; ",
+                result.UrlResults.Select(urlResult =>
+                    $"{urlResult.Url}: {urlResult.Status} ({urlResult.SuccessfulAttempts}/{urlResult.TotalAttempts})")));
+        }
+
+        return string.Join(" | ", parts);
+    }
+
+    private static string BuildSiteConnectivityDetails(ConnectivityTestResult result)
+    {
+        var lines = new List<string>
+        {
+            $"Status: {result.Status}",
+            $"Adapter: {result.AdapterName ?? "<none>"}",
+            $"Profile: {FormatProfileLabel(result.ProfileName, result.ProfileId)}",
+            $"Average latency: {FormatLatency(result.AverageLatency)}",
+            string.Empty,
+        };
+
+        if (result.UrlResults.Count == 0)
+        {
+            lines.Add(result.Details);
+            return string.Join(Environment.NewLine, lines);
+        }
+
+        foreach (var urlResult in result.UrlResults)
+        {
+            lines.Add($"{urlResult.Url}");
+            lines.Add($"  Status: {urlResult.Status}");
+            lines.Add($"  Attempts: {urlResult.SuccessfulAttempts}/{urlResult.TotalAttempts}");
+            lines.Add($"  HTTP: {(urlResult.HttpStatusCode?.ToString() ?? "<none>")} via {urlResult.HttpMethod}");
+            lines.Add($"  DNS: {urlResult.Dns.Details}");
+            lines.Add($"  TCP: {urlResult.Connect.Details}");
+
+            if (!string.Equals(urlResult.Tls.Details, "TLS not required.", StringComparison.Ordinal))
+            {
+                lines.Add($"  TLS: {urlResult.Tls.Details}");
+            }
+
+            lines.Add($"  HTTP details: {urlResult.Http.Details}");
+            lines.Add($"  Summary: {urlResult.Details}");
+            lines.Add(string.Empty);
+        }
+
+        lines.Add(result.Details);
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private static string FormatProfileLabel(string? profileName, string? profileId)
+    {
+        return string.IsNullOrWhiteSpace(profileId)
+            ? "<none>"
+            : string.IsNullOrWhiteSpace(profileName)
+                ? profileId
+                : $"{profileName} ({profileId})";
     }
 }
