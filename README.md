@@ -134,6 +134,7 @@ Changing DNS settings requires administrator privileges on Windows.
   - `service start`
   - `service stop`
   - `service status`
+- Install the agent service from a dedicated deployment directory outside `bin\Debug` and `bin\Release`.
 - Document the service install model and the portable-app constraint.
 - Detailed plan: `docs/v0.7.1-privileged-access-plan.md`
 

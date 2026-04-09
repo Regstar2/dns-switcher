@@ -30,6 +30,15 @@ public sealed class NamedPipeDnsAgentClient(ILogger<NamedPipeDnsAgentClient> log
         {
             return false;
         }
+        catch (UnauthorizedAccessException exception)
+        {
+            logger.LogWarning(exception, "DnsSwitcher Agent pipe is not accessible for the current user.");
+            return false;
+        }
+        catch (DnsAgentUnavailableException)
+        {
+            return false;
+        }
         catch (TimeoutException)
         {
             return false;
@@ -75,37 +84,46 @@ public sealed class NamedPipeDnsAgentClient(ILogger<NamedPipeDnsAgentClient> log
 
     private async Task<AgentResponse> SendAsync(AgentRequest request, CancellationToken cancellationToken)
     {
-        using var client = new NamedPipeClientStream(
-            ".",
-            AgentProtocol.PipeName,
-            PipeDirection.InOut,
-            PipeOptions.Asynchronous);
-
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(2));
-
-        await client.ConnectAsync(timeoutCts.Token).ConfigureAwait(false);
-
-        using var writer = new StreamWriter(client, new UTF8Encoding(false), leaveOpen: true)
+        try
         {
-            AutoFlush = true,
-        };
-        using var reader = new StreamReader(client, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, leaveOpen: true);
+            using var client = new NamedPipeClientStream(
+                ".",
+                AgentProtocol.PipeName,
+                PipeDirection.InOut,
+                PipeOptions.Asynchronous);
 
-        var payload = JsonSerializer.Serialize(request, JsonOptions);
-        await writer.WriteLineAsync(payload).ConfigureAwait(false);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(2));
 
-        var responsePayload = await reader.ReadLineAsync(timeoutCts.Token).ConfigureAwait(false);
+            await client.ConnectAsync(timeoutCts.Token).ConfigureAwait(false);
 
-        if (string.IsNullOrWhiteSpace(responsePayload))
-        {
-            throw new DnsOperationFailedException("DnsSwitcher Agent returned an empty response.");
+            using var writer = new StreamWriter(client, new UTF8Encoding(false), leaveOpen: true)
+            {
+                AutoFlush = true,
+            };
+            using var reader = new StreamReader(client, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, leaveOpen: true);
+
+            var payload = JsonSerializer.Serialize(request, JsonOptions);
+            await writer.WriteLineAsync(payload).ConfigureAwait(false);
+
+            var responsePayload = await reader.ReadLineAsync(timeoutCts.Token).ConfigureAwait(false);
+
+            if (string.IsNullOrWhiteSpace(responsePayload))
+            {
+                throw new DnsOperationFailedException("DnsSwitcher Agent returned an empty response.");
+            }
+
+            var response = JsonSerializer.Deserialize<AgentResponse>(responsePayload, JsonOptions)
+                ?? throw new DnsOperationFailedException("DnsSwitcher Agent returned an invalid response.");
+
+            return response;
         }
-
-        var response = JsonSerializer.Deserialize<AgentResponse>(responsePayload, JsonOptions)
-            ?? throw new DnsOperationFailedException("DnsSwitcher Agent returned an invalid response.");
-
-        return response;
+        catch (UnauthorizedAccessException exception)
+        {
+            logger.LogWarning(exception, "DnsSwitcher Agent pipe denied access for the current user.");
+            throw new DnsAgentUnavailableException(
+                "DnsSwitcher Agent is running but is not accessible for the current user. Reinstall or restart the agent service with the current version.");
+        }
     }
 
     private void ThrowIfFailed(AgentResponse response)

@@ -13,11 +13,11 @@ public sealed class WindowsAgentServiceManager(ILogger<WindowsAgentServiceManage
     {
         EnsureAdministrator();
 
-        var executablePath = ResolveAgentExecutablePath(agentExecutablePath);
+        var sourceExecutablePath = ResolveSourceAgentExecutablePath(agentExecutablePath);
 
-        if (!File.Exists(executablePath))
+        if (!File.Exists(sourceExecutablePath))
         {
-            throw new FileNotFoundException($"DnsSwitcher Agent executable was not found: {executablePath}", executablePath);
+            throw new FileNotFoundException($"DnsSwitcher Agent executable was not found: {sourceExecutablePath}", sourceExecutablePath);
         }
 
         if (await GetStatusAsync(cancellationToken).ConfigureAwait(false) != AgentServiceStatus.NotInstalled)
@@ -25,8 +25,10 @@ public sealed class WindowsAgentServiceManager(ILogger<WindowsAgentServiceManage
             throw new DnsOperationFailedException("DnsSwitcher Agent service is already installed.");
         }
 
+        var deployedExecutablePath = DeployAgentRuntime(sourceExecutablePath);
+
         await RunScAsync(
-            $"create {AgentProtocol.ServiceName} binPath= {Quote(executablePath)} start= auto DisplayName= {Quote(AgentProtocol.DisplayName)}",
+            $"create {AgentProtocol.ServiceName} binPath= {Quote(deployedExecutablePath)} start= auto DisplayName= {Quote(AgentProtocol.DisplayName)}",
             "install DnsSwitcher Agent service",
             cancellationToken).ConfigureAwait(false);
 
@@ -35,7 +37,10 @@ public sealed class WindowsAgentServiceManager(ILogger<WindowsAgentServiceManage
             "configure DnsSwitcher Agent service description",
             cancellationToken).ConfigureAwait(false);
 
-        logger.LogInformation("Installed DnsSwitcher Agent service from {AgentExecutablePath}.", executablePath);
+        logger.LogInformation(
+            "Installed DnsSwitcher Agent service from {SourceExecutablePath} to {DeployedExecutablePath}.",
+            sourceExecutablePath,
+            deployedExecutablePath);
     }
 
     public async Task UninstallAsync(CancellationToken cancellationToken = default)
@@ -122,7 +127,7 @@ public sealed class WindowsAgentServiceManager(ILogger<WindowsAgentServiceManage
         }
     }
 
-    private static string ResolveAgentExecutablePath(string? agentExecutablePath)
+    private static string ResolveSourceAgentExecutablePath(string? agentExecutablePath)
     {
         if (!string.IsNullOrWhiteSpace(agentExecutablePath))
         {
@@ -140,17 +145,47 @@ public sealed class WindowsAgentServiceManager(ILogger<WindowsAgentServiceManage
         return GetDefaultAgentExecutableCandidates().First();
     }
 
+    private static string DeployAgentRuntime(string sourceExecutablePath)
+    {
+        var sourceDirectory = Path.GetDirectoryName(sourceExecutablePath)
+            ?? throw new InvalidOperationException("Agent source directory could not be determined.");
+        var deploymentDirectory = AgentDeploymentLayout.GetDeploymentDirectory(AppContext.BaseDirectory);
+
+        Directory.CreateDirectory(deploymentDirectory);
+        CopyDirectory(sourceDirectory, deploymentDirectory);
+
+        return Path.Combine(deploymentDirectory, Path.GetFileName(sourceExecutablePath));
+    }
+
     private static IReadOnlyList<string> GetDefaultAgentExecutableCandidates()
     {
         var baseDirectory = AppContext.BaseDirectory;
+        var applicationRoot = AgentDeploymentLayout.GetApplicationRoot(baseDirectory);
 
         return
         [
             Path.GetFullPath(Path.Combine(baseDirectory, "DnsSwitcher.Agent.Windows.exe")),
             Path.GetFullPath(Path.Combine(baseDirectory, "DnsSwitcher.Agent.Windows", "DnsSwitcher.Agent.Windows.exe")),
-            Path.GetFullPath(Path.Combine(baseDirectory, "..", "..", "..", "..", "DnsSwitcher.Agent.Windows", "bin", "Release", "net10.0-windows", "DnsSwitcher.Agent.Windows.exe")),
-            Path.GetFullPath(Path.Combine(baseDirectory, "..", "..", "..", "..", "DnsSwitcher.Agent.Windows", "bin", "Debug", "net10.0-windows", "DnsSwitcher.Agent.Windows.exe")),
+            Path.GetFullPath(Path.Combine(applicationRoot, "src", "DnsSwitcher.Agent.Windows", "bin", "Release", "net10.0-windows", "DnsSwitcher.Agent.Windows.exe")),
+            Path.GetFullPath(Path.Combine(applicationRoot, "src", "DnsSwitcher.Agent.Windows", "bin", "Debug", "net10.0-windows", "DnsSwitcher.Agent.Windows.exe")),
         ];
+    }
+
+    private static void CopyDirectory(string sourceDirectory, string destinationDirectory)
+    {
+        foreach (var directory in Directory.GetDirectories(sourceDirectory, "*", SearchOption.AllDirectories))
+        {
+            var relativePath = Path.GetRelativePath(sourceDirectory, directory);
+            Directory.CreateDirectory(Path.Combine(destinationDirectory, relativePath));
+        }
+
+        foreach (var file in Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+        {
+            var relativePath = Path.GetRelativePath(sourceDirectory, file);
+            var destinationPath = Path.Combine(destinationDirectory, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath) ?? destinationDirectory);
+            File.Copy(file, destinationPath, overwrite: true);
+        }
     }
 
     private async Task RunScAsync(string arguments, string operationDescription, CancellationToken cancellationToken)

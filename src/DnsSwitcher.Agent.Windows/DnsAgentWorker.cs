@@ -4,6 +4,7 @@ using System.Text.Json;
 using DnsSwitcher.Contracts;
 using DnsSwitcher.Core.Exceptions;
 using DnsSwitcher.Infrastructure.Windows;
+using DnsSwitcher.Infrastructure.Windows.Agent;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -21,12 +22,15 @@ internal sealed class DnsAgentWorker(
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            using var server = new NamedPipeServerStream(
+            using var server = NamedPipeServerStreamAcl.Create(
                 AgentProtocol.PipeName,
                 PipeDirection.InOut,
                 1,
                 PipeTransmissionMode.Byte,
-                PipeOptions.Asynchronous);
+                PipeOptions.Asynchronous,
+                inBufferSize: 0,
+                outBufferSize: 0,
+                pipeSecurity: DnsAgentPipeSecurity.Create());
 
             try
             {
