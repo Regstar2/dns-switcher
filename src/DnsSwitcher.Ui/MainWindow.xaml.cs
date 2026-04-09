@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer configRefreshDebounceTimer;
     private bool suppressAdapterSelectionChanged;
     private bool isBusy;
+    private bool isRefreshingUi;
     private bool pendingExternalRefresh;
     private DateTime lastProfilesWriteUtc = DateTime.MinValue;
     private FileSystemWatcher? profilesFileWatcher;
@@ -103,6 +104,11 @@ public partial class MainWindow : Window
             $"Applied profile '{profileItem.Name}'.").ConfigureAwait(true);
     }
 
+    private async void OnTestCurrentDnsClicked(object sender, RoutedEventArgs e)
+    {
+        await RunDnsTestAsync().ConfigureAwait(true);
+    }
+
     private async void OnResetClicked(object sender, RoutedEventArgs e)
     {
         await RunOperationAsync(
@@ -151,17 +157,22 @@ public partial class MainWindow : Window
         string? successMessage = null,
         bool showBusyMessage = true,
         bool showErrorDialog = true,
-        bool preserveOperationStatus = false)
+        bool preserveOperationStatus = false,
+        bool disableControls = true)
     {
-        if (isBusy)
+        if (isBusy || isRefreshingUi)
         {
             return;
         }
 
         var selectedProfileId = (ProfilesListBox.SelectedItem as ProfileListItem)?.Id;
         var selectedAdapterValue = GetSelectedAdapterValue();
+        isRefreshingUi = true;
 
-        SetBusyState(true, showBusyMessage);
+        if (disableControls)
+        {
+            SetBusyState(true, showBusyMessage);
+        }
 
         try
         {
@@ -193,7 +204,12 @@ public partial class MainWindow : Window
         }
         finally
         {
-            SetBusyState(false);
+            if (disableControls)
+            {
+                SetBusyState(false);
+            }
+
+            isRefreshingUi = false;
         }
     }
 
@@ -323,6 +339,7 @@ public partial class MainWindow : Window
         ApplyButton.IsEnabled = !isBusy && hasProfileSelection;
         ResetButton.IsEnabled = !isBusy && hasAdapterOptions;
         ReloadButton.IsEnabled = !isBusy;
+        TestDnsButton.IsEnabled = !isBusy;
         AdapterComboBox.IsEnabled = !isBusy;
         ProfilesListBox.IsEnabled = !isBusy;
     }
@@ -573,7 +590,30 @@ public partial class MainWindow : Window
         await RefreshUiAsync(
             showBusyMessage: false,
             showErrorDialog: false,
-            preserveOperationStatus: true).ConfigureAwait(true);
+            preserveOperationStatus: true,
+            disableControls: false).ConfigureAwait(true);
+    }
+
+    private async Task RunDnsTestAsync()
+    {
+        if (isBusy)
+        {
+            return;
+        }
+
+        SetBusyState(true);
+
+        try
+        {
+            var result = await App.Host.DnsTester.TestCurrentDnsAsync(GetSelectedAdapterValue()).ConfigureAwait(true);
+            SetBusyState(false, showBusyMessage: false);
+            SetOperationStatus(BuildDnsTestSummary(result), isError: result.Status == DnsTestStatus.Failed);
+        }
+        catch (Exception exception)
+        {
+            HandleException(exception);
+            SetBusyState(false, showBusyMessage: false);
+        }
     }
 
     private static string? ResolveAdapterSelectionValue(string? selectionValue, IReadOnlyList<NetworkAdapter> adapters)
@@ -599,5 +639,33 @@ public partial class MainWindow : Window
         return File.Exists(profilesFilePath)
             ? File.GetLastWriteTimeUtc(profilesFilePath)
             : DateTime.MinValue;
+    }
+
+    private static string BuildDnsTestSummary(DnsTestResult result)
+    {
+        var parts = new List<string>
+        {
+            $"DNS test {result.Status}",
+            $"domains: {result.Domains.Count}",
+            $"servers: {result.DnsServers.Count}",
+            $"avg latency: {FormatLatency(result.AverageLatency)}",
+        };
+
+        if (result.DomainResults.Count > 0)
+        {
+            parts.Add(string.Join(
+                "; ",
+                result.DomainResults.Select(domainResult =>
+                    $"{domainResult.Domain}: {domainResult.Status} ({domainResult.SuccessfulAttempts}/{domainResult.TotalAttempts})")));
+        }
+
+        return string.Join(" | ", parts);
+    }
+
+    private static string FormatLatency(TimeSpan? latency)
+    {
+        return latency is null
+            ? "n/a"
+            : $"{Math.Round(latency.Value.TotalMilliseconds, MidpointRounding.AwayFromZero):0} ms";
     }
 }

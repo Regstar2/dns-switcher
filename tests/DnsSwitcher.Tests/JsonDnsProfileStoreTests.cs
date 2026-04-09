@@ -109,10 +109,111 @@ public sealed class JsonDnsProfileStoreTests : IDisposable
     [Fact]
     public void CreateDefault_UsesPortableDataDirectory()
     {
-        var paths = PortableAppPaths.CreateDefault();
+        var publishedBaseDirectory = Path.Combine(rootPath, "publish", "DnsSwitcher.Ui");
+        var paths = PortableAppPaths.CreateDefault(publishedBaseDirectory);
 
         Assert.EndsWith(Path.Combine("data", "config", "profiles.json"), paths.ProfilesFilePath);
         Assert.EndsWith(Path.Combine("data", "logs", "dns-switcher.log"), paths.LogFilePath);
+    }
+
+    [Fact]
+    public void CreateDefault_UsesSharedSolutionDataDirectory_WhenSolutionRootIsDetected()
+    {
+        var solutionRoot = Path.Combine(rootPath, "repo");
+        Directory.CreateDirectory(solutionRoot);
+        File.WriteAllText(Path.Combine(solutionRoot, "DnsSwitcher.sln"), string.Empty);
+
+        var uiBaseDirectory = Path.Combine(solutionRoot, "src", "DnsSwitcher.Ui", "bin", "Release", "net10.0-windows");
+        Directory.CreateDirectory(uiBaseDirectory);
+
+        var paths = PortableAppPaths.CreateDefault(uiBaseDirectory);
+
+        Assert.Equal(Path.Combine(solutionRoot, "data", "config", "profiles.json"), paths.ProfilesFilePath);
+        Assert.Equal(Path.Combine(solutionRoot, "data", "logs", "dns-switcher.log"), paths.LogFilePath);
+    }
+
+    [Fact]
+    public async Task EnsureDirectories_MigratesLegacyConfigFiles_WhenUsingSharedSolutionDataDirectory()
+    {
+        var solutionRoot = Path.Combine(rootPath, "repo");
+        Directory.CreateDirectory(solutionRoot);
+        File.WriteAllText(Path.Combine(solutionRoot, "DnsSwitcher.sln"), string.Empty);
+
+        var uiBaseDirectory = Path.Combine(solutionRoot, "src", "DnsSwitcher.Ui", "bin", "Release", "net10.0-windows");
+        var legacyConfigDirectory = Path.Combine(uiBaseDirectory, "data", "config");
+        Directory.CreateDirectory(legacyConfigDirectory);
+
+        var legacyProfilesFilePath = Path.Combine(legacyConfigDirectory, PortableAppPaths.ProfilesFileName);
+        await File.WriteAllTextAsync(
+            legacyProfilesFilePath,
+            """
+            {
+              "version": 1,
+              "activeProfileId": "google",
+              "profiles": [
+                {
+                  "id": "google",
+                  "name": "Google Public DNS",
+                  "mode": "static",
+                  "ipv4": ["8.8.8.8"],
+                  "ipv6": [],
+                  "tags": [],
+                  "testDomains": ["google.com"],
+                  "testUrls": []
+                }
+              ]
+            }
+            """);
+
+        var paths = PortableAppPaths.CreateDefault(uiBaseDirectory);
+
+        paths.EnsureDirectories();
+
+        Assert.True(File.Exists(paths.ProfilesFilePath));
+        var migratedJson = await File.ReadAllTextAsync(paths.ProfilesFilePath);
+        Assert.Contains("\"activeProfileId\": \"google\"", migratedJson);
+        Assert.Contains("\"testDomains\":[\"google.com\"]", migratedJson.Replace(" ", string.Empty));
+    }
+
+    [Fact]
+    public async Task EnsureDirectories_MigratesMissingLegacyTraySettings_WhenProfilesFileAlreadyExists()
+    {
+        var solutionRoot = Path.Combine(rootPath, "repo");
+        Directory.CreateDirectory(solutionRoot);
+        File.WriteAllText(Path.Combine(solutionRoot, "DnsSwitcher.sln"), string.Empty);
+
+        var sharedConfigDirectory = Path.Combine(solutionRoot, "data", "config");
+        Directory.CreateDirectory(sharedConfigDirectory);
+        await File.WriteAllTextAsync(
+            Path.Combine(sharedConfigDirectory, PortableAppPaths.ProfilesFileName),
+            """
+            {
+              "version": 1,
+              "profiles": []
+            }
+            """);
+
+        var trayBaseDirectory = Path.Combine(solutionRoot, "src", "DnsSwitcher.Tray", "bin", "Release", "net10.0-windows");
+        var legacyConfigDirectory = Path.Combine(trayBaseDirectory, "data", "config");
+        Directory.CreateDirectory(legacyConfigDirectory);
+        await File.WriteAllTextAsync(
+            Path.Combine(legacyConfigDirectory, "tray-settings.json"),
+            """
+            {
+              "notificationsEnabled": false,
+              "showAdapterName": false
+            }
+            """);
+
+        var paths = PortableAppPaths.CreateDefault(trayBaseDirectory);
+
+        paths.EnsureDirectories();
+
+        var migratedSettingsFilePath = Path.Combine(sharedConfigDirectory, "tray-settings.json");
+        Assert.True(File.Exists(migratedSettingsFilePath));
+        var migratedJson = await File.ReadAllTextAsync(migratedSettingsFilePath);
+        Assert.Contains("\"notificationsEnabled\": false", migratedJson);
+        Assert.Contains("\"showAdapterName\": false", migratedJson);
     }
 
     [Fact]

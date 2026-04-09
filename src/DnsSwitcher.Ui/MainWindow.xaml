@@ -102,7 +102,9 @@
           <Grid Margin="12">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="12" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="8" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
@@ -112,10 +114,16 @@
                       SelectionChanged="OnAdapterSelectionChanged" />
             <Button x:Name="ReloadButton"
                     Grid.Column="2"
-                    Width="96"
+                    Width="84"
                     Click="OnRefreshClicked"
                     Content="Reload"
                     ToolTip="Reload profiles.json and current DNS status from disk, CLI, tray, and system state." />
+            <Button x:Name="TestDnsButton"
+                    Grid.Column="4"
+                    Width="92"
+                    Click="OnTestCurrentDnsClicked"
+                    Content="Test DNS"
+                    ToolTip="Test current DNS servers against configured test domains." />
           </Grid>
         </GroupBox>
 

@@ -87,6 +87,7 @@ static void PrintHelp()
           dns-switcher status
           dns-switcher apply <profile-id>
           dns-switcher reset
+          dns-switcher test
           dns-switcher validate-config
           dns-switcher service <install|uninstall|start|stop|status> [agent-exe-path]
 
@@ -175,6 +176,37 @@ static async Task ValidateConfigAsync(WindowsDnsSwitcherHost host)
 {
     _ = await host.ProfileStore.LoadAsync().ConfigureAwait(false);
     Console.WriteLine($"profiles.json is valid: {host.Paths.ProfilesFilePath}");
+}
+
+static async Task PrintDnsTestAsync(WindowsDnsSwitcherHost host, string? adapterSelection)
+{
+    var result = await host.DnsTester.TestCurrentDnsAsync(adapterSelection).ConfigureAwait(false);
+
+    Console.WriteLine($"Adapter target: {adapterSelection ?? "<auto>"}");
+    Console.WriteLine($"Selected adapter: {result.AdapterName ?? "<none>"}");
+    Console.WriteLine($"Test profile: {FormatProfileLabel(result.ProfileName, result.ProfileId)}");
+    Console.WriteLine($"DNS servers: {(result.DnsServers.Count == 0 ? "<none>" : string.Join(", ", result.DnsServers))}");
+    Console.WriteLine($"Domains: {(result.Domains.Count == 0 ? "<none>" : string.Join(", ", result.Domains))}");
+    Console.WriteLine($"Overall status: {result.Status}");
+    Console.WriteLine($"Average latency: {FormatLatency(result.AverageLatency)}");
+    Console.WriteLine($"Details: {result.Details}");
+
+    if (result.DomainResults.Count == 0)
+    {
+        return;
+    }
+
+    Console.WriteLine("Per-domain:");
+
+    foreach (var domainResult in result.DomainResults)
+    {
+        Console.WriteLine(
+            $"  - {domainResult.Domain}: {domainResult.Status} | " +
+            $"success {domainResult.SuccessfulAttempts}/{domainResult.TotalAttempts} | " +
+            $"avg {FormatLatency(domainResult.AverageLatency)} | " +
+            $"best {FormatLatency(domainResult.BestLatency)}");
+        Console.WriteLine($"    {domainResult.Details}");
+    }
 }
 
 static async Task<int> ApplyProfileAsync(WindowsDnsSwitcherHost host, string? profileId, string? adapterSelection)
@@ -305,6 +337,7 @@ static async Task<int> ExecuteCommandCoreAsync(WindowsDnsSwitcherHost host, CliI
         CliCommand.Profiles => await ExecuteAndReturnSuccessAsync(() => PrintProfilesAsync(host)).ConfigureAwait(false),
         CliCommand.Adapters => await ExecuteAndReturnSuccessAsync(() => PrintAdaptersAsync(host, invocation.AdapterSelection)).ConfigureAwait(false),
         CliCommand.Status => await ExecuteAndReturnSuccessAsync(() => PrintStatusAsync(host, invocation.AdapterSelection)).ConfigureAwait(false),
+        CliCommand.Test => await ExecuteAndReturnSuccessAsync(() => PrintDnsTestAsync(host, invocation.AdapterSelection)).ConfigureAwait(false),
         CliCommand.Apply => await ApplyProfileAsync(host, invocation.CommandArgument, invocation.AdapterSelection).ConfigureAwait(false),
         CliCommand.Reset => await ResetToDhcpAsync(host, invocation.AdapterSelection).ConfigureAwait(false),
         CliCommand.ValidateConfig => await ExecuteAndReturnSuccessAsync(() => ValidateConfigAsync(host)).ConfigureAwait(false),
@@ -436,8 +469,9 @@ static void PrintInteractiveHeader(WindowsDnsSwitcherHost host, CliInvocation se
     Console.WriteLine("3. Status");
     Console.WriteLine("4. Apply profile");
     Console.WriteLine("5. Reset to DHCP");
-    Console.WriteLine("6. Validate config");
-    Console.WriteLine("7. Agent service status");
+    Console.WriteLine("6. Test current DNS");
+    Console.WriteLine("7. Validate config");
+    Console.WriteLine("8. Agent service status");
     Console.WriteLine("0. Exit");
     Console.WriteLine();
 }
@@ -454,8 +488,9 @@ static async Task<CliInvocation?> CreateInteractiveInvocationAsync(
         "3" => sessionInvocation with { Command = CliCommand.Status },
         "4" => await CreateApplyInvocationAsync(host, sessionInvocation).ConfigureAwait(false),
         "5" => sessionInvocation with { Command = CliCommand.Reset },
-        "6" => sessionInvocation with { Command = CliCommand.ValidateConfig },
-        "7" => sessionInvocation with { Command = CliCommand.Service, CommandArgument = "status" },
+        "6" => sessionInvocation with { Command = CliCommand.Test },
+        "7" => sessionInvocation with { Command = CliCommand.ValidateConfig },
+        "8" => sessionInvocation with { Command = CliCommand.Service, CommandArgument = "status" },
         _ => InvalidInteractiveChoice(),
     };
 }
@@ -531,6 +566,22 @@ static void PauseInteractive()
     Console.WriteLine();
     Console.Write("Press Enter to continue...");
     Console.ReadLine();
+}
+
+static string FormatLatency(TimeSpan? latency)
+{
+    return latency is null
+        ? "n/a"
+        : $"{Math.Round(latency.Value.TotalMilliseconds, MidpointRounding.AwayFromZero):0} ms";
+}
+
+static string FormatProfileLabel(string? profileName, string? profileId)
+{
+    return string.IsNullOrWhiteSpace(profileId)
+        ? "<none>"
+        : string.IsNullOrWhiteSpace(profileName)
+            ? profileId
+            : $"{profileName} ({profileId})";
 }
 
 static void TryConfigureConsoleEncoding()

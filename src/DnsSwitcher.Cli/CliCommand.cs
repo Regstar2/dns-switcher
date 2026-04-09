@@ -10,4 +10,5 @@ public enum CliCommand
     Reset = 5,
     ValidateConfig = 6,
     Service = 7,
+    Test = 8,
 }

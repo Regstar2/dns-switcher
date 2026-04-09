@@ -15,6 +15,7 @@ Windows utility for quickly managing DNS profiles.
 - Portable config/log layout stored next to the app:
   - `data/config/profiles.json`
   - `data/logs/dns-switcher.log`
+- When running from the repository build output, CLI/UI/Tray/Agent share the solution-level `data` directory so they stay in sync during development.
 - Fixed `profiles.json` format in `docs/profiles.example.json` and `docs/profiles.schema.json`.
 - Basic file logging.
 - CLI/UI/tray skeletons.
@@ -30,6 +31,7 @@ dotnet run --project src/DnsSwitcher.Cli -- adapters
 dotnet run --project src/DnsSwitcher.Cli -- status
 dotnet run --project src/DnsSwitcher.Cli -- apply <profile-id>
 dotnet run --project src/DnsSwitcher.Cli -- reset
+dotnet run --project src/DnsSwitcher.Cli -- test
 dotnet run --project src/DnsSwitcher.Cli -- validate-config
 dotnet run --project src/DnsSwitcher.Cli -- service status
 dotnet run --project src/DnsSwitcher.Cli -- help
@@ -98,6 +100,7 @@ Changing DNS settings requires administrator privileges on Windows.
   - `status`
   - `apply <profile-id>`
   - `reset`
+  - `test`
   - `validate-config`
 - Global options:
   - `--adapter <id|name>`
@@ -181,6 +184,26 @@ Changing DNS settings requires administrator privileges on Windows.
 - Compact width mode hides the right column and keeps the profile list with `Apply` and `Reset` usable at smaller widths.
 - Compact height mode hides optional right-side sections step by step instead of collapsing the whole right column immediately, while keeping the status block visible longer.
 - The profiles area is intentionally laid out so profile management can be added later without redesigning the whole window.
+
+## v0.9 scope
+
+- Add `DnsTester` for the currently selected adapter and DNS state.
+- DNS testing uses `testDomains` from the matched profile when available.
+- If the current DNS does not match a profile, the tester falls back to all configured profile test domains.
+- If config test domains are missing, the tester uses a small built-in fallback domain set.
+- Each domain is tested with multiple resolve attempts and latency measurement.
+- Final DNS test status is classified as:
+  - `Ok`
+  - `Slow`
+  - `Failed`
+- CLI adds:
+  - `test`
+- Desktop UI adds:
+  - `Test DNS`
+- Tray adds:
+  - `Test DNS`
+- v0.9 tests DNS resolution only.
+- `testUrls` stay reserved for a future HTTP/site accessibility check, which is a separate concern from DNS resolution.
 
 ## Cross-Cutting Requirements
 

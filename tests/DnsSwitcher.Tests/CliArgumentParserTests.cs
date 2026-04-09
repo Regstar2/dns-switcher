@@ -57,4 +57,15 @@ public sealed class CliArgumentParserTests
         Assert.Equal("install", result.Invocation.CommandArgument);
         Assert.Equal("C:\\tools\\DnsSwitcher.Agent.Windows.exe", result.Invocation.SecondaryArgument);
     }
+
+    [Fact]
+    public void Parse_ParsesTestCommand_WithAdapterOption()
+    {
+        var result = CliArgumentParser.Parse(["test", "--adapter", "Wi-Fi"]);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Invocation);
+        Assert.Equal(CliCommand.Test, result.Invocation!.Command);
+        Assert.Equal("Wi-Fi", result.Invocation.AdapterSelection);
+    }
 }

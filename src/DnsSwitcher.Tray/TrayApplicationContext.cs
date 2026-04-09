@@ -21,6 +21,7 @@ public sealed class TrayApplicationContext : ApplicationContext
     private readonly ToolStripMenuItem enableDnsMenuItem;
     private readonly ToolStripMenuItem disableDnsMenuItem;
     private readonly ToolStripMenuItem switchNextMenuItem;
+    private readonly ToolStripMenuItem testDnsMenuItem;
     private readonly ToolStripMenuItem profilesMenuItem;
     private readonly ToolStripMenuItem settingsMenuItem;
     private readonly ToolStripMenuItem notificationsMenuItem;
@@ -59,6 +60,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         enableDnsMenuItem = new ToolStripMenuItem("Enable DNS");
         disableDnsMenuItem = new ToolStripMenuItem("Disable DNS");
         switchNextMenuItem = new ToolStripMenuItem("Switch Next");
+        testDnsMenuItem = new ToolStripMenuItem("Test DNS");
         profilesMenuItem = new ToolStripMenuItem("Show Profiles");
         settingsMenuItem = new ToolStripMenuItem("Settings");
         notificationsMenuItem = new ToolStripMenuItem("Show notifications");
@@ -68,6 +70,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         enableDnsMenuItem.Click += async (_, _) => await ExecuteActionAsync(EnableDnsAsync).ConfigureAwait(true);
         disableDnsMenuItem.Click += async (_, _) => await ExecuteActionAsync(DisableDnsAsync).ConfigureAwait(true);
         switchNextMenuItem.Click += async (_, _) => await ExecuteActionAsync(SwitchNextAsync).ConfigureAwait(true);
+        testDnsMenuItem.Click += async (_, _) => await ExecuteActionAsync(TestDnsAsync).ConfigureAwait(true);
         notificationsMenuItem.Click += async (_, _) => await ToggleNotificationsAsync().ConfigureAwait(true);
         showAdapterNameMenuItem.Click += async (_, _) => await ToggleAdapterVisibilityAsync().ConfigureAwait(true);
         exitMenuItem.Click += (_, _) => ExitThread();
@@ -82,6 +85,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         contextMenu.Items.Add(enableDnsMenuItem);
         contextMenu.Items.Add(disableDnsMenuItem);
         contextMenu.Items.Add(switchNextMenuItem);
+        contextMenu.Items.Add(testDnsMenuItem);
         contextMenu.Items.Add(profilesMenuItem);
         contextMenu.Items.Add(new ToolStripSeparator());
         contextMenu.Items.Add(settingsMenuItem);
@@ -248,6 +252,28 @@ public sealed class TrayApplicationContext : ApplicationContext
         ShowSuccess($"DNS switched: {profile.Name}");
     }
 
+    private async Task TestDnsAsync()
+    {
+        var result = await host.DnsTester.TestCurrentDnsAsync().ConfigureAwait(true);
+        var summary = BuildDnsTestSummary(result);
+
+        if (!traySettings.NotificationsEnabled)
+        {
+            logger.LogInformation("Tray DNS test finished without balloon notification: {Summary}", summary);
+            ShowInformation("DnsSwitcher DNS Test", BuildDnsTestDetails(result));
+            return;
+        }
+
+        notifyIcon.BalloonTipTitle = "DnsSwitcher";
+        notifyIcon.BalloonTipText = summary;
+        notifyIcon.BalloonTipIcon = result.Status == DnsTestStatus.Failed
+            ? ToolTipIcon.Error
+            : result.Status == DnsTestStatus.Slow
+                ? ToolTipIcon.Warning
+                : ToolTipIcon.Info;
+        notifyIcon.ShowBalloonTip(2500);
+    }
+
     private async Task ToggleNotificationsAsync()
     {
         await UpdateTraySettingsAsync(traySettings with
@@ -349,6 +375,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         enableDnsMenuItem.Enabled = !isActionInProgress && enableProfile is not null;
         disableDnsMenuItem.Enabled = !isActionInProgress && status.Mode != DnsMode.Dhcp;
         switchNextMenuItem.Enabled = !isActionInProgress && nextProfile is not null;
+        testDnsMenuItem.Enabled = !isActionInProgress;
         profilesMenuItem.Enabled = !isActionInProgress && profileSelectionService.GetSwitchableProfiles(configuration).Count > 0;
         settingsMenuItem.Enabled = !isActionInProgress;
         notificationsMenuItem.Checked = traySettings.NotificationsEnabled;
@@ -398,6 +425,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         enableDnsMenuItem.Enabled = false;
         disableDnsMenuItem.Enabled = false;
         switchNextMenuItem.Enabled = false;
+        testDnsMenuItem.Enabled = false;
         profilesMenuItem.Enabled = false;
         settingsMenuItem.Enabled = false;
     }
@@ -447,6 +475,67 @@ public sealed class TrayApplicationContext : ApplicationContext
         return servers.Count == 0 ? "<none>" : string.Join(", ", servers);
     }
 
+    private static string BuildDnsTestSummary(DnsTestResult result)
+    {
+        var averageLatency = result.AverageLatency is null
+            ? "n/a"
+            : $"{Math.Round(result.AverageLatency.Value.TotalMilliseconds, MidpointRounding.AwayFromZero):0} ms";
+
+        return
+            $"DNS test {result.Status}. " +
+            $"Domains: {result.Domains.Count}. " +
+            $"Average latency: {averageLatency}.";
+    }
+
+    private static string BuildDnsTestDetails(DnsTestResult result)
+    {
+        var lines = new List<string>
+        {
+            $"Status: {result.Status}",
+            $"Adapter: {result.AdapterName ?? "<none>"}",
+            $"Profile: {FormatProfileLabel(result.ProfileName, result.ProfileId)}",
+            $"DNS servers: {(result.DnsServers.Count == 0 ? "<none>" : string.Join(", ", result.DnsServers))}",
+            $"Average latency: {FormatLatency(result.AverageLatency)}",
+            string.Empty,
+            "Domains:",
+        };
+
+        if (result.DomainResults.Count == 0)
+        {
+            lines.Add("  <none>");
+        }
+        else
+        {
+            foreach (var domainResult in result.DomainResults)
+            {
+                lines.Add(
+                    $"  {domainResult.Domain}: {domainResult.Status} | " +
+                    $"{domainResult.SuccessfulAttempts}/{domainResult.TotalAttempts} | " +
+                    $"avg {FormatLatency(domainResult.AverageLatency)}");
+            }
+        }
+
+        lines.Add(string.Empty);
+        lines.Add(result.Details);
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private static string FormatLatency(TimeSpan? latency)
+    {
+        return latency is null
+            ? "n/a"
+            : $"{Math.Round(latency.Value.TotalMilliseconds, MidpointRounding.AwayFromZero):0} ms";
+    }
+
+    private static string FormatProfileLabel(string? profileName, string? profileId)
+    {
+        return string.IsNullOrWhiteSpace(profileId)
+            ? "<none>"
+            : string.IsNullOrWhiteSpace(profileName)
+                ? profileId
+                : $"{profileName} ({profileId})";
+    }
+
     private TraySettings LoadTraySettingsOrDefault()
     {
         try
@@ -494,5 +583,14 @@ public sealed class TrayApplicationContext : ApplicationContext
             title,
             MessageBoxButtons.OK,
             MessageBoxIcon.Error);
+    }
+
+    private static void ShowInformation(string title, string message)
+    {
+        MessageBox.Show(
+            message,
+            title,
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information);
     }
 }

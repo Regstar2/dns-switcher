@@ -5,6 +5,7 @@ using DnsSwitcher.Infrastructure.Windows.Agent;
 using DnsSwitcher.Infrastructure.Windows.Adapters;
 using DnsSwitcher.Infrastructure.Windows.Configuration;
 using DnsSwitcher.Infrastructure.Windows.Dns;
+using DnsSwitcher.Infrastructure.Windows.DnsTesting;
 using Microsoft.Extensions.Logging;
 
 namespace DnsSwitcher.Infrastructure.Windows;
@@ -23,6 +24,8 @@ public sealed class WindowsDnsSwitcherHost : IDisposable
         ProfileService = new DnsProfileService(ProfileStore);
         DnsManager = new WindowsDnsManager(NetworkAdapterService, ProfileService, loggerFactory.CreateLogger<WindowsDnsManager>());
         DnsSwitchService = new DnsSwitchService(ProfileService, DnsManager);
+        DnsQueryClient = new UdpDnsQueryClient(loggerFactory.CreateLogger<UdpDnsQueryClient>());
+        DnsTester = new DnsTester(ProfileService, DnsManager, DnsQueryClient);
         AgentClient = new NamedPipeDnsAgentClient(loggerFactory.CreateLogger<NamedPipeDnsAgentClient>());
         AgentDnsSwitchService = new AgentAwareDnsSwitchService(ProfileService, DnsSwitchService, AgentClient);
         AgentServiceManager = new WindowsAgentServiceManager(loggerFactory.CreateLogger<WindowsAgentServiceManager>());
@@ -43,6 +46,10 @@ public sealed class WindowsDnsSwitcherHost : IDisposable
     public DnsProfileService ProfileService { get; }
 
     public DnsSwitchService DnsSwitchService { get; }
+
+    public IDnsQueryClient DnsQueryClient { get; }
+
+    public DnsTester DnsTester { get; }
 
     public IDnsAgentClient AgentClient { get; }
 
