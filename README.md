@@ -138,6 +138,23 @@ Changing DNS settings requires administrator privileges on Windows.
 - Document the service install model and the portable-app constraint.
 - Detailed plan: `docs/v0.7.1-privileged-access-plan.md`
 
+## v0.7.2 scope
+
+- Add persistent tray settings in portable config:
+  - `data/config/tray-settings.json`
+- Tray settings:
+  - `notificationsEnabled`
+  - `showAdapterName`
+- Add tray settings menu actions:
+  - enable or disable action notifications
+  - enable or disable adapter name display
+- Split tray header into separate lines:
+  - status line
+  - adapter line
+- Trim long dynamic menu texts so the tray menu does not stretch excessively.
+- Keep full status information in the detailed status dialog.
+- Add tests for tray settings storage and tray text formatting.
+
 ## Cross-Cutting Requirements
 
 - `paths` was removed from the public CLI surface. It was only a portable-debug helper, not a user scenario.

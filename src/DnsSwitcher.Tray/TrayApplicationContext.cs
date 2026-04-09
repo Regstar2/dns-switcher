@@ -2,58 +2,89 @@ using DnsSwitcher.Core.Exceptions;
 using DnsSwitcher.Core.Models;
 using DnsSwitcher.Core.Services;
 using DnsSwitcher.Infrastructure.Windows;
+using DnsSwitcher.Infrastructure.Windows.Configuration;
+using DnsSwitcher.Infrastructure.Windows.Tray;
+using Microsoft.Extensions.Logging;
 
 namespace DnsSwitcher.Tray;
 
 public sealed class TrayApplicationContext : ApplicationContext
 {
     private const int RefreshIntervalMilliseconds = 15000;
-    private const int MaxTrayTextLength = 63;
 
     private readonly WindowsDnsSwitcherHost host;
+    private readonly ILogger<TrayApplicationContext> logger;
     private readonly NotifyIcon notifyIcon;
     private readonly ContextMenuStrip contextMenu;
     private readonly ToolStripMenuItem statusMenuItem;
+    private readonly ToolStripMenuItem adapterMenuItem;
     private readonly ToolStripMenuItem enableDnsMenuItem;
     private readonly ToolStripMenuItem disableDnsMenuItem;
     private readonly ToolStripMenuItem switchNextMenuItem;
     private readonly ToolStripMenuItem profilesMenuItem;
+    private readonly ToolStripMenuItem settingsMenuItem;
+    private readonly ToolStripMenuItem notificationsMenuItem;
+    private readonly ToolStripMenuItem showAdapterNameMenuItem;
     private readonly ToolStripMenuItem exitMenuItem;
     private readonly System.Windows.Forms.Timer refreshTimer;
     private readonly TrayIconProvider trayIconProvider = new();
     private readonly DnsProfileSelectionService profileSelectionService = new();
+    private readonly JsonTraySettingsStore traySettingsStore;
 
     private string? preferredProfileId;
+    private AppConfig? lastConfiguration;
+    private DnsStatus? lastStatus;
+    private Exception? lastRefreshError;
+    private TraySettings traySettings = TraySettings.Default;
     private bool isRefreshing;
     private bool isActionInProgress;
 
     public TrayApplicationContext(WindowsDnsSwitcherHost host)
     {
         this.host = host;
+        logger = host.LoggerFactory.CreateLogger<TrayApplicationContext>();
+        traySettingsStore = new JsonTraySettingsStore(host.Paths, host.LoggerFactory.CreateLogger<JsonTraySettingsStore>());
+        traySettings = LoadTraySettingsOrDefault();
 
         statusMenuItem = new ToolStripMenuItem("Status: loading...")
         {
             Enabled = false,
+        };
+        adapterMenuItem = new ToolStripMenuItem("Adapter: loading...")
+        {
+            Enabled = false,
+            Visible = traySettings.ShowAdapterName,
         };
 
         enableDnsMenuItem = new ToolStripMenuItem("Enable DNS");
         disableDnsMenuItem = new ToolStripMenuItem("Disable DNS");
         switchNextMenuItem = new ToolStripMenuItem("Switch Next");
         profilesMenuItem = new ToolStripMenuItem("Show Profiles");
+        settingsMenuItem = new ToolStripMenuItem("Settings");
+        notificationsMenuItem = new ToolStripMenuItem("Show notifications");
+        showAdapterNameMenuItem = new ToolStripMenuItem("Show adapter name");
         exitMenuItem = new ToolStripMenuItem("Exit");
 
         enableDnsMenuItem.Click += async (_, _) => await ExecuteActionAsync(EnableDnsAsync).ConfigureAwait(true);
         disableDnsMenuItem.Click += async (_, _) => await ExecuteActionAsync(DisableDnsAsync).ConfigureAwait(true);
         switchNextMenuItem.Click += async (_, _) => await ExecuteActionAsync(SwitchNextAsync).ConfigureAwait(true);
+        notificationsMenuItem.Click += async (_, _) => await ToggleNotificationsAsync().ConfigureAwait(true);
+        showAdapterNameMenuItem.Click += async (_, _) => await ToggleAdapterVisibilityAsync().ConfigureAwait(true);
         exitMenuItem.Click += (_, _) => ExitThread();
+
+        settingsMenuItem.DropDownItems.Add(notificationsMenuItem);
+        settingsMenuItem.DropDownItems.Add(showAdapterNameMenuItem);
 
         contextMenu = new ContextMenuStrip();
         contextMenu.Items.Add(statusMenuItem);
+        contextMenu.Items.Add(adapterMenuItem);
         contextMenu.Items.Add(new ToolStripSeparator());
         contextMenu.Items.Add(enableDnsMenuItem);
         contextMenu.Items.Add(disableDnsMenuItem);
         contextMenu.Items.Add(switchNextMenuItem);
         contextMenu.Items.Add(profilesMenuItem);
+        contextMenu.Items.Add(new ToolStripSeparator());
+        contextMenu.Items.Add(settingsMenuItem);
         contextMenu.Items.Add(new ToolStripSeparator());
         contextMenu.Items.Add(exitMenuItem);
         contextMenu.Opening += async (_, _) => await RefreshStateAsync().ConfigureAwait(true);
@@ -118,19 +149,17 @@ public sealed class TrayApplicationContext : ApplicationContext
             var status = await host.DnsManager.GetStatusAsync().ConfigureAwait(true);
 
             SyncPreferredProfile(configuration, status);
-            RebuildProfilesMenu(configuration, status);
-            UpdateMenuState(configuration, status);
-            UpdateNotifyIcon(configuration, status, error: null);
+            lastConfiguration = configuration;
+            lastStatus = status;
+            lastRefreshError = null;
+            ApplyPresentationState();
         }
         catch (Exception exception)
         {
-            SetBusyMenuState();
-            profilesMenuItem.DropDownItems.Clear();
-            profilesMenuItem.DropDownItems.Add(new ToolStripMenuItem("Unable to load profiles")
-            {
-                Enabled = false,
-            });
-            UpdateNotifyIcon(null, null, exception);
+            lastConfiguration = null;
+            lastStatus = null;
+            lastRefreshError = exception;
+            ApplyPresentationState();
         }
         finally
         {
@@ -219,6 +248,22 @@ public sealed class TrayApplicationContext : ApplicationContext
         ShowSuccess($"DNS switched: {profile.Name}");
     }
 
+    private async Task ToggleNotificationsAsync()
+    {
+        await UpdateTraySettingsAsync(traySettings with
+        {
+            NotificationsEnabled = !traySettings.NotificationsEnabled,
+        }).ConfigureAwait(true);
+    }
+
+    private async Task ToggleAdapterVisibilityAsync()
+    {
+        await UpdateTraySettingsAsync(traySettings with
+        {
+            ShowAdapterName = !traySettings.ShowAdapterName,
+        }).ConfigureAwait(true);
+    }
+
     private async Task ShowStatusDialogAsync()
     {
         try
@@ -230,7 +275,7 @@ public sealed class TrayApplicationContext : ApplicationContext
 
             var lines = new List<string>
             {
-                BuildStatusText(configuration, status),
+                $"Status: {TrayTextFormatter.BuildStatusLabel(configuration, status)}",
                 $"Adapter: {status.AdapterName ?? "<none>"}",
                 $"Mode: {status.Mode}",
                 $"Matched profile: {status.MatchedProfileId ?? "<none>"}",
@@ -271,14 +316,7 @@ public sealed class TrayApplicationContext : ApplicationContext
             var isCurrent = string.Equals(profile.Id, status.MatchedProfileId, StringComparison.OrdinalIgnoreCase);
             var isPreferred = !isCurrent
                 && string.Equals(profile.Id, preferredProfileId, StringComparison.OrdinalIgnoreCase);
-
-            var menuText = isCurrent
-                ? $"{profile.Name} [active]"
-                : isPreferred
-                    ? $"{profile.Name} [selected]"
-                    : profile.Name;
-
-            var profileMenuItem = new ToolStripMenuItem(menuText)
+            var profileMenuItem = new ToolStripMenuItem(TrayTextFormatter.BuildProfileMenuText(profile, isCurrent, isPreferred))
             {
                 Checked = isCurrent || isPreferred,
                 Enabled = !isActionInProgress,
@@ -302,18 +340,19 @@ public sealed class TrayApplicationContext : ApplicationContext
         var enableProfile = profileSelectionService.GetProfileToEnable(configuration, status, preferredProfileId);
         var nextProfile = profileSelectionService.GetNextProfile(configuration, status, preferredProfileId);
 
-        statusMenuItem.Text = BuildStatusText(configuration, status);
-        enableDnsMenuItem.Text = enableProfile is null
-            ? "Enable DNS"
-            : $"Enable DNS ({enableProfile.Name})";
-        switchNextMenuItem.Text = nextProfile is null
-            ? "Switch Next"
-            : $"Switch Next ({nextProfile.Name})";
+        statusMenuItem.Text = TrayTextFormatter.BuildStatusMenuText(configuration, status);
+        adapterMenuItem.Text = TrayTextFormatter.BuildAdapterMenuText(status, traySettings) ?? "Adapter: hidden";
+        adapterMenuItem.Visible = traySettings.ShowAdapterName;
+        enableDnsMenuItem.Text = TrayTextFormatter.BuildEnableMenuText(enableProfile);
+        switchNextMenuItem.Text = TrayTextFormatter.BuildSwitchNextMenuText(nextProfile);
 
         enableDnsMenuItem.Enabled = !isActionInProgress && enableProfile is not null;
         disableDnsMenuItem.Enabled = !isActionInProgress && status.Mode != DnsMode.Dhcp;
         switchNextMenuItem.Enabled = !isActionInProgress && nextProfile is not null;
         profilesMenuItem.Enabled = !isActionInProgress && profileSelectionService.GetSwitchableProfiles(configuration).Count > 0;
+        settingsMenuItem.Enabled = !isActionInProgress;
+        notificationsMenuItem.Checked = traySettings.NotificationsEnabled;
+        showAdapterNameMenuItem.Checked = traySettings.ShowAdapterName;
     }
 
     private void UpdateNotifyIcon(AppConfig? configuration, DnsStatus? status, Exception? error)
@@ -321,8 +360,9 @@ public sealed class TrayApplicationContext : ApplicationContext
         if (error is not null)
         {
             statusMenuItem.Text = "Status: error";
+            adapterMenuItem.Visible = false;
             notifyIcon.Icon = trayIconProvider.GetIcon(TrayIconState.Error);
-            notifyIcon.Text = TrimTrayText($"DnsSwitcher: error - {error.Message}");
+            notifyIcon.Text = TrayTextFormatter.BuildErrorNotifyIconText(error.Message);
             return;
         }
 
@@ -334,7 +374,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         }
 
         notifyIcon.Icon = trayIconProvider.GetIcon(ResolveTrayIconState(status));
-        notifyIcon.Text = TrimTrayText(BuildStatusText(configuration, status));
+        notifyIcon.Text = TrayTextFormatter.BuildNotifyIconText(configuration, status, traySettings);
     }
 
     private void SyncPreferredProfile(AppConfig configuration, DnsStatus status)
@@ -354,27 +394,40 @@ public sealed class TrayApplicationContext : ApplicationContext
     private void SetBusyMenuState()
     {
         statusMenuItem.Text = "Status: working...";
+        adapterMenuItem.Visible = traySettings.ShowAdapterName;
         enableDnsMenuItem.Enabled = false;
         disableDnsMenuItem.Enabled = false;
         switchNextMenuItem.Enabled = false;
         profilesMenuItem.Enabled = false;
+        settingsMenuItem.Enabled = false;
     }
 
-    private static string BuildStatusText(AppConfig configuration, DnsStatus status)
+    private void ApplyPresentationState()
     {
-        var currentProfile = configuration.Profiles.FirstOrDefault(profile =>
-            string.Equals(profile.Id, status.MatchedProfileId, StringComparison.OrdinalIgnoreCase));
-
-        var label = currentProfile?.Name ?? status.Mode switch
+        if (lastRefreshError is not null)
         {
-            DnsMode.Dhcp => "DHCP",
-            DnsMode.Manual => "Manual DNS",
-            DnsMode.Mixed => "Mixed DNS",
-            _ => "Unknown",
-        };
+            SetBusyMenuState();
+            profilesMenuItem.DropDownItems.Clear();
+            profilesMenuItem.DropDownItems.Add(new ToolStripMenuItem("Unable to load profiles")
+            {
+                Enabled = false,
+            });
+            notificationsMenuItem.Checked = traySettings.NotificationsEnabled;
+            showAdapterNameMenuItem.Checked = traySettings.ShowAdapterName;
+            UpdateNotifyIcon(null, null, lastRefreshError);
+            return;
+        }
 
-        var adapterName = status.AdapterName ?? "no adapter selected";
-        return $"Status: {label} | {adapterName}";
+        if (lastConfiguration is null || lastStatus is null)
+        {
+            notifyIcon.Icon = trayIconProvider.GetIcon(TrayIconState.Default);
+            notifyIcon.Text = "DnsSwitcher";
+            return;
+        }
+
+        RebuildProfilesMenu(lastConfiguration, lastStatus);
+        UpdateMenuState(lastConfiguration, lastStatus);
+        UpdateNotifyIcon(lastConfiguration, lastStatus, error: null);
     }
 
     private static TrayIconState ResolveTrayIconState(DnsStatus status)
@@ -394,22 +447,44 @@ public sealed class TrayApplicationContext : ApplicationContext
         return servers.Count == 0 ? "<none>" : string.Join(", ", servers);
     }
 
-    private static string TrimTrayText(string value)
+    private TraySettings LoadTraySettingsOrDefault()
     {
-        if (value.Length <= MaxTrayTextLength)
+        try
         {
-            return value;
+            return traySettingsStore.LoadAsync().GetAwaiter().GetResult();
         }
-
-        return value[..(MaxTrayTextLength - 3)] + "...";
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Tray settings could not be loaded. Default tray settings will be used.");
+            return TraySettings.Default;
+        }
     }
 
     private void ShowSuccess(string message)
     {
+        if (!traySettings.NotificationsEnabled)
+        {
+            return;
+        }
+
         notifyIcon.BalloonTipTitle = "DnsSwitcher";
         notifyIcon.BalloonTipText = message;
         notifyIcon.BalloonTipIcon = ToolTipIcon.Info;
         notifyIcon.ShowBalloonTip(2000);
+    }
+
+    private async Task UpdateTraySettingsAsync(TraySettings updatedSettings)
+    {
+        try
+        {
+            await traySettingsStore.SaveAsync(updatedSettings).ConfigureAwait(true);
+            traySettings = updatedSettings;
+            ApplyPresentationState();
+        }
+        catch (Exception exception)
+        {
+            ShowError("DnsSwitcher", exception.Message);
+        }
     }
 
     private static void ShowError(string title, string message)
