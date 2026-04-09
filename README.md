@@ -155,11 +155,39 @@ Changing DNS settings requires administrator privileges on Windows.
 - Keep full status information in the detailed status dialog.
 - Add tests for tray settings storage and tray text formatting.
 
+## v0.8 scope
+
+- Add the first desktop UI MVP in `DnsSwitcher.Ui`.
+- Main window includes:
+  - profile list;
+  - adapter selection in the right details column;
+  - current DNS status block;
+  - buttons for `Apply`, `Reset`, and `Reload`.
+- The UI reloads `profiles.json` and current system status:
+  - on startup;
+  - on manual `Reload`;
+  - automatically after external config changes from CLI or tray;
+  - periodically for current system and agent status.
+- The UI shows:
+  - current matched profile;
+  - configured active profile;
+  - selected adapter;
+  - current DNS mode;
+  - agent service status;
+  - agent availability;
+  - IPv4 and IPv6 DNS servers.
+- Normal window mode starts with equal left and right columns.
+- The default window height is kept tighter so the initial layout avoids excess empty space in the right column.
+- Compact width mode hides the right column and keeps the profile list with `Apply` and `Reset` usable at smaller widths.
+- Compact height mode hides optional right-side sections step by step instead of collapsing the whole right column immediately, while keeping the status block visible longer.
+- The profiles area is intentionally laid out so profile management can be added later without redesigning the whole window.
+
 ## Cross-Cutting Requirements
 
 - `paths` was removed from the public CLI surface. It was only a portable-debug helper, not a user scenario.
 - Russian language support and full i18n are required for the final product.
 - All user-facing strings in CLI, UI and tray should move to a centralized localization mechanism.
 - English should remain as a fallback language.
+- Desktop UI must support a dark theme in a future version.
 - Centralized profile catalogs/import sources are a valid next step, but are not implemented yet.
 - Private DNS profiles must stay in local ignored config files and must not be committed to the repository.

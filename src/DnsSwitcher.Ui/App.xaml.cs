@@ -22,9 +22,12 @@ public partial class App : Application
         });
 
         Host = new WindowsDnsSwitcherHost(paths, loggerFactory);
-        Host.ProfileService.EnsureInitializedAsync().GetAwaiter().GetResult();
 
         base.OnStartup(e);
+
+        var mainWindow = new MainWindow();
+        MainWindow = mainWindow;
+        mainWindow.Show();
     }
 
     protected override void OnExit(ExitEventArgs e)
