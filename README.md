@@ -1,284 +1,246 @@
 # DnsSwitcher
 
-Windows utility for quickly managing DNS profiles.
+Portable Windows utility for fast DNS profile switching with a shared core, CLI, desktop UI, tray client, and built-in diagnostics.
 
-## v0.1 scope
+## Overview
 
-- Solution and project skeleton:
-  - `DnsSwitcher.Core`
-  - `DnsSwitcher.Infrastructure.Windows`
-  - `DnsSwitcher.Cli`
-  - `DnsSwitcher.Ui`
-  - `DnsSwitcher.Tray`
-  - `DnsSwitcher.Tests`
-- Shared core abstractions for profiles, config storage, paths, and DNS management.
-- Portable config/log layout stored next to the app:
-  - `data/config/profiles.json`
-  - `data/logs/dns-switcher.log`
-- When running from the repository build output, CLI/UI/Tray/Agent share the solution-level `data` directory so they stay in sync during development.
-- Fixed `profiles.json` format in `docs/profiles.example.json` and `docs/profiles.schema.json`.
-- Basic file logging.
-- CLI/UI/tray skeletons.
+`DnsSwitcher` is a Windows-first project for managing DNS profiles without scattering logic across multiple apps.  
+One shared core drives three clients:
 
-## Commands
+- `DnsSwitcher.Cli` for commands and automation
+- `DnsSwitcher.Ui` for regular desktop usage
+- `DnsSwitcher.Tray` for instant switching from the system tray
 
-```powershell
-dotnet build DnsSwitcher.sln
-dotnet test DnsSwitcher.sln
-dotnet run --project src/DnsSwitcher.Cli
-dotnet run --project src/DnsSwitcher.Cli -- profiles
-dotnet run --project src/DnsSwitcher.Cli -- adapters
-dotnet run --project src/DnsSwitcher.Cli -- status
-dotnet run --project src/DnsSwitcher.Cli -- apply <profile-id>
-dotnet run --project src/DnsSwitcher.Cli -- reset
-dotnet run --project src/DnsSwitcher.Cli -- test
-dotnet run --project src/DnsSwitcher.Cli -- test-sites
-dotnet run --project src/DnsSwitcher.Cli -- validate-config
-dotnet run --project src/DnsSwitcher.Cli -- service status
-dotnet run --project src/DnsSwitcher.Cli -- help
-dotnet run --project src/DnsSwitcher.Tray
-dotnet run --project src/DnsSwitcher.Agent.Windows
+The project also includes a privileged Windows agent so UI and tray can change DNS without requiring elevation on every action.
+
+## Features
+
+- Portable data layout stored next to the app
+- DNS profile storage in `profiles.json`
+- Fast apply/reset workflow
+- Current DNS status detection
+- Default network adapter selection
+- DNS diagnostics by domain
+- Site accessibility diagnostics by URL
+- Interactive console mode for users who prefer a console menu
+- Desktop UI for standard usage
+- Tray client for fast switching
+- Agent/service model for privileged DNS operations
+- File logging and graceful error handling
+
+## Architecture
+
+```text
+DnsSwitcher.Core
+  Models, validation, services, selection logic, DNS/site test orchestration
+
+DnsSwitcher.Infrastructure.Windows
+  Windows DNS management, adapter discovery, config storage, logging, IPC client
+
+DnsSwitcher.Agent.Windows
+  Privileged Windows Service / agent over Named Pipes
+
+DnsSwitcher.Cli
+  Command-line and interactive console client
+
+DnsSwitcher.Ui
+  WPF desktop client
+
+DnsSwitcher.Tray
+  WinForms tray client
+
+DnsSwitcher.Tests
+  Unit tests for config, validation, adapter selection, matching, and diagnostics
 ```
 
-Changing DNS settings requires administrator privileges on Windows.
+### Runtime flow
 
-## v0.2 scope
+- `CLI`, `UI`, and `Tray` use the same shared core.
+- Privileged DNS changes go through `DnsSwitcher.Agent.Windows` when available.
+- If the agent is unavailable, direct fallback is possible only from an elevated process.
+- Config and logs are portable and live under the app directory.
 
-- Config model: `AppConfig`.
-- Profile model: `DnsProfile` with `ProfileMode.Static` and `ProfileMode.Dhcp`.
-- Validation model: `ValidationError`.
-- `profiles.json` loading validates:
-  - empty profile ids and names;
-  - duplicate profile ids and names;
-  - invalid IPv4/IPv6 addresses;
-  - `Dhcp` profiles with static DNS addresses;
-  - `Static` profiles without DNS addresses;
-  - unknown `activeProfileId`.
+## Stack
 
-## v0.3 scope
+- C# / .NET 10
+- WPF for desktop UI
+- WinForms `NotifyIcon` for tray
+- Windows Service hosting for the agent
+- Named Pipes for IPC
+- xUnit for unit tests
 
-- Platform-neutral network adapter model and selection logic in `DnsSwitcher.Core`.
-- Windows adapter discovery using `NetworkInterface`.
-- Adapter facts:
-  - active;
-  - physical;
-  - loopback;
-  - supported IP stacks;
-  - default gateway presence.
-- Default adapter selection heuristics with unit tests.
-- CLI command `adapters` for manual inspection.
+## Projects
 
-## v0.4 scope
+- `src/DnsSwitcher.Core`
+- `src/DnsSwitcher.Infrastructure.Windows`
+- `src/DnsSwitcher.Contracts`
+- `src/DnsSwitcher.Agent.Windows`
+- `src/DnsSwitcher.Cli`
+- `src/DnsSwitcher.Ui`
+- `src/DnsSwitcher.Tray`
+- `tests/DnsSwitcher.Tests`
 
-- Read current DNS status for the selected adapter.
-- Detect effective DNS mode:
-  - `Dhcp`
-  - `Manual`
-  - `Mixed`
-- Read current IPv4 and IPv6 DNS server lists.
-- Match current system DNS settings to a configured profile.
+## Portable layout
 
-## v0.5 scope
+```text
+data/
+  config/
+    profiles.json
+    tray-settings.json
+  logs/
+    dns-switcher.log
+```
 
-- Apply a DNS profile to the selected adapter.
-- Reset DNS settings to DHCP.
-- Check administrator privileges before changing DNS settings.
-- Handle primary operational errors:
-  - profile not found;
-  - adapter not found;
-  - adapter disabled;
-  - insufficient privileges;
-  - failed Windows DNS command execution.
+During development, clients started from this repository share the solution-level `data/config/profiles.json` path when available.
 
-## v0.6 scope
+## CLI
 
-- Console/CLI MVP with two modes:
-  - interactive console menu when started without arguments;
-  - command mode when started with arguments.
-- Commands:
-  - `profiles`
-  - `adapters`
-  - `status`
-  - `apply <profile-id>`
-  - `reset`
-  - `test`
-  - `validate-config`
-- Global options:
-  - `--adapter <id|name>`
-  - `--config <path>`
-- Improved help and stable exit codes for command mode.
-- Legacy aliases preserved:
-  - `list -> profiles`
-  - `switch`, `enable -> apply`
-  - `disable -> reset`
-  - `validate -> validate-config`
+Run help:
 
-## v0.7 scope
+```powershell
+dotnet run --project src/DnsSwitcher.Cli -- help
+```
 
-- Separate tray application with a live tray icon.
-- Tray context menu actions:
-  - `Enable DNS`
-  - `Disable DNS`
-  - `Switch Next`
-  - `Show Profiles`
-- Current DNS status is shown directly in the tray tooltip and menu header.
-- Tray state refreshes automatically and after each DNS switch operation.
-- Double-clicking the tray icon opens a detailed status dialog.
+Main commands:
 
-## v0.7.1 scope
+```powershell
+dns-switcher profiles
+dns-switcher adapters
+dns-switcher status
+dns-switcher apply <profile-id>
+dns-switcher reset
+dns-switcher test
+dns-switcher test-sites
+dns-switcher validate-config
+dns-switcher service status
+```
 
-- Prepare the architecture for removing Administrator requirements from tray forever.
-- Implement the first agent/service foundation for removing repeated elevation:
-  - privileged Windows Service;
-  - non-elevated `Tray`, `UI`, and normal `CLI`;
-  - Named Pipes between clients and the service.
-- Add CLI service commands:
-  - `service install`
-  - `service uninstall`
-  - `service start`
-  - `service stop`
-  - `service status`
-- Install the agent service from a dedicated deployment directory outside `bin\Debug` and `bin\Release`.
-- Document the service install model and the portable-app constraint.
-- Detailed plan: `docs/v0.7.1-privileged-access-plan.md`
+Global options:
 
-## v0.7.2 scope
+```powershell
+--adapter <id|name>
+--config <path>
+```
 
-- Add persistent tray settings in portable config:
-  - `data/config/tray-settings.json`
-- Tray settings:
-  - `notificationsEnabled`
-  - `showAdapterName`
-- Add tray settings menu actions:
-  - enable or disable action notifications
-  - enable or disable adapter name display
-- Split tray header into separate lines:
-  - status line
-  - adapter line
-- Trim long dynamic menu texts so the tray menu does not stretch excessively.
-- Keep full status information in the detailed status dialog.
-- Add tests for tray settings storage and tray text formatting.
+Interactive console mode:
 
-## v0.8 scope
+```powershell
+dotnet run --project src/DnsSwitcher.Cli
+```
 
-- Add the first desktop UI MVP in `DnsSwitcher.Ui`.
-- Main window includes:
-  - profile list;
-  - adapter selection in the right details column;
-  - current DNS status block;
-  - buttons for `Apply`, `Reset`, and `Reload`.
-- The UI reloads `profiles.json` and current system status:
-  - on startup;
-  - on manual `Reload`;
-  - automatically after external config changes from CLI or tray;
-  - periodically for current system and agent status.
-- The UI shows:
-  - current matched profile;
-  - configured active profile;
-  - selected adapter;
-  - current DNS mode;
-  - agent service status;
-  - agent availability;
-  - IPv4 and IPv6 DNS servers.
-- Normal window mode starts with equal left and right columns.
-- The default window height is kept tighter so the initial layout avoids excess empty space in the right column.
-- Compact width mode hides the right column and keeps the profile list with `Apply` and `Reset` usable at smaller widths.
-- Compact height mode hides optional right-side sections step by step instead of collapsing the whole right column immediately, while keeping the status block visible longer.
-- The profiles area is intentionally laid out so profile management can be added later without redesigning the whole window.
+## UI
 
-## v0.9 scope
+`DnsSwitcher.Ui` provides:
 
-- Add `DnsTester` for the currently selected adapter and DNS state.
-- DNS testing uses `testDomains` from the matched profile when available.
-- If the current DNS does not match a profile, the tester falls back to all configured profile test domains.
-- If config test domains are missing, the tester uses a small built-in fallback domain set.
-- Each domain is tested with multiple resolve attempts and latency measurement.
-- Final DNS test status is classified as:
-  - `Ok`
-  - `Slow`
-  - `Failed`
-- CLI adds:
-  - `test`
-- Desktop UI adds:
-  - `Test DNS`
-- Tray adds:
-  - `Test DNS`
-- v0.9 tests DNS resolution only.
-- `testUrls` stay reserved for a future HTTP/site accessibility check, which is a separate concern from DNS resolution.
+- profile list
+- adapter selection
+- current DNS status block
+- apply/reset actions
+- DNS test
+- site test
+- background refresh for config and external state changes
 
-## v0.9.1 scope
+### Screenshots
 
-- Add `ConnectivityTester` as a separate layer from `DnsTester`.
-- Site accessibility testing uses `testUrls`.
-- If the current DNS matches a configured profile, the tester uses that profile's `testUrls`.
-- If the current DNS does not match a configured profile, the tester falls back to the union of configured `testUrls`.
-- If no `testUrls` are configured, the tester returns `NotConfigured`.
-- Each URL is tested in stages:
-  - DNS resolve
-  - TCP connect
-  - TLS handshake for `https`
-  - HTTP probe with `HEAD`, then fallback to `GET` when needed
-- Multiple attempts and latency measurement are used per URL.
-- Final site test status is classified as:
-  - `Ok`
-  - `Slow`
-  - `Blocked`
-  - `Failed`
-  - `NotConfigured`
-- CLI adds:
-  - `test-sites`
-- Desktop UI adds:
-  - `Test Sites`
-- Tray adds:
-  - `Test Sites`
-- `test` and `test-sites` stay separate on purpose:
-  - `test` checks DNS resolution
-  - `test-sites` checks real site accessibility over DNS/TCP/TLS/HTTP
+Screenshots are intentionally not included in `v1.0` yet.  
+UI and tray screenshots can be added later without changing the shipped functionality.
 
-## v0.10 scope
+## Tray
 
-- Add broader file logging across CLI, UI, tray, and agent:
-  - startup and shutdown
-  - configuration load and save
-  - profile apply
-  - DHCP reset
-  - DNS test results
-  - site test results
-  - operational errors
-- Logging is fail-safe:
-  - logger failures no longer crash the application
-- UI and tray use friendlier error messages for common failures:
-  - invalid config
-  - missing or disabled adapters
-  - missing agent
-  - failed DNS operations
-  - file access problems
-- UI and tray register global exception handlers and log unhandled failures before showing a user-facing error.
-- Missing `profiles.json` is still recreated automatically.
-- No-network scenarios degrade gracefully:
-  - status can show no selected adapter
-  - tests return a result instead of crashing
+`DnsSwitcher.Tray` provides:
 
-## v0.11 scope
+- current state in tooltip/menu
+- enable DNS
+- disable DNS
+- switch next profile
+- profile list
+- DNS and site tests
+- persistent tray settings
 
-- Expand automated coverage for:
-  - config parsing and metadata round-trip
-  - validation rules
-  - adapter selection
-  - profile matching
-  - DNS test result interpretation
-- Extract shared Windows client bootstrap into a common host factory.
-- Extract shared DNS/site test text formatting used by CLI, UI, and tray.
-- Reduce duplicated formatting and startup code across clients.
-- Clean up client-specific naming around site test flows and shared helpers.
-- Remove small technical leftovers introduced during earlier MVP stages so the codebase is easier to present and extend.
+## Diagnostics
 
-## Cross-Cutting Requirements
+Two different diagnostics are built in:
 
-- `paths` was removed from the public CLI surface. It was only a portable-debug helper, not a user scenario.
-- Russian language support and full i18n are required for the final product.
-- All user-facing strings in CLI, UI and tray should move to a centralized localization mechanism.
-- English should remain as a fallback language.
-- Desktop UI must support a dark theme in a future version.
-- Centralized profile catalogs/import sources are a valid next step, but are not implemented yet.
-- Private DNS profiles must stay in local ignored config files and must not be committed to the repository.
+- `test`
+  DNS resolution check using `testDomains`
+- `test-sites`
+  Site accessibility check using `testUrls` with staged:
+  DNS -> TCP -> TLS -> HTTP probing
+
+These are kept separate on purpose so DNS issues and HTTP/connectivity issues are not mixed into one unclear result.
+
+## Example config
+
+Full example: [`docs/profiles.example.json`](docs/profiles.example.json)
+
+```json
+{
+  "version": 1,
+  "activeProfileId": null,
+  "profiles": [
+    {
+      "id": "cloudflare",
+      "name": "Cloudflare",
+      "mode": "static",
+      "ipv4": ["1.1.1.1", "1.0.0.1"],
+      "ipv6": ["2606:4700:4700::1111", "2606:4700:4700::1001"],
+      "tags": ["public", "general"],
+      "testDomains": ["cloudflare.com", "openai.com"],
+      "testUrls": ["https://cloudflare.com/", "https://openai.com/"]
+    },
+    {
+      "id": "dhcp",
+      "name": "Automatic DNS",
+      "mode": "dhcp",
+      "ipv4": [],
+      "ipv6": []
+    }
+  ]
+}
+```
+
+## Build
+
+Build and test:
+
+```powershell
+dotnet build DnsSwitcher.sln -c Release
+dotnet test tests\DnsSwitcher.Tests\DnsSwitcher.Tests.csproj -c Release
+```
+
+### Publish
+
+Example publish commands:
+
+```powershell
+dotnet publish src\DnsSwitcher.Cli\DnsSwitcher.Cli.csproj -c Release -r win-x64 --self-contained false -o artifacts\release\v1.0\cli
+dotnet publish src\DnsSwitcher.Ui\DnsSwitcher.Ui.csproj -c Release -r win-x64 --self-contained false -o artifacts\release\v1.0\ui
+dotnet publish src\DnsSwitcher.Tray\DnsSwitcher.Tray.csproj -c Release -r win-x64 --self-contained false -o artifacts\release\v1.0\tray
+dotnet publish src\DnsSwitcher.Agent.Windows\DnsSwitcher.Agent.Windows.csproj -c Release -r win-x64 --self-contained false -o artifacts\release\v1.0\agent
+```
+
+## Limitations
+
+- Windows-only
+- DNS changes still depend on Windows networking APIs and command-line tools
+- Agent/service installation requires administrator rights
+- Without screenshots, portfolio presentation is documentation-first in `v1.0`
+- Full i18n is planned, but not fully implemented yet
+- Dark theme is planned, but not implemented yet
+- Editing/adding/removing profiles from the UI is intentionally deferred
+- Private DNS profiles should stay in local ignored config files and must not be committed
+
+## Portfolio notes
+
+This project demonstrates:
+
+- layered architecture with a shared core
+- separation of domain logic from platform-specific infrastructure
+- multiple clients over one core
+- Windows service + IPC integration
+- validation, diagnostics, and error handling
+- iterative delivery from MVPs to a release-ready structure
+
+## Changelog
+
+See [`CHANGELOG.md`](CHANGELOG.md).
