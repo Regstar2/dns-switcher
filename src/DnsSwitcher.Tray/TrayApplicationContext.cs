@@ -28,6 +28,7 @@ public sealed class TrayApplicationContext : ApplicationContext
     private readonly ToolStripMenuItem testsMenuItem;
     private readonly ToolStripMenuItem testDnsMenuItem;
     private readonly ToolStripMenuItem testSitesMenuItem;
+    private readonly ToolStripMenuItem benchmarkMenuItem;
     private readonly ToolStripMenuItem profilesMenuItem;
     private readonly ToolStripMenuItem settingsMenuItem;
     private readonly ToolStripMenuItem themeMenuItem;
@@ -82,6 +83,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         testsMenuItem = new ToolStripMenuItem(localizer["TrayTests"]);
         testDnsMenuItem = new ToolStripMenuItem(localizer["TrayTestDns"]);
         testSitesMenuItem = new ToolStripMenuItem(localizer["TrayTestSites"]);
+        benchmarkMenuItem = new ToolStripMenuItem(localizer["TrayBenchmarkProfiles"]);
         profilesMenuItem = new ToolStripMenuItem(localizer["TrayShowProfiles"]);
         settingsMenuItem = new ToolStripMenuItem(localizer["TraySettings"]);
         themeMenuItem = new ToolStripMenuItem(localizer["SettingsThemeHeader"]);
@@ -98,6 +100,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         switchNextMenuItem.Click += async (_, _) => await ExecuteActionAsync(SwitchNextAsync).ConfigureAwait(true);
         testDnsMenuItem.Click += async (_, _) => await ExecuteActionAsync(TestDnsAsync).ConfigureAwait(true);
         testSitesMenuItem.Click += async (_, _) => await ExecuteActionAsync(TestSitesAsync).ConfigureAwait(true);
+        benchmarkMenuItem.Click += async (_, _) => await ExecuteActionAsync(BenchmarkAsync).ConfigureAwait(true);
         systemThemeMenuItem.Click += async (_, _) => await UpdateThemePreferenceAsync(AppTheme.System).ConfigureAwait(true);
         lightThemeMenuItem.Click += async (_, _) => await UpdateThemePreferenceAsync(AppTheme.Light).ConfigureAwait(true);
         darkThemeMenuItem.Click += async (_, _) => await UpdateThemePreferenceAsync(AppTheme.Dark).ConfigureAwait(true);
@@ -113,6 +116,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         settingsMenuItem.DropDownItems.Add(showAdapterNameMenuItem);
         testsMenuItem.DropDownItems.Add(testDnsMenuItem);
         testsMenuItem.DropDownItems.Add(testSitesMenuItem);
+        testsMenuItem.DropDownItems.Add(benchmarkMenuItem);
 
         contextMenu = new ContextMenuStrip();
         contextMenu.Items.Add(openUiMenuItem);
@@ -394,6 +398,28 @@ public sealed class TrayApplicationContext : ApplicationContext
         notifyIcon.ShowBalloonTip(2500);
     }
 
+    private async Task BenchmarkAsync()
+    {
+        logger.LogInformation("Tray requested DNS benchmark.");
+        var result = await host.DnsBenchmarkService.BenchmarkProfilesAsync().ConfigureAwait(true);
+        var summary = DiagnosticTextFormatter.BuildBenchmarkBalloonSummary(result);
+
+        if (!traySettings.NotificationsEnabled || result.WasInterrupted || !result.RestoreSucceeded)
+        {
+            ShowInformation($"{localizer["DnsSwitcherTrayTitle"]} {localizer["BenchmarkTitle"]}", DiagnosticTextFormatter.BuildBenchmarkDetails(result));
+            return;
+        }
+
+        notifyIcon.BalloonTipTitle = localizer["DnsSwitcherTrayTitle"];
+        notifyIcon.BalloonTipText = summary;
+        notifyIcon.BalloonTipIcon = result.OverallStatus == DnsTestStatus.Failed
+            ? ToolTipIcon.Error
+            : result.OverallStatus == DnsTestStatus.Slow
+                ? ToolTipIcon.Warning
+                : ToolTipIcon.Info;
+        notifyIcon.ShowBalloonTip(2500);
+    }
+
     private void RebuildProfilesMenu(AppConfig configuration, DnsStatus status)
     {
         profilesMenuItem.DropDownItems.Clear();
@@ -447,6 +473,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         testsMenuItem.Text = localizer["TrayTests"];
         testDnsMenuItem.Text = localizer["TrayTestDns"];
         testSitesMenuItem.Text = localizer["TrayTestSites"];
+        benchmarkMenuItem.Text = localizer["TrayBenchmarkProfiles"];
         profilesMenuItem.Text = localizer["TrayShowProfiles"];
         settingsMenuItem.Text = localizer["TraySettings"];
         themeMenuItem.Text = localizer["SettingsThemeHeader"];
@@ -463,6 +490,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         testsMenuItem.Enabled = !isActionInProgress;
         testDnsMenuItem.Enabled = !isActionInProgress;
         testSitesMenuItem.Enabled = !isActionInProgress;
+        benchmarkMenuItem.Enabled = !isActionInProgress;
         profilesMenuItem.Enabled = !isActionInProgress && profileSelectionService.GetSwitchableProfiles(configuration).Count > 0;
         settingsMenuItem.Enabled = !isActionInProgress;
         themeMenuItem.Enabled = !isActionInProgress;
@@ -520,6 +548,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         testsMenuItem.Enabled = false;
         testDnsMenuItem.Enabled = false;
         testSitesMenuItem.Enabled = false;
+        benchmarkMenuItem.Enabled = false;
         profilesMenuItem.Enabled = false;
         settingsMenuItem.Enabled = false;
     }

@@ -1,4 +1,6 @@
+using DnsSwitcher.Core.Abstractions;
 using DnsSwitcher.Core.Exceptions;
+using DnsSwitcher.Core.Models;
 using DnsSwitcher.Core.Services;
 using DnsSwitcher.Infrastructure.Windows.Security;
 using Microsoft.Extensions.Logging;
@@ -9,7 +11,7 @@ public sealed class AgentAwareDnsSwitchService(
     DnsProfileService profileService,
     DnsSwitchService directSwitchService,
     IDnsAgentClient agentClient,
-    ILogger<AgentAwareDnsSwitchService> logger)
+    ILogger<AgentAwareDnsSwitchService> logger) : IDnsProfileActivator
 {
     public Task<bool> IsAgentAvailableAsync(CancellationToken cancellationToken = default)
     {
@@ -25,13 +27,31 @@ public sealed class AgentAwareDnsSwitchService(
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
 
         var profile = await profileService.GetRequiredProfileAsync(profileId, cancellationToken).ConfigureAwait(false);
+        await ApplyTransientProfileAsync(profile, adapterSelection, allowDirectFallback, cancellationToken).ConfigureAwait(false);
+        await profileService.SetActiveProfileAsync(profile.Id, cancellationToken).ConfigureAwait(false);
+    }
+
+    public Task ApplyTransientProfileAsync(
+        DnsProfile profile,
+        string? adapterIdOrName = null,
+        CancellationToken cancellationToken = default)
+    {
+        return ApplyTransientProfileAsync(profile, adapterIdOrName, allowDirectFallback: true, cancellationToken);
+    }
+
+    public async Task ApplyTransientProfileAsync(
+        DnsProfile profile,
+        string? adapterSelection,
+        bool allowDirectFallback,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
 
         if (await agentClient.IsAvailableAsync(cancellationToken).ConfigureAwait(false))
         {
             await agentClient.ApplyProfileAsync(profile, adapterSelection, cancellationToken).ConfigureAwait(false);
-            await profileService.SetActiveProfileAsync(profile.Id, cancellationToken).ConfigureAwait(false);
             logger.LogInformation(
-                "Applied DNS profile {ProfileId} using DnsSwitcher Agent. Adapter: {AdapterSelection}",
+                "Applied transient DNS profile {ProfileId} using DnsSwitcher Agent. Adapter: {AdapterSelection}",
                 profile.Id,
                 adapterSelection ?? "<auto>");
             return;
@@ -47,9 +67,9 @@ public sealed class AgentAwareDnsSwitchService(
                 "DnsSwitcher Agent is not available. Install and start the agent, or run the application as administrator.");
         }
 
-        await directSwitchService.ApplyProfileAsync(profile.Id, adapterSelection, cancellationToken).ConfigureAwait(false);
+        await directSwitchService.ApplyTransientProfileAsync(profile, adapterSelection, cancellationToken).ConfigureAwait(false);
         logger.LogInformation(
-            "Applied DNS profile {ProfileId} using direct administrator fallback. Adapter: {AdapterSelection}",
+            "Applied transient DNS profile {ProfileId} using direct administrator fallback. Adapter: {AdapterSelection}",
             profile.Id,
             adapterSelection ?? "<auto>");
     }
@@ -59,10 +79,25 @@ public sealed class AgentAwareDnsSwitchService(
         bool allowDirectFallback = true,
         CancellationToken cancellationToken = default)
     {
+        await ResetToDhcpTransientAsync(adapterSelection, allowDirectFallback, cancellationToken).ConfigureAwait(false);
+        await profileService.ClearActiveProfileAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public Task ResetToDhcpTransientAsync(
+        string? adapterIdOrName = null,
+        CancellationToken cancellationToken = default)
+    {
+        return ResetToDhcpTransientAsync(adapterIdOrName, allowDirectFallback: true, cancellationToken);
+    }
+
+    public async Task ResetToDhcpTransientAsync(
+        string? adapterSelection,
+        bool allowDirectFallback,
+        CancellationToken cancellationToken = default)
+    {
         if (await agentClient.IsAvailableAsync(cancellationToken).ConfigureAwait(false))
         {
             await agentClient.ResetToDhcpAsync(adapterSelection, cancellationToken).ConfigureAwait(false);
-            await profileService.ClearActiveProfileAsync(cancellationToken).ConfigureAwait(false);
             logger.LogInformation(
                 "Reset DNS to DHCP using DnsSwitcher Agent. Adapter: {AdapterSelection}",
                 adapterSelection ?? "<auto>");
@@ -78,7 +113,7 @@ public sealed class AgentAwareDnsSwitchService(
                 "DnsSwitcher Agent is not available. Install and start the agent, or run the application as administrator.");
         }
 
-        await directSwitchService.ResetToDhcpAsync(adapterSelection, cancellationToken).ConfigureAwait(false);
+        await directSwitchService.ResetToDhcpTransientAsync(adapterSelection, cancellationToken).ConfigureAwait(false);
         logger.LogInformation(
             "Reset DNS to DHCP using direct administrator fallback. Adapter: {AdapterSelection}",
             adapterSelection ?? "<auto>");

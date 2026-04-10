@@ -27,10 +27,20 @@ public sealed class WindowsDnsSwitcherHost : IDisposable
         DnsSwitchService = new DnsSwitchService(ProfileService, DnsManager);
         DnsQueryClient = new UdpDnsQueryClient(loggerFactory.CreateLogger<UdpDnsQueryClient>());
         DnsTester = new DnsTester(ProfileService, DnsManager, DnsQueryClient, loggerFactory.CreateLogger<DnsTester>());
+        DnsBenchmarkHistoryStore = new JsonDnsBenchmarkHistoryStore(paths, loggerFactory.CreateLogger<JsonDnsBenchmarkHistoryStore>());
+        DnsBenchmarkSelector = new DnsBenchmarkSelector();
         SiteProbeClient = new HttpSiteProbeClient(loggerFactory.CreateLogger<HttpSiteProbeClient>());
         ConnectivityTester = new ConnectivityTester(ProfileService, DnsManager, SiteProbeClient, loggerFactory.CreateLogger<ConnectivityTester>());
         AgentClient = new NamedPipeDnsAgentClient(loggerFactory.CreateLogger<NamedPipeDnsAgentClient>());
         AgentDnsSwitchService = new AgentAwareDnsSwitchService(ProfileService, DnsSwitchService, AgentClient, loggerFactory.CreateLogger<AgentAwareDnsSwitchService>());
+        DnsBenchmarkService = new DnsBenchmarkService(
+            ProfileService,
+            DnsManager,
+            DnsTester,
+            AgentDnsSwitchService,
+            DnsBenchmarkHistoryStore,
+            DnsBenchmarkSelector,
+            loggerFactory.CreateLogger<DnsBenchmarkService>());
         AgentServiceManager = new WindowsAgentServiceManager(loggerFactory.CreateLogger<WindowsAgentServiceManager>());
     }
 
@@ -53,6 +63,12 @@ public sealed class WindowsDnsSwitcherHost : IDisposable
     public IDnsQueryClient DnsQueryClient { get; }
 
     public DnsTester DnsTester { get; }
+
+    public IDnsBenchmarkHistoryStore DnsBenchmarkHistoryStore { get; }
+
+    public DnsBenchmarkSelector DnsBenchmarkSelector { get; }
+
+    public DnsBenchmarkService DnsBenchmarkService { get; }
 
     public ISiteProbeClient SiteProbeClient { get; }
 

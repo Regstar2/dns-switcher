@@ -77,4 +77,45 @@ public sealed class DiagnosticTextFormatterTests
     {
         Assert.Equal("n/a", DiagnosticTextFormatter.FormatLatency(null));
     }
+
+    [Fact]
+    public void BuildBenchmarkDetails_IncludesBestProfileAndRestoreInformation()
+    {
+        var benchmarkResult = new DnsBenchmarkResult(
+            ExecutedAtUtc: DateTimeOffset.UtcNow,
+            AdapterName: "Wi-Fi",
+            TotalProfiles: 2,
+            ProfileResults:
+            [
+                new DnsBenchmarkProfileResult(
+                    ProfileId: "cloudflare",
+                    ProfileName: "Cloudflare",
+                    TestResult: new DnsTestResult(
+                        AdapterName: "Wi-Fi",
+                        ProfileId: "cloudflare",
+                        ProfileName: "Cloudflare",
+                        DnsServers: ["1.1.1.1"],
+                        Domains: ["cloudflare.com"],
+                        DomainResults: [],
+                        Status: DnsTestStatus.Ok,
+                        AverageLatency: TimeSpan.FromMilliseconds(24),
+                        Details: "Status Ok."),
+                    IsBest: true),
+            ],
+            BestProfileId: "cloudflare",
+            BestProfileName: "Cloudflare",
+            OverallStatus: DnsTestStatus.Ok,
+            BestLatency: TimeSpan.FromMilliseconds(24),
+            RestoreSucceeded: true,
+            RestoreDetails: "Original DNS server settings were restored.",
+            WasInterrupted: false,
+            InterruptionReason: null,
+            Details: "Benchmark complete.");
+
+        var text = DiagnosticTextFormatter.BuildBenchmarkDetails(benchmarkResult);
+
+        Assert.Contains("Cloudflare (cloudflare)", text);
+        Assert.Contains("Restore: OK", text);
+        Assert.Contains("[best]", text);
+    }
 }

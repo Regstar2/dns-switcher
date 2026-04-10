@@ -56,6 +56,27 @@ public sealed class AgentAwareDnsSwitchServiceTests
         Assert.Null(dnsManager.AppliedProfile);
     }
 
+    [Fact]
+    public async Task ApplyTransientProfileAsync_UsesAgentWithoutUpdatingActiveProfile()
+    {
+        var profileStore = new InMemoryProfileStore(AppConfig.CreateDefault() with { ActiveProfileId = "cloudflare" });
+        var dnsManager = new FakeDnsManager();
+        var directSwitchService = new DnsSwitchService(new DnsProfileService(profileStore), dnsManager);
+        var agentClient = new FakeAgentClient { IsAvailable = true };
+        var service = new AgentAwareDnsSwitchService(new DnsProfileService(profileStore), directSwitchService, agentClient, NullLogger<AgentAwareDnsSwitchService>.Instance);
+
+        await service.ApplyTransientProfileAsync(new DnsProfile
+        {
+            Id = "__tmp__",
+            Name = "Temporary",
+            Mode = ProfileMode.Static,
+            Ipv4 = ["9.9.9.9"],
+        });
+
+        Assert.Equal("__tmp__", agentClient.AppliedProfile?.Id);
+        Assert.Equal("cloudflare", (await profileStore.LoadAsync()).ActiveProfileId);
+    }
+
     private sealed class InMemoryProfileStore(AppConfig configuration) : IProfileStore
     {
         private AppConfig configuration = configuration;

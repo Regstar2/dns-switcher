@@ -9,6 +9,7 @@ public sealed class PortableAppPaths : IAppPaths
     public const string ConfigDirectoryName = "config";
     public const string LogsDirectoryName = "logs";
     public const string ProfilesFileName = "profiles.json";
+    public const string DnsBenchmarkHistoryFileName = "dns-benchmark-history.json";
     public const string LogFileName = "dns-switcher.log";
     private readonly string? migrationSourceAppDirectory;
 
@@ -31,6 +32,7 @@ public sealed class PortableAppPaths : IAppPaths
         ProfilesFilePath = Path.GetFullPath(profilesFilePath);
         ConfigDirectory = Path.GetDirectoryName(ProfilesFilePath)
             ?? throw new InvalidOperationException("Config directory could not be determined.");
+        DnsBenchmarkHistoryFilePath = Path.Combine(ConfigDirectory, DnsBenchmarkHistoryFileName);
         LogDirectory = Path.Combine(AppDirectory, LogsDirectoryName);
         LogFilePath = Path.Combine(LogDirectory, LogFileName);
         this.migrationSourceAppDirectory = string.IsNullOrWhiteSpace(migrationSourceAppDirectory)
@@ -43,6 +45,8 @@ public sealed class PortableAppPaths : IAppPaths
     public string ConfigDirectory { get; }
 
     public string ProfilesFilePath { get; }
+
+    public string DnsBenchmarkHistoryFilePath { get; }
 
     public string LogDirectory { get; }
 

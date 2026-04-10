@@ -95,6 +95,12 @@
                     Click="OnTestSitesClicked"
                     Content="Test Sites"
                     ToolTip="Test configured site URLs for real connectivity." />
+            <Button x:Name="BenchmarkButton"
+                    Width="108"
+                    Margin="0,0,8,8"
+                    Click="OnBenchmarkClicked"
+                    Content="Benchmark"
+                    ToolTip="Benchmark all static DNS profiles and pick the best one by simple rules." />
           </WrapPanel>
         </Grid>
       </GroupBox>

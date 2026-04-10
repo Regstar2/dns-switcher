@@ -149,6 +149,9 @@ public static class CliArgumentParser
             case "test-sites":
                 command = CliCommand.TestSites;
                 return true;
+            case "benchmark":
+                command = CliCommand.Benchmark;
+                return true;
             case "service":
                 command = CliCommand.Service;
                 return true;
@@ -168,7 +171,8 @@ public static class CliArgumentParser
             CliCommand.Apply => positionalCount == 2,
             CliCommand.Service => positionalCount is 2 or 3,
             CliCommand.Help or CliCommand.Profiles or CliCommand.Adapters or CliCommand.Status
-                or CliCommand.Reset or CliCommand.ValidateConfig or CliCommand.Test or CliCommand.TestSites => positionalCount == 1,
+                or CliCommand.Reset or CliCommand.ValidateConfig or CliCommand.Test or CliCommand.TestSites
+                or CliCommand.Benchmark => positionalCount == 1,
             _ => positionalCount == 1,
         };
 
@@ -187,6 +191,7 @@ public static class CliArgumentParser
             CliCommand.Adapters => "Usage: dns-switcher adapters [--adapter <id|name>] [--config <path>]",
             CliCommand.Test => "Usage: dns-switcher test [--adapter <id|name>] [--config <path>]",
             CliCommand.TestSites => "Usage: dns-switcher test-sites [--adapter <id|name>] [--config <path>]",
+            CliCommand.Benchmark => "Usage: dns-switcher benchmark [--adapter <id|name>] [--config <path>]",
             CliCommand.ValidateConfig => "Usage: dns-switcher validate-config [--config <path>]",
             CliCommand.Service => "Usage: dns-switcher service <install|uninstall|start|stop|status> [agent-exe-path]",
             _ => "Invalid command arguments.",

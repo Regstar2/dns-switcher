@@ -12,4 +12,5 @@ public enum CliCommand
     Service = 7,
     Test = 8,
     TestSites = 9,
+    Benchmark = 10,
 }

@@ -134,6 +134,79 @@ public static class DiagnosticTextFormatter
         return string.Join(Environment.NewLine, lines);
     }
 
+    public static string BuildBenchmarkStatusSummary(DnsBenchmarkResult result)
+    {
+        var parts = new List<string>
+        {
+            $"Benchmark {result.OverallStatus}",
+            $"tested: {result.ProfileResults.Count}/{result.TotalProfiles}",
+            $"best: {FormatProfileLabel(result.BestProfileName, result.BestProfileId)}",
+            $"best latency: {FormatLatency(result.BestLatency)}",
+        };
+
+        if (result.WasInterrupted)
+        {
+            parts.Add($"interrupted: {result.InterruptionReason}");
+        }
+
+        if (!result.RestoreSucceeded)
+        {
+            parts.Add("restore failed");
+        }
+
+        return string.Join(" | ", parts);
+    }
+
+    public static string BuildBenchmarkBalloonSummary(DnsBenchmarkResult result)
+    {
+        return
+            $"Benchmark {result.OverallStatus}. " +
+            $"Best: {FormatProfileLabel(result.BestProfileName, result.BestProfileId)}. " +
+            $"Latency: {FormatLatency(result.BestLatency)}.";
+    }
+
+    public static string BuildBenchmarkDetails(DnsBenchmarkResult result)
+    {
+        var lines = new List<string>
+        {
+            $"Status: {result.OverallStatus}",
+            $"Adapter: {result.AdapterName ?? "<none>"}",
+            $"Executed: {result.ExecutedAtUtc:yyyy-MM-dd HH:mm:ss} UTC",
+            $"Tested profiles: {result.ProfileResults.Count}/{result.TotalProfiles}",
+            $"Best profile: {FormatProfileLabel(result.BestProfileName, result.BestProfileId)}",
+            $"Best latency: {FormatLatency(result.BestLatency)}",
+            $"Restore: {(result.RestoreSucceeded ? "OK" : "Failed")} - {result.RestoreDetails}",
+        };
+
+        if (result.WasInterrupted)
+        {
+            lines.Add($"Interrupted: {result.InterruptionReason ?? "<none>"}");
+        }
+
+        lines.Add(string.Empty);
+        lines.Add("Profiles:");
+
+        if (result.ProfileResults.Count == 0)
+        {
+            lines.Add("  <none>");
+        }
+        else
+        {
+            foreach (var profileResult in result.ProfileResults)
+            {
+                var bestMarker = profileResult.IsBest ? " [best]" : string.Empty;
+                lines.Add(
+                    $"  {profileResult.ProfileName} ({profileResult.ProfileId}){bestMarker}: " +
+                    $"{profileResult.TestResult.Status} | avg {FormatLatency(profileResult.TestResult.AverageLatency)}");
+                lines.Add($"    {profileResult.TestResult.Details}");
+            }
+        }
+
+        lines.Add(string.Empty);
+        lines.Add(result.Details);
+        return string.Join(Environment.NewLine, lines);
+    }
+
     public static string FormatLatency(TimeSpan? latency)
     {
         return latency is null

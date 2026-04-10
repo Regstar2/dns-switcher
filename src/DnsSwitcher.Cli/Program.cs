@@ -106,6 +106,7 @@ static void PrintHelp()
           dns-switcher reset
           dns-switcher test
           dns-switcher test-sites
+          dns-switcher benchmark
           dns-switcher validate-config
           dns-switcher service <install|uninstall|start|stop|status> [agent-exe-path]
 
@@ -266,6 +267,42 @@ static async Task PrintSiteConnectivityTestAsync(WindowsDnsSwitcherHost host, st
     }
 }
 
+static async Task PrintBenchmarkAsync(WindowsDnsSwitcherHost host, string? adapterSelection)
+{
+    var result = await host.DnsBenchmarkService.BenchmarkProfilesAsync(adapterSelection).ConfigureAwait(false);
+
+    Console.WriteLine($"Adapter target: {adapterSelection ?? "<auto>"}");
+    Console.WriteLine($"Selected adapter: {result.AdapterName ?? "<none>"}");
+    Console.WriteLine($"Tested profiles: {result.ProfileResults.Count}/{result.TotalProfiles}");
+    Console.WriteLine($"Best profile: {DiagnosticTextFormatter.FormatProfileLabel(result.BestProfileName, result.BestProfileId)}");
+    Console.WriteLine($"Best latency: {DiagnosticTextFormatter.FormatLatency(result.BestLatency)}");
+    Console.WriteLine($"Overall status: {result.OverallStatus}");
+    Console.WriteLine($"Restore: {(result.RestoreSucceeded ? "OK" : "Failed")} - {result.RestoreDetails}");
+
+    if (result.WasInterrupted)
+    {
+        Console.WriteLine($"Interrupted: {result.InterruptionReason ?? "<none>"}");
+    }
+
+    Console.WriteLine($"Details: {result.Details}");
+
+    if (result.ProfileResults.Count == 0)
+    {
+        return;
+    }
+
+    Console.WriteLine("Per-profile:");
+
+    foreach (var profileResult in result.ProfileResults)
+    {
+        Console.WriteLine(
+            $"  - {profileResult.ProfileName} ({profileResult.ProfileId}): {profileResult.TestResult.Status} | " +
+            $"avg {DiagnosticTextFormatter.FormatLatency(profileResult.TestResult.AverageLatency)}" +
+            $"{(profileResult.IsBest ? " | BEST" : string.Empty)}");
+        Console.WriteLine($"    {profileResult.TestResult.Details}");
+    }
+}
+
 static async Task<int> ApplyProfileAsync(WindowsDnsSwitcherHost host, string? profileId, string? adapterSelection)
 {
     if (string.IsNullOrWhiteSpace(profileId))
@@ -387,6 +424,7 @@ static async Task<int> ExecuteCommandCoreAsync(WindowsDnsSwitcherHost host, CliI
         CliCommand.Status => await ExecuteAndReturnSuccessAsync(() => PrintStatusAsync(host, invocation.AdapterSelection)).ConfigureAwait(false),
         CliCommand.Test => await ExecuteAndReturnSuccessAsync(() => PrintDnsTestAsync(host, invocation.AdapterSelection)).ConfigureAwait(false),
         CliCommand.TestSites => await ExecuteAndReturnSuccessAsync(() => PrintSiteConnectivityTestAsync(host, invocation.AdapterSelection)).ConfigureAwait(false),
+        CliCommand.Benchmark => await ExecuteAndReturnSuccessAsync(() => PrintBenchmarkAsync(host, invocation.AdapterSelection)).ConfigureAwait(false),
         CliCommand.Apply => await ApplyProfileAsync(host, invocation.CommandArgument, invocation.AdapterSelection).ConfigureAwait(false),
         CliCommand.Reset => await ResetToDhcpAsync(host, invocation.AdapterSelection).ConfigureAwait(false),
         CliCommand.ValidateConfig => await ExecuteAndReturnSuccessAsync(() => ValidateConfigAsync(host)).ConfigureAwait(false),
@@ -520,8 +558,9 @@ static void PrintInteractiveHeader(WindowsDnsSwitcherHost host, CliInvocation se
     Console.WriteLine("5. Reset to DHCP");
     Console.WriteLine("6. Test current DNS");
     Console.WriteLine("7. Test sites");
-    Console.WriteLine("8. Validate config");
-    Console.WriteLine("9. Agent service status");
+    Console.WriteLine("8. Benchmark profiles");
+    Console.WriteLine("9. Validate config");
+    Console.WriteLine("10. Agent service status");
     Console.WriteLine("0. Exit");
     Console.WriteLine();
 }
@@ -540,8 +579,9 @@ static async Task<CliInvocation?> CreateInteractiveInvocationAsync(
         "5" => sessionInvocation with { Command = CliCommand.Reset },
         "6" => sessionInvocation with { Command = CliCommand.Test },
         "7" => sessionInvocation with { Command = CliCommand.TestSites },
-        "8" => sessionInvocation with { Command = CliCommand.ValidateConfig },
-        "9" => sessionInvocation with { Command = CliCommand.Service, CommandArgument = "status" },
+        "8" => sessionInvocation with { Command = CliCommand.Benchmark },
+        "9" => sessionInvocation with { Command = CliCommand.ValidateConfig },
+        "10" => sessionInvocation with { Command = CliCommand.Service, CommandArgument = "status" },
         _ => InvalidInteractiveChoice(),
     };
 }

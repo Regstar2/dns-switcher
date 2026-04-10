@@ -79,4 +79,15 @@ public sealed class CliArgumentParserTests
         Assert.Equal(CliCommand.TestSites, result.Invocation!.Command);
         Assert.Equal("C:\\dns\\profiles.json", result.Invocation.ConfigPath);
     }
+
+    [Fact]
+    public void Parse_ParsesBenchmarkCommand_WithAdapterOption()
+    {
+        var result = CliArgumentParser.Parse(["benchmark", "--adapter", "Wi-Fi"]);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Invocation);
+        Assert.Equal(CliCommand.Benchmark, result.Invocation!.Command);
+        Assert.Equal("Wi-Fi", result.Invocation.AdapterSelection);
+    }
 }

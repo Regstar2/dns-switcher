@@ -153,6 +153,12 @@ public partial class MainWindow : Window
         await RunSiteTestAsync().ConfigureAwait(true);
     }
 
+    private async void OnBenchmarkClicked(object sender, RoutedEventArgs e)
+    {
+        logger.LogInformation("UI requested DNS benchmark.");
+        await RunBenchmarkAsync().ConfigureAwait(true);
+    }
+
     private async void OnResetClicked(object sender, RoutedEventArgs e)
     {
         logger.LogInformation("UI requested DHCP reset.");
@@ -447,6 +453,7 @@ public partial class MainWindow : Window
         OpenLogsButton.IsEnabled = !isBusy;
         TestDnsButton.IsEnabled = !isBusy;
         TestSitesButton.IsEnabled = !isBusy;
+        BenchmarkButton.IsEnabled = !isBusy;
         AdapterComboBox.IsEnabled = !isBusy;
         ProfilesListBox.IsEnabled = !isBusy;
     }
@@ -687,6 +694,7 @@ public partial class MainWindow : Window
         ResetButton.Content = localizer["ResetButton"];
         TestDnsButton.Content = localizer["TestDnsButton"];
         TestSitesButton.Content = localizer["TestSitesButton"];
+        BenchmarkButton.Content = localizer["BenchmarkButton"];
         ReloadButton.Content = localizer["ReloadButton"];
         SettingsButton.Content = localizer["SettingsButton"];
         OpenConfigButton.Content = localizer["OpenConfigButton"];
@@ -827,6 +835,39 @@ public partial class MainWindow : Window
             TextResultWindow.ShowDialog(
                 $"{localizer["AppTitle"]} {localizer["SiteTestTitle"]}",
                 DiagnosticTextFormatter.BuildSiteDetails(result),
+                this);
+        }
+        catch (Exception exception)
+        {
+            HandleException(exception);
+            SetBusyState(false, showBusyMessage: false);
+        }
+    }
+
+    private async Task RunBenchmarkAsync()
+    {
+        if (isBusy)
+        {
+            return;
+        }
+
+        SetBusyState(true);
+
+        try
+        {
+            var result = await App.Host.DnsBenchmarkService.BenchmarkProfilesAsync(GetSelectedAdapterValue()).ConfigureAwait(true);
+            SetBusyState(false, showBusyMessage: false);
+            await RefreshUiAsync(
+                showBusyMessage: false,
+                showErrorDialog: false,
+                preserveOperationStatus: true,
+                disableControls: false).ConfigureAwait(true);
+            SetOperationStatus(
+                DiagnosticTextFormatter.BuildBenchmarkStatusSummary(result),
+                isError: result.OverallStatus == DnsTestStatus.Failed || !result.RestoreSucceeded);
+            TextResultWindow.ShowDialog(
+                $"{localizer["AppTitle"]} {localizer["BenchmarkTitle"]}",
+                DiagnosticTextFormatter.BuildBenchmarkDetails(result),
                 this);
         }
         catch (Exception exception)
