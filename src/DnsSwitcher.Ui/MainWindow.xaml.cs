@@ -1,15 +1,18 @@
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
-using DnsSwitcher.Core.Exceptions;
 using DnsSwitcher.Core.Models;
-using DnsSwitcher.Core.Services;
 using DnsSwitcher.Infrastructure.Windows.Agent;
+using DnsSwitcher.Infrastructure.Windows.Configuration;
+using DnsSwitcher.Infrastructure.Windows.Desktop;
 using DnsSwitcher.Infrastructure.Windows.Presentation;
+using DnsSwitcher.Infrastructure.Windows.Startup;
 using DnsSwitcher.Ui.UiModels;
 using Microsoft.Extensions.Logging;
+using MediaBrush = System.Windows.Media.Brush;
 
 namespace DnsSwitcher.Ui;
 
@@ -18,34 +21,45 @@ public partial class MainWindow : Window
     private const double CompactWidthThreshold = 760;
     private const double HideSelectedProfileHeightThreshold = 500;
     private const double HideCurrentStatusHeightThreshold = 380;
+    private const string TrayAutostartValueName = "DnsSwitcherTray";
     private static readonly TimeSpan PeriodicRefreshInterval = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan ConfigRefreshDebounceInterval = TimeSpan.FromMilliseconds(500);
-
-    private static readonly Brush InfoStatusBrush = new SolidColorBrush(Color.FromRgb(239, 246, 255));
-    private static readonly Brush ErrorStatusBrush = new SolidColorBrush(Color.FromRgb(254, 226, 226));
-    private static readonly Brush ErrorTextBrush = new SolidColorBrush(Color.FromRgb(153, 27, 27));
-    private static readonly Brush NormalTextBrush = new SolidColorBrush(Color.FromRgb(17, 24, 39));
 
     private readonly DispatcherTimer periodicRefreshTimer;
     private readonly DispatcherTimer configRefreshDebounceTimer;
     private readonly ILogger<MainWindow> logger;
+    private readonly JsonUiSettingsStore uiSettingsStore;
+    private readonly JsonAppPreferencesStore appPreferencesStore;
+    private readonly WindowsAutostartManager autostartManager;
+    private readonly DesktopClientLauncher desktopClientLauncher;
     private bool suppressAdapterSelectionChanged;
+    private bool suppressProfileSelectionChanged;
     private bool isBusy;
     private bool isRefreshingUi;
     private bool pendingExternalRefresh;
+    private bool isInitialized;
+    private bool allowExplicitClose;
     private DateTime lastProfilesWriteUtc = DateTime.MinValue;
     private FileSystemWatcher? profilesFileWatcher;
+    private AppLocalizer localizer = new(AppLanguage.System);
+    private AppPreferences appPreferences = AppPreferences.Default;
+    private UiSettings uiSettings = UiSettings.Default;
 
     public MainWindow()
     {
         InitializeComponent();
         logger = App.Host.LoggerFactory.CreateLogger<MainWindow>();
+        uiSettingsStore = new JsonUiSettingsStore(App.Host.Paths, App.Host.LoggerFactory.CreateLogger<JsonUiSettingsStore>());
+        appPreferencesStore = new JsonAppPreferencesStore(App.Host.Paths, App.Host.LoggerFactory.CreateLogger<JsonAppPreferencesStore>());
+        autostartManager = new WindowsAutostartManager(TrayAutostartValueName);
+        desktopClientLauncher = new DesktopClientLauncher(App.Host.LoggerFactory.CreateLogger<DesktopClientLauncher>());
         periodicRefreshTimer = new DispatcherTimer { Interval = PeriodicRefreshInterval };
         periodicRefreshTimer.Tick += OnPeriodicRefreshTick;
         configRefreshDebounceTimer = new DispatcherTimer { Interval = ConfigRefreshDebounceInterval };
         configRefreshDebounceTimer.Tick += OnConfigRefreshDebounceTick;
         Loaded += OnLoaded;
         Closed += OnClosed;
+        Closing += OnClosing;
         SizeChanged += OnWindowSizeChanged;
     }
 
@@ -57,13 +71,29 @@ public partial class MainWindow : Window
         {
             logger.LogInformation("Loading DnsSwitcher UI main window.");
             await App.Host.ProfileService.EnsureInitializedAsync().ConfigureAwait(true);
+            appPreferences = await LoadAppPreferencesOrDefaultAsync().ConfigureAwait(true);
+            localizer = new AppLocalizer(appPreferences.Language);
+            uiSettings = await LoadUiSettingsOrDefaultAsync().ConfigureAwait(true);
+            ApplyLocalization();
             InitializeExternalRefresh();
-            await RefreshUiAsync("UI loaded.").ConfigureAwait(true);
+            await RefreshUiAsync(localizer["UiLoadedStatus"]).ConfigureAwait(true);
             UpdateResponsiveLayout();
+            isInitialized = true;
         }
         catch (Exception exception)
         {
             HandleException(exception);
+        }
+    }
+
+    private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (!allowExplicitClose && isInitialized && uiSettings.MinimizeToTray)
+        {
+            if (!TryContinueInTray())
+            {
+                e.Cancel = true;
+            }
         }
     }
 
@@ -72,31 +102,30 @@ public partial class MainWindow : Window
         periodicRefreshTimer.Stop();
         configRefreshDebounceTimer.Stop();
 
-        if (profilesFileWatcher is null)
+        if (profilesFileWatcher is not null)
         {
-            return;
+            profilesFileWatcher.EnableRaisingEvents = false;
+            profilesFileWatcher.Changed -= OnProfilesFileChanged;
+            profilesFileWatcher.Created -= OnProfilesFileChanged;
+            profilesFileWatcher.Deleted -= OnProfilesFileChanged;
+            profilesFileWatcher.Renamed -= OnProfilesFileRenamed;
+            profilesFileWatcher.Dispose();
+            profilesFileWatcher = null;
         }
 
-        profilesFileWatcher.EnableRaisingEvents = false;
-        profilesFileWatcher.Changed -= OnProfilesFileChanged;
-        profilesFileWatcher.Created -= OnProfilesFileChanged;
-        profilesFileWatcher.Deleted -= OnProfilesFileChanged;
-        profilesFileWatcher.Renamed -= OnProfilesFileRenamed;
-        profilesFileWatcher.Dispose();
-        profilesFileWatcher = null;
     }
 
     private async void OnRefreshClicked(object sender, RoutedEventArgs e)
     {
         logger.LogInformation("UI requested reload.");
-        await RefreshUiAsync("Configuration and status reloaded from disk and system state.").ConfigureAwait(true);
+        await RefreshUiAsync(localizer["ReloadedStatus"]).ConfigureAwait(true);
     }
 
     private async void OnApplyClicked(object sender, RoutedEventArgs e)
     {
         if (ProfilesListBox.SelectedItem is not ProfileListItem profileItem)
         {
-            SetOperationStatus("Select a DNS profile first.", isError: true);
+            SetOperationStatus(localizer["SelectProfileFirstError"], isError: true);
             return;
         }
 
@@ -109,7 +138,7 @@ public partial class MainWindow : Window
                     .ApplyProfileAsync(profileItem.Id, GetSelectedAdapterValue())
                     .ConfigureAwait(true);
             },
-            $"Applied profile '{profileItem.Name}'.").ConfigureAwait(true);
+            localizer.Format("AppliedProfileFormat", profileItem.Name)).ConfigureAwait(true);
     }
 
     private async void OnTestCurrentDnsClicked(object sender, RoutedEventArgs e)
@@ -134,17 +163,79 @@ public partial class MainWindow : Window
                     .ResetToDhcpAsync(GetSelectedAdapterValue())
                     .ConfigureAwait(true);
             },
-            "DNS settings were reset to DHCP.").ConfigureAwait(true);
+            localizer["ResetSuccess"]).ConfigureAwait(true);
     }
 
     private async void OnAdapterSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (suppressAdapterSelectionChanged || !IsLoaded)
+        if (suppressAdapterSelectionChanged || !isInitialized)
         {
             return;
         }
 
-        await RefreshUiAsync("Adapter selection changed.").ConfigureAwait(true);
+        await PersistSelectionStateAsync().ConfigureAwait(true);
+        await RefreshUiAsync(localizer["AdapterChangedStatus"]).ConfigureAwait(true);
+    }
+
+    private async void OnProfileSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (suppressProfileSelectionChanged)
+        {
+            return;
+        }
+
+        UpdateSelectedProfilePanel(ProfilesListBox.SelectedItem as ProfileListItem);
+        UpdateActionButtons();
+
+        if (!isInitialized)
+        {
+            return;
+        }
+
+        await PersistSelectionStateAsync().ConfigureAwait(true);
+    }
+
+    private void OnOpenConfigFolderClicked(object sender, RoutedEventArgs e)
+    {
+        OpenFolder(App.Host.Paths.ConfigDirectory, localizer["OpenedConfigFolder"]);
+    }
+
+    private void OnOpenLogsFolderClicked(object sender, RoutedEventArgs e)
+    {
+        OpenFolder(App.Host.Paths.LogDirectory, localizer["OpenedLogsFolder"]);
+    }
+
+    private async void OnOpenSettingsClicked(object sender, RoutedEventArgs e)
+    {
+        if (isBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            var settingsWindow = new SettingsWindow(
+                localizer,
+                appPreferences.Language,
+                appPreferences.Theme,
+                IsTrayAutostartEnabled(),
+                uiSettings.MinimizeToTray,
+                App.IsDarkThemeActive)
+            {
+                Owner = this,
+            };
+
+            if (settingsWindow.ShowDialog() != true)
+            {
+                return;
+            }
+
+            await ApplySettingsAsync(settingsWindow).ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            HandleException(exception);
+        }
     }
 
     private void OnWindowSizeChanged(object sender, SizeChangedEventArgs e)
@@ -163,12 +254,6 @@ public partial class MainWindow : Window
         await TryRefreshExternalChangesAsync(requireConfigChange: true).ConfigureAwait(true);
     }
 
-    private void OnProfileSelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        UpdateSelectedProfilePanel(ProfilesListBox.SelectedItem as ProfileListItem);
-        UpdateActionButtons();
-    }
-
     private async Task RefreshUiAsync(
         string? successMessage = null,
         bool showBusyMessage = true,
@@ -181,8 +266,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        var selectedProfileId = (ProfilesListBox.SelectedItem as ProfileListItem)?.Id;
-        var selectedAdapterValue = GetSelectedAdapterValue();
+        var selectedProfileId = GetSelectedProfileId() ?? uiSettings.LastSelectedProfileId;
+        var selectedAdapterValue = GetSelectedAdapterValue() ?? uiSettings.LastAdapterId;
         isRefreshingUi = true;
 
         if (disableControls)
@@ -208,6 +293,7 @@ public partial class MainWindow : Window
             UpdateActionButtons();
             pendingExternalRefresh = false;
             lastProfilesWriteUtc = GetProfilesLastWriteUtc();
+            await PersistSelectionStateAsync().ConfigureAwait(true);
 
             if (!preserveOperationStatus && !string.IsNullOrWhiteSpace(successMessage))
             {
@@ -261,8 +347,8 @@ public partial class MainWindow : Window
             new()
             {
                 DisplayName = defaultAdapter is null
-                    ? "Automatic (no default adapter)"
-                    : $"Automatic ({defaultAdapter.Name})",
+                    ? localizer["AutomaticNoDefaultAdapter"]
+                    : localizer.Format("AutomaticAdapterFormat", defaultAdapter.Name),
                 SelectionValue = null,
                 Adapter = defaultAdapter,
             },
@@ -297,8 +383,6 @@ public partial class MainWindow : Window
             .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        ProfilesListBox.ItemsSource = profileItems;
-
         var selectedItem = profileItems.FirstOrDefault(item =>
             string.Equals(item.Id, selectedProfileId, StringComparison.OrdinalIgnoreCase))
             ?? profileItems.FirstOrDefault(item =>
@@ -307,7 +391,10 @@ public partial class MainWindow : Window
                 string.Equals(item.Id, configuration.ActiveProfileId, StringComparison.OrdinalIgnoreCase))
             ?? profileItems.FirstOrDefault();
 
+        suppressProfileSelectionChanged = true;
+        ProfilesListBox.ItemsSource = profileItems;
         ProfilesListBox.SelectedItem = selectedItem;
+        suppressProfileSelectionChanged = false;
         UpdateSelectedProfilePanel(selectedItem);
     }
 
@@ -320,12 +407,12 @@ public partial class MainWindow : Window
     {
         CurrentProfileValueTextBlock.Text = GetCurrentProfileText(configuration, status);
         ConfigActiveProfileValueTextBlock.Text = activeProfile is null
-            ? "<none>"
+            ? localizer["NoneValue"]
             : $"{activeProfile.Name} ({activeProfile.Id})";
-        SelectedAdapterValueTextBlock.Text = status.AdapterName ?? "<none>";
+        SelectedAdapterValueTextBlock.Text = status.AdapterName ?? localizer["NoneValue"];
         DnsModeValueTextBlock.Text = status.Mode.ToString();
         AgentServiceStatusValueTextBlock.Text = agentServiceStatus.ToString();
-        AgentAvailableValueTextBlock.Text = agentAvailable ? "Yes" : "No";
+        AgentAvailableValueTextBlock.Text = agentAvailable ? localizer["YesValue"] : localizer["NoValue"];
         Ipv4ValueTextBlock.Text = FormatServers(status.Ipv4.NameServers);
         Ipv6ValueTextBlock.Text = FormatServers(status.Ipv6.NameServers);
     }
@@ -334,16 +421,16 @@ public partial class MainWindow : Window
     {
         if (item is null)
         {
-            SelectedProfileNameTextBlock.Text = "<none>";
-            SelectedProfileSummaryTextBlock.Text = "<none>";
-            SelectedProfileTagsTextBlock.Text = "<none>";
+            SelectedProfileNameTextBlock.Text = localizer["NoneValue"];
+            SelectedProfileSummaryTextBlock.Text = localizer["NoneValue"];
+            SelectedProfileTagsTextBlock.Text = localizer["NoneValue"];
             return;
         }
 
         SelectedProfileNameTextBlock.Text = $"{item.Name} ({item.Id})";
         SelectedProfileSummaryTextBlock.Text = item.SummaryText;
         SelectedProfileTagsTextBlock.Text = item.Profile.Tags.Count == 0
-            ? "<none>"
+            ? localizer["NoneValue"]
             : string.Join(", ", item.Profile.Tags);
     }
 
@@ -355,6 +442,9 @@ public partial class MainWindow : Window
         ApplyButton.IsEnabled = !isBusy && hasProfileSelection;
         ResetButton.IsEnabled = !isBusy && hasAdapterOptions;
         ReloadButton.IsEnabled = !isBusy;
+        SettingsButton.IsEnabled = !isBusy;
+        OpenConfigButton.IsEnabled = !isBusy;
+        OpenLogsButton.IsEnabled = !isBusy;
         TestDnsButton.IsEnabled = !isBusy;
         TestSitesButton.IsEnabled = !isBusy;
         AdapterComboBox.IsEnabled = !isBusy;
@@ -373,9 +463,15 @@ public partial class MainWindow : Window
 
         if (isWidthCompact)
         {
+            BottomActionsPanel.Visibility = Visibility.Collapsed;
+            Grid.SetColumnSpan(OperationStatusBorder, 2);
+            OperationStatusBorder.Margin = new Thickness(0);
             return;
         }
 
+        BottomActionsPanel.Visibility = Visibility.Visible;
+        Grid.SetColumnSpan(OperationStatusBorder, 1);
+        OperationStatusBorder.Margin = new Thickness(0, 0, 6, 0);
         AdapterGroupBox.Visibility = Visibility.Visible;
         CurrentStatusGroupBox.Visibility = hideCurrentStatus ? Visibility.Collapsed : Visibility.Visible;
         SelectedProfileGroupBox.Visibility = hideSelectedProfile ? Visibility.Collapsed : Visibility.Visible;
@@ -387,7 +483,7 @@ public partial class MainWindow : Window
 
         if (value && showBusyMessage)
         {
-            SetOperationStatus("Working...", isError: false);
+            SetOperationStatus(localizer["WorkingStatus"], isError: false);
         }
 
         UpdateActionButtons();
@@ -395,8 +491,8 @@ public partial class MainWindow : Window
 
     private void SetOperationStatus(string message, bool isError)
     {
-        OperationStatusBorder.Background = isError ? ErrorStatusBrush : InfoStatusBrush;
-        OperationStatusTextBlock.Foreground = isError ? ErrorTextBrush : NormalTextBrush;
+        OperationStatusBorder.Background = isError ? GetBrushResource("ErrorStatusBrush") : GetBrushResource("InfoStatusBrush");
+        OperationStatusTextBlock.Foreground = isError ? GetBrushResource("ErrorTextBrush") : GetBrushResource("PrimaryTextBrush");
         OperationStatusTextBlock.Text = message;
     }
 
@@ -409,36 +505,36 @@ public partial class MainWindow : Window
 
         if (showDialog)
         {
-            MessageBox.Show(
+            System.Windows.MessageBox.Show(
                 message,
-                "DnsSwitcher",
+                localizer["AppTitle"],
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
     }
 
-    private static string BuildAdapterDisplayName(NetworkAdapter adapter)
+    private string BuildAdapterDisplayName(NetworkAdapter adapter)
     {
         var labels = new List<string>();
 
         if (adapter.IsActive)
         {
-            labels.Add("active");
+            labels.Add(localizer["ActiveLabel"]);
         }
 
         if (adapter.HasDefaultGateway)
         {
-            labels.Add("gateway");
+            labels.Add(localizer["GatewayLabel"]);
         }
 
         if (adapter.IsPhysical)
         {
-            labels.Add("physical");
+            labels.Add(localizer["PhysicalLabel"]);
         }
 
         if (adapter.IsLoopback)
         {
-            labels.Add("loopback");
+            labels.Add(localizer["LoopbackLabel"]);
         }
 
         labels.Add(adapter.SupportedStacks.ToString());
@@ -448,7 +544,7 @@ public partial class MainWindow : Window
             : $"{adapter.Name} [{string.Join(", ", labels)}]";
     }
 
-    private static ProfileListItem CreateProfileListItem(
+    private ProfileListItem CreateProfileListItem(
         AppConfig configuration,
         DnsStatus status,
         DnsProfile? activeProfile,
@@ -458,19 +554,19 @@ public partial class MainWindow : Window
 
         if (string.Equals(profile.Id, status.MatchedProfileId, StringComparison.OrdinalIgnoreCase))
         {
-            flags.Add("current");
+            flags.Add(localizer["CurrentFlag"]);
         }
 
         if (string.Equals(profile.Id, configuration.ActiveProfileId, StringComparison.OrdinalIgnoreCase))
         {
-            flags.Add("configured");
+            flags.Add(localizer["ConfiguredFlag"]);
         }
 
         if (activeProfile is not null
             && string.Equals(profile.Id, activeProfile.Id, StringComparison.OrdinalIgnoreCase)
-            && !flags.Contains("configured", StringComparer.OrdinalIgnoreCase))
+            && !flags.Contains(localizer["ConfiguredFlag"], StringComparer.OrdinalIgnoreCase))
         {
-            flags.Add("configured");
+            flags.Add(localizer["ConfiguredFlag"]);
         }
 
         var summaryParts = new List<string>
@@ -487,12 +583,12 @@ public partial class MainWindow : Window
         return new ProfileListItem
         {
             Profile = profile,
-            StatusText = flags.Count == 0 ? "Available profile" : string.Join(" | ", flags),
+            StatusText = flags.Count == 0 ? localizer["AvailableProfile"] : string.Join(" | ", flags),
             SummaryText = string.Join(Environment.NewLine, summaryParts),
         };
     }
 
-    private static string GetCurrentProfileText(AppConfig configuration, DnsStatus status)
+    private string GetCurrentProfileText(AppConfig configuration, DnsStatus status)
     {
         var matchedProfile = configuration.Profiles.FirstOrDefault(profile =>
             string.Equals(profile.Id, status.MatchedProfileId, StringComparison.OrdinalIgnoreCase));
@@ -504,16 +600,114 @@ public partial class MainWindow : Window
 
         return status.Mode switch
         {
-            DnsMode.Dhcp => "Automatic / DHCP",
-            DnsMode.Manual => "Custom manual DNS",
-            DnsMode.Mixed => "Custom mixed DNS",
-            _ => "<unknown>",
+            DnsMode.Dhcp => localizer["AutomaticDhcpStatus"],
+            DnsMode.Manual => localizer["CustomManualDnsStatus"],
+            DnsMode.Mixed => localizer["CustomMixedDnsStatus"],
+            _ => localizer["UnknownValue"],
         };
     }
 
     private string? GetSelectedAdapterValue()
     {
         return (AdapterComboBox.SelectedItem as AdapterOption)?.SelectionValue;
+    }
+
+    private string? GetSelectedProfileId()
+    {
+        return (ProfilesListBox.SelectedItem as ProfileListItem)?.Id;
+    }
+
+    private async Task PersistSelectionStateAsync()
+    {
+        var updatedSettings = uiSettings with
+        {
+            LastAdapterId = GetSelectedAdapterValue(),
+            LastSelectedProfileId = GetSelectedProfileId(),
+        };
+
+        if (updatedSettings == uiSettings)
+        {
+            return;
+        }
+
+        await PersistUiSettingsAsync(updatedSettings).ConfigureAwait(true);
+    }
+
+    private async Task PersistUiSettingsAsync(UiSettings updatedSettings, string? successMessage = null)
+    {
+        if (updatedSettings == uiSettings)
+        {
+            return;
+        }
+
+        await uiSettingsStore.SaveAsync(updatedSettings).ConfigureAwait(true);
+        uiSettings = updatedSettings;
+
+        if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            SetOperationStatus(successMessage, isError: false);
+        }
+    }
+
+    private async Task<UiSettings> LoadUiSettingsOrDefaultAsync()
+    {
+        try
+        {
+            return await uiSettingsStore.LoadAsync().ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "UI settings could not be loaded. Default UI settings will be used.");
+            return UiSettings.Default;
+        }
+    }
+
+    private async Task<AppPreferences> LoadAppPreferencesOrDefaultAsync()
+    {
+        try
+        {
+            return await appPreferencesStore.LoadAsync().ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "App preferences could not be loaded. Default preferences will be used.");
+            return AppPreferences.Default;
+        }
+    }
+
+    private void ApplyLocalization()
+    {
+        Title = localizer["AppTitle"];
+        ProfilesGroupBox.Header = localizer["ProfilesHeader"];
+        AdapterGroupBox.Header = localizer["AdapterAndAppHeader"];
+        CurrentStatusGroupBox.Header = localizer["CurrentStatusHeader"];
+        SelectedProfileGroupBox.Header = localizer["SelectedProfileHeader"];
+
+        ApplyButton.Content = localizer["ApplyButton"];
+        ResetButton.Content = localizer["ResetButton"];
+        TestDnsButton.Content = localizer["TestDnsButton"];
+        TestSitesButton.Content = localizer["TestSitesButton"];
+        ReloadButton.Content = localizer["ReloadButton"];
+        SettingsButton.Content = localizer["SettingsButton"];
+        OpenConfigButton.Content = localizer["OpenConfigButton"];
+        OpenLogsButton.Content = localizer["OpenLogsButton"];
+
+        CurrentProfileLabelTextBlock.Text = localizer["CurrentProfileLabel"];
+        ConfigActiveProfileLabelTextBlock.Text = localizer["ConfigActiveProfileLabel"];
+        SelectedAdapterLabelTextBlock.Text = localizer["SelectedAdapterLabel"];
+        DnsModeLabelTextBlock.Text = localizer["DnsModeLabel"];
+        AgentServiceLabelTextBlock.Text = localizer["AgentServiceLabel"];
+        AgentAvailableLabelTextBlock.Text = localizer["AgentAvailableLabel"];
+        Ipv4LabelTextBlock.Text = localizer["Ipv4Label"];
+        Ipv6LabelTextBlock.Text = localizer["Ipv6Label"];
+        ProfileLabelTextBlock.Text = localizer["ProfileLabel"];
+        SummaryLabelTextBlock.Text = localizer["SummaryLabel"];
+        TagsLabelTextBlock.Text = localizer["TagsLabel"];
+
+        if (string.IsNullOrWhiteSpace(OperationStatusTextBlock.Text) || OperationStatusTextBlock.Text == "Ready.")
+        {
+            SetOperationStatus(localizer["ReadyStatus"], isError: false);
+        }
     }
 
     private void InitializeExternalRefresh()
@@ -574,7 +768,7 @@ public partial class MainWindow : Window
 
     private async Task TryRefreshExternalChangesAsync(bool requireConfigChange)
     {
-        if (!IsLoaded || isBusy)
+        if (!isInitialized || isBusy)
         {
             return;
         }
@@ -631,7 +825,7 @@ public partial class MainWindow : Window
             SetBusyState(false, showBusyMessage: false);
             SetOperationStatus(DiagnosticTextFormatter.BuildSiteStatusSummary(result), isError: result.Status is ConnectivityTestStatus.Blocked or ConnectivityTestStatus.Failed);
             TextResultWindow.ShowDialog(
-                "DnsSwitcher Site Test",
+                $"{localizer["AppTitle"]} {localizer["SiteTestTitle"]}",
                 DiagnosticTextFormatter.BuildSiteDetails(result),
                 this);
         }
@@ -654,9 +848,9 @@ public partial class MainWindow : Window
             : null;
     }
 
-    private static string FormatServers(IReadOnlyList<string> servers)
+    private string FormatServers(IReadOnlyList<string> servers)
     {
-        return servers.Count == 0 ? "<none>" : string.Join(", ", servers);
+        return servers.Count == 0 ? localizer["NoneValue"] : string.Join(", ", servers);
     }
 
     private DateTime GetProfilesLastWriteUtc()
@@ -665,6 +859,106 @@ public partial class MainWindow : Window
         return File.Exists(profilesFilePath)
             ? File.GetLastWriteTimeUtc(profilesFilePath)
             : DateTime.MinValue;
+    }
+
+    private string GetTrayExecutablePath()
+    {
+        return DesktopClientLayout.TryGetTrayExecutablePath(AppContext.BaseDirectory)
+            ?? throw new InvalidOperationException(localizer["TrayExecutableNotFound"]);
+    }
+
+    private bool IsTrayAutostartEnabled()
+    {
+        var trayExecutablePath = DesktopClientLayout.TryGetTrayExecutablePath(AppContext.BaseDirectory);
+        return trayExecutablePath is not null
+            ? autostartManager.IsEnabled(trayExecutablePath)
+            : !string.IsNullOrWhiteSpace(autostartManager.GetCommandLine());
+    }
+
+    private void OpenFolder(string folderPath, string successMessage)
+    {
+        try
+        {
+            Directory.CreateDirectory(folderPath);
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = folderPath,
+                UseShellExecute = true,
+                Verb = "open",
+            });
+
+            logger.LogInformation("Opened folder {FolderPath}.", folderPath);
+            SetOperationStatus(successMessage, isError: false);
+        }
+        catch (Exception exception)
+        {
+            HandleException(exception);
+        }
+    }
+
+    private bool TryContinueInTray()
+    {
+        try
+        {
+            if (!desktopClientLauncher.EnsureTrayRunning(AppContext.BaseDirectory))
+            {
+                SetOperationStatus(localizer["TrayExecutableNotFound"], isError: true);
+                return false;
+            }
+
+            allowExplicitClose = true;
+            logger.LogInformation("UI is closing and leaving the tray client running.");
+            return true;
+        }
+        catch (Exception exception)
+        {
+            HandleException(exception);
+            return false;
+        }
+    }
+
+    private async Task ApplySettingsAsync(SettingsWindow settingsWindow)
+    {
+        appPreferences = appPreferences with
+        {
+            Language = settingsWindow.SelectedLanguage,
+            Theme = settingsWindow.SelectedTheme,
+        };
+
+        await appPreferencesStore.SaveAsync(appPreferences).ConfigureAwait(true);
+        localizer = new AppLocalizer(appPreferences.Language);
+        ApplyLocalization();
+        App.SetThemePreference(appPreferences.Theme);
+
+        if (settingsWindow.StartWithWindowsEnabled)
+        {
+            autostartManager.Enable(GetTrayExecutablePath());
+        }
+        else
+        {
+            autostartManager.Disable();
+        }
+
+        var updatedSettings = uiSettings with
+        {
+            MinimizeToTray = settingsWindow.ContinueInTrayEnabled,
+        };
+
+        if (updatedSettings != uiSettings)
+        {
+            await PersistUiSettingsAsync(updatedSettings).ConfigureAwait(true);
+        }
+
+        await RefreshUiAsync(
+            preserveOperationStatus: true,
+            showBusyMessage: false,
+            disableControls: false).ConfigureAwait(true);
+        SetOperationStatus(localizer["SettingsSaved"], isError: false);
+    }
+
+    private MediaBrush GetBrushResource(string key)
+    {
+        return (MediaBrush)FindResource(key);
     }
 
 }

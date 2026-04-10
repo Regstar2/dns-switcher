@@ -6,11 +6,12 @@
         xmlns:ui="clr-namespace:DnsSwitcher.Ui.UiModels"
         mc:Ignorable="d"
         Title="DnsSwitcher"
-        Height="520"
+        Height="550"
         Width="980"
         WindowStartupLocation="CenterScreen"
         MinHeight="320"
-        MinWidth="360">
+        MinWidth="360"
+        Background="{DynamicResource WindowBackgroundBrush}">
   <Window.Resources>
     <DataTemplate DataType="{x:Type ui:ProfileListItem}">
       <Border Padding="4">
@@ -22,23 +23,23 @@
                        VerticalAlignment="Center" />
             <Border Margin="8,0,0,0"
                     Padding="6,2"
-                    Background="#E5EEF9"
+                    Background="{DynamicResource AccentSurfaceBrush}"
                     CornerRadius="10"
                     HorizontalAlignment="Right">
               <TextBlock Text="{Binding ModeText}"
                          FontSize="11"
                          FontWeight="SemiBold"
-                         Foreground="#1F3D73" />
+                         Foreground="{DynamicResource AccentTextBrush}" />
             </Border>
           </DockPanel>
           <TextBlock Margin="0,4,0,0"
                      Text="{Binding StatusText}"
-                     Foreground="#4B5563"
+                     Foreground="{DynamicResource SecondaryTextBrush}"
                      FontSize="12"
                      TextWrapping="Wrap" />
           <TextBlock Margin="0,4,0,0"
                      Text="{Binding SummaryText}"
-                     Foreground="#111827"
+                     Foreground="{DynamicResource PrimaryTextBrush}"
                      TextWrapping="Wrap" />
         </StackPanel>
       </Border>
@@ -104,32 +105,38 @@
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
-          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
         <GroupBox x:Name="AdapterGroupBox"
                   Grid.Row="0"
                   Margin="0,0,0,12"
-                  Header="Adapter">
+                  Header="Adapter and App">
           <Grid Margin="12">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-            <ComboBox x:Name="AdapterComboBox"
-                      MinWidth="220"
-                      DisplayMemberPath="DisplayName"
-                      SelectionChanged="OnAdapterSelectionChanged" />
-            <WrapPanel Grid.Column="1"
-                       Margin="12,0,0,0">
-              <Button x:Name="ReloadButton"
-                      Width="84"
-                      Margin="0,0,8,0"
-                      Click="OnRefreshClicked"
-                      Content="Reload"
-                      ToolTip="Reload profiles.json and current DNS status from disk, CLI, tray, and system state." />
-            </WrapPanel>
+            <Grid Grid.Row="0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+
+              <ComboBox x:Name="AdapterComboBox"
+                        MinWidth="220"
+                        DisplayMemberPath="DisplayName"
+                        SelectionChanged="OnAdapterSelectionChanged" />
+              <WrapPanel Grid.Column="1"
+                         Margin="12,0,0,0">
+                <Button x:Name="ReloadButton"
+                        Width="84"
+                        Click="OnRefreshClicked"
+                        Content="Reload"
+                        ToolTip="Reload profiles.json and current DNS status from disk, CLI, tray, and system state." />
+              </WrapPanel>
+            </Grid>
           </Grid>
         </GroupBox>
 
@@ -156,28 +163,28 @@
               <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Text="Current profile:" FontWeight="SemiBold" />
+            <TextBlock x:Name="CurrentProfileLabelTextBlock" Grid.Row="0" Text="Current profile:" FontWeight="SemiBold" />
             <TextBlock x:Name="CurrentProfileValueTextBlock" Grid.Row="0" Grid.Column="2" TextWrapping="Wrap" />
 
-            <TextBlock Grid.Row="1" Text="Config active profile:" FontWeight="SemiBold" />
+            <TextBlock x:Name="ConfigActiveProfileLabelTextBlock" Grid.Row="1" Text="Config active profile:" FontWeight="SemiBold" />
             <TextBlock x:Name="ConfigActiveProfileValueTextBlock" Grid.Row="1" Grid.Column="2" TextWrapping="Wrap" />
 
-            <TextBlock Grid.Row="2" Text="Selected adapter:" FontWeight="SemiBold" />
+            <TextBlock x:Name="SelectedAdapterLabelTextBlock" Grid.Row="2" Text="Selected adapter:" FontWeight="SemiBold" />
             <TextBlock x:Name="SelectedAdapterValueTextBlock" Grid.Row="2" Grid.Column="2" TextWrapping="Wrap" />
 
-            <TextBlock Grid.Row="3" Text="DNS mode:" FontWeight="SemiBold" />
+            <TextBlock x:Name="DnsModeLabelTextBlock" Grid.Row="3" Text="DNS mode:" FontWeight="SemiBold" />
             <TextBlock x:Name="DnsModeValueTextBlock" Grid.Row="3" Grid.Column="2" TextWrapping="Wrap" />
 
-            <TextBlock Grid.Row="4" Text="Agent service:" FontWeight="SemiBold" />
+            <TextBlock x:Name="AgentServiceLabelTextBlock" Grid.Row="4" Text="Agent service:" FontWeight="SemiBold" />
             <TextBlock x:Name="AgentServiceStatusValueTextBlock" Grid.Row="4" Grid.Column="2" TextWrapping="Wrap" />
 
-            <TextBlock Grid.Row="5" Text="Agent available:" FontWeight="SemiBold" />
+            <TextBlock x:Name="AgentAvailableLabelTextBlock" Grid.Row="5" Text="Agent available:" FontWeight="SemiBold" />
             <TextBlock x:Name="AgentAvailableValueTextBlock" Grid.Row="5" Grid.Column="2" TextWrapping="Wrap" />
 
-            <TextBlock Grid.Row="6" Text="IPv4 DNS:" FontWeight="SemiBold" />
+            <TextBlock x:Name="Ipv4LabelTextBlock" Grid.Row="6" Text="IPv4 DNS:" FontWeight="SemiBold" />
             <TextBlock x:Name="Ipv4ValueTextBlock" Grid.Row="6" Grid.Column="2" TextWrapping="Wrap" />
 
-            <TextBlock Grid.Row="7" Text="IPv6 DNS:" FontWeight="SemiBold" />
+            <TextBlock x:Name="Ipv6LabelTextBlock" Grid.Row="7" Text="IPv6 DNS:" FontWeight="SemiBold" />
             <TextBlock x:Name="Ipv6ValueTextBlock" Grid.Row="7" Grid.Column="2" TextWrapping="Wrap" />
           </Grid>
         </GroupBox>
@@ -198,28 +205,64 @@
               <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Text="Profile:" FontWeight="SemiBold" />
+            <TextBlock x:Name="ProfileLabelTextBlock" Grid.Row="0" Text="Profile:" FontWeight="SemiBold" />
             <TextBlock x:Name="SelectedProfileNameTextBlock" Grid.Row="0" Grid.Column="2" TextWrapping="Wrap" />
 
-            <TextBlock Grid.Row="1" Text="Summary:" FontWeight="SemiBold" />
+            <TextBlock x:Name="SummaryLabelTextBlock" Grid.Row="1" Text="Summary:" FontWeight="SemiBold" />
             <TextBlock x:Name="SelectedProfileSummaryTextBlock" Grid.Row="1" Grid.Column="2" TextWrapping="Wrap" />
 
-            <TextBlock Grid.Row="2" Text="Tags:" FontWeight="SemiBold" />
+            <TextBlock x:Name="TagsLabelTextBlock" Grid.Row="2" Text="Tags:" FontWeight="SemiBold" />
             <TextBlock x:Name="SelectedProfileTagsTextBlock" Grid.Row="2" Grid.Column="2" TextWrapping="Wrap" />
           </Grid>
         </GroupBox>
       </Grid>
     </Grid>
 
-    <Border x:Name="OperationStatusBorder"
-            Grid.Row="1"
-            Margin="0,12,0,0"
-            Padding="8,6"
-            Background="#EFF6FF"
-            CornerRadius="8">
-      <TextBlock x:Name="OperationStatusTextBlock"
-                 Text="Ready."
-                 TextWrapping="Wrap" />
-    </Border>
+    <Grid x:Name="BottomBarGrid"
+          Grid.Row="1"
+          Margin="0,8,0,0">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+
+      <Border x:Name="OperationStatusBorder"
+              Grid.Column="0"
+              Margin="0,0,6,0"
+              Padding="8,4"
+              Background="{DynamicResource InfoStatusBrush}"
+              CornerRadius="8">
+        <TextBlock x:Name="OperationStatusTextBlock"
+                   Text="Ready."
+                   FontSize="12"
+                   TextWrapping="Wrap" />
+      </Border>
+
+      <Grid x:Name="BottomActionsPanel"
+            Grid.Column="1"
+            Margin="6,0,0,0"
+            VerticalAlignment="Center">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Button x:Name="SettingsButton"
+                Grid.Column="0"
+                Margin="0,0,8,0"
+                Click="OnOpenSettingsClicked"
+                Content="Settings" />
+        <Button x:Name="OpenConfigButton"
+                Grid.Column="1"
+                Margin="0,0,8,0"
+                Click="OnOpenConfigFolderClicked"
+                Content="Open Config" />
+        <Button x:Name="OpenLogsButton"
+                Grid.Column="2"
+                Click="OnOpenLogsFolderClicked"
+                Content="Open Logs" />
+      </Grid>
+    </Grid>
   </Grid>
 </Window>

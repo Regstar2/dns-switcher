@@ -1,4 +1,5 @@
 using DnsSwitcher.Infrastructure.Windows;
+using DnsSwitcher.Infrastructure.Windows.Configuration;
 using DnsSwitcher.Infrastructure.Windows.Presentation;
 using Microsoft.Extensions.Logging;
 
@@ -28,11 +29,10 @@ internal static class Program
         catch (Exception exception)
         {
             logger.LogCritical(exception, "DnsSwitcher Tray failed during startup or execution.");
-            MessageBox.Show(
-                FriendlyExceptionFormatter.ToUserMessage(exception),
+            TrayDialogs.ShowError(
                 "DnsSwitcher",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error);
+                FriendlyExceptionFormatter.ToUserMessage(exception),
+                LoadThemePreference(host));
         }
     }
 
@@ -46,11 +46,18 @@ internal static class Program
         Application.ThreadException += (_, eventArgs) =>
         {
             logger?.LogError(eventArgs.Exception, "Unhandled tray UI exception.");
-            MessageBox.Show(
-                FriendlyExceptionFormatter.ToUserMessage(eventArgs.Exception),
-                "DnsSwitcher",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error);
+            var host = WindowsDnsSwitcherHostFactory.CreateDefault();
+            try
+            {
+                TrayDialogs.ShowError(
+                    "DnsSwitcher",
+                    FriendlyExceptionFormatter.ToUserMessage(eventArgs.Exception),
+                    LoadThemePreference(host));
+            }
+            finally
+            {
+                host.Dispose();
+            }
         };
 
         AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
@@ -66,5 +73,20 @@ internal static class Program
             logger?.LogError(eventArgs.Exception, "Unobserved task exception in tray.");
             eventArgs.SetObserved();
         };
+    }
+
+    private static AppTheme LoadThemePreference(WindowsDnsSwitcherHost host)
+    {
+        try
+        {
+            var store = new JsonAppPreferencesStore(
+                host.Paths,
+                host.LoggerFactory.CreateLogger<JsonAppPreferencesStore>());
+            return store.LoadAsync().GetAwaiter().GetResult().Theme;
+        }
+        catch
+        {
+            return AppTheme.System;
+        }
     }
 }
