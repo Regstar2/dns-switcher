@@ -1,5 +1,6 @@
 using DnsSwitcher.Core.Models;
 using DnsSwitcher.Infrastructure.Windows.Configuration;
+using DnsSwitcher.Infrastructure.Windows.Presentation;
 
 namespace DnsSwitcher.Infrastructure.Windows.Tray;
 
@@ -11,27 +12,27 @@ public static class TrayTextFormatter
     private const int MaxActionProfileNameLength = 18;
     private const int MaxProfileNameLength = 26;
 
-    public static string BuildStatusMenuText(AppConfig configuration, DnsStatus status)
+    public static string BuildStatusMenuText(AppConfig configuration, DnsStatus status, AppLocalizer localizer)
     {
-        return $"Status: {Trim(BuildStatusLabel(configuration, status), MaxStatusLabelLength)}";
+        return $"{localizer["TrayStatusLabel"]}: {Trim(BuildStatusLabel(configuration, status, localizer), MaxStatusLabelLength)}";
     }
 
-    public static string? BuildAdapterMenuText(DnsStatus status, TraySettings settings)
+    public static string? BuildAdapterMenuText(DnsStatus status, TraySettings settings, AppLocalizer localizer)
     {
         if (!settings.ShowAdapterName)
         {
             return null;
         }
 
-        return $"Adapter: {Trim(status.AdapterName ?? "no adapter selected", MaxAdapterLabelLength)}";
+        return $"{localizer["TrayAdapterLabel"]}: {Trim(status.AdapterName ?? localizer["NoAdapterSelected"], MaxAdapterLabelLength)}";
     }
 
-    public static string BuildNotifyIconText(AppConfig configuration, DnsStatus status, TraySettings settings)
+    public static string BuildNotifyIconText(AppConfig configuration, DnsStatus status, TraySettings settings, AppLocalizer localizer)
     {
         var parts = new List<string>
         {
-            "DnsSwitcher",
-            BuildStatusLabel(configuration, status),
+            localizer["DnsSwitcherTrayTitle"],
+            BuildStatusLabel(configuration, status, localizer),
         };
 
         if (settings.ShowAdapterName && !string.IsNullOrWhiteSpace(status.AdapterName))
@@ -42,47 +43,47 @@ public static class TrayTextFormatter
         return Trim(string.Join(" | ", parts), MaxNotifyIconTextLength);
     }
 
-    public static string BuildErrorNotifyIconText(string message)
+    public static string BuildErrorNotifyIconText(string message, AppLocalizer localizer)
     {
-        return Trim($"DnsSwitcher: error - {message}", MaxNotifyIconTextLength);
+        return Trim($"{localizer["DnsSwitcherTrayTitle"]}: {localizer["TrayErrorStatus"]} - {message}", MaxNotifyIconTextLength);
     }
 
-    public static string BuildEnableMenuText(DnsProfile? profile)
-    {
-        return profile is null
-            ? "Enable DNS"
-            : $"Enable DNS ({Trim(profile.Name, MaxActionProfileNameLength)})";
-    }
-
-    public static string BuildSwitchNextMenuText(DnsProfile? profile)
+    public static string BuildEnableMenuText(DnsProfile? profile, AppLocalizer localizer)
     {
         return profile is null
-            ? "Switch Next"
-            : $"Switch Next ({Trim(profile.Name, MaxActionProfileNameLength)})";
+            ? localizer["TrayEnableDns"]
+            : $"{localizer["TrayEnableDns"]} ({Trim(profile.Name, MaxActionProfileNameLength)})";
     }
 
-    public static string BuildProfileMenuText(DnsProfile profile, bool isCurrent, bool isPreferred)
+    public static string BuildSwitchNextMenuText(DnsProfile? profile, AppLocalizer localizer)
+    {
+        return profile is null
+            ? localizer["TraySwitchNext"]
+            : $"{localizer["TraySwitchNext"]} ({Trim(profile.Name, MaxActionProfileNameLength)})";
+    }
+
+    public static string BuildProfileMenuText(DnsProfile profile, bool isCurrent, bool isPreferred, AppLocalizer localizer)
     {
         var suffix = isCurrent
-            ? " [active]"
+            ? $" [{localizer["ActiveSuffix"]}]"
             : isPreferred
-                ? " [selected]"
+                ? $" [{localizer["SelectedSuffix"]}]"
                 : string.Empty;
 
         return $"{Trim(profile.Name, MaxProfileNameLength)}{suffix}";
     }
 
-    public static string BuildStatusLabel(AppConfig configuration, DnsStatus status)
+    public static string BuildStatusLabel(AppConfig configuration, DnsStatus status, AppLocalizer localizer)
     {
         var currentProfile = configuration.Profiles.FirstOrDefault(profile =>
             string.Equals(profile.Id, status.MatchedProfileId, StringComparison.OrdinalIgnoreCase));
 
         return currentProfile?.Name ?? status.Mode switch
         {
-            DnsMode.Dhcp => "DHCP",
-            DnsMode.Manual => "Manual DNS",
-            DnsMode.Mixed => "Mixed DNS",
-            _ => "Unknown",
+            DnsMode.Dhcp => localizer["DhcpStatus"],
+            DnsMode.Manual => localizer["ManualDnsStatus"],
+            DnsMode.Mixed => localizer["MixedDnsStatus"],
+            _ => localizer["UnknownStatus"],
         };
     }
 

@@ -1,20 +1,29 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Drawing.Text;
 using System.Runtime.InteropServices;
 
 namespace DnsSwitcher.Tray;
 
 internal sealed class TrayIconProvider : IDisposable
 {
-    private readonly Dictionary<TrayIconState, Icon> icons = [];
+    private readonly Dictionary<(TrayIconState State, bool IsDarkTheme), Icon> icons = [];
+    private readonly Icon lightBaseIcon;
+    private readonly Icon darkBaseIcon;
 
-    public Icon GetIcon(TrayIconState state)
+    public TrayIconProvider()
     {
-        if (!icons.TryGetValue(state, out var icon))
+        lightBaseIcon = new Icon(GetAppIconPath(isDarkTheme: false), 32, 32);
+        darkBaseIcon = new Icon(GetAppIconPath(isDarkTheme: true), 32, 32);
+    }
+
+    public Icon GetIcon(TrayIconState state, bool isDarkTheme)
+    {
+        var key = (state, isDarkTheme);
+
+        if (!icons.TryGetValue(key, out var icon))
         {
-            icon = CreateIcon(state);
-            icons[state] = icon;
+            icon = CreateIcon(state, isDarkTheme);
+            icons[key] = icon;
         }
 
         return icon;
@@ -28,9 +37,11 @@ internal sealed class TrayIconProvider : IDisposable
         }
 
         icons.Clear();
+        lightBaseIcon.Dispose();
+        darkBaseIcon.Dispose();
     }
 
-    private static Icon CreateIcon(TrayIconState state)
+    private Icon CreateIcon(TrayIconState state, bool isDarkTheme)
     {
         using var bitmap = new Bitmap(32, 32);
         using var graphics = Graphics.FromImage(bitmap);
@@ -38,28 +49,18 @@ internal sealed class TrayIconProvider : IDisposable
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
         graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
         graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-        graphics.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
         graphics.Clear(Color.Transparent);
 
-        var backgroundColor = Color.FromArgb(32, 87, 201);
+        var baseIcon = isDarkTheme ? darkBaseIcon : lightBaseIcon;
+        graphics.DrawIcon(baseIcon, new Rectangle(-1, -1, 34, 34));
+
         var accentColor = GetAccentColor(state);
 
-        using var bodyBrush = new SolidBrush(backgroundColor);
+        using var outlineBrush = new SolidBrush(isDarkTheme ? Color.FromArgb(210, 255, 255, 255) : Color.FromArgb(190, 18, 20, 24));
         using var accentBrush = new SolidBrush(accentColor);
-        using var glyphBrush = new SolidBrush(Color.White);
-        using var bodyPath = CreateRoundedRectangle(new RectangleF(3, 3, 26, 26), 8);
 
-        graphics.FillPath(bodyBrush, bodyPath);
-        graphics.FillEllipse(accentBrush, 21, 21, 8, 8);
-
-        using var font = new Font("Segoe UI", 13.5f, FontStyle.Bold, GraphicsUnit.Pixel);
-        using var format = new StringFormat
-        {
-            Alignment = StringAlignment.Center,
-            LineAlignment = StringAlignment.Center,
-        };
-
-        graphics.DrawString("D", font, glyphBrush, new RectangleF(4, 3, 20, 20), format);
+        graphics.FillEllipse(outlineBrush, 22, 22, 8, 8);
+        graphics.FillEllipse(accentBrush, 23, 23, 6, 6);
 
         var iconHandle = bitmap.GetHicon();
 
@@ -74,18 +75,24 @@ internal sealed class TrayIconProvider : IDisposable
         }
     }
 
-    private static GraphicsPath CreateRoundedRectangle(RectangleF rectangle, float radius)
+    private static string GetAppIconPath(bool isDarkTheme)
     {
-        var path = new GraphicsPath();
-        var diameter = radius * 2;
+        var iconName = isDarkTheme ? "app-dark.ico" : "app.ico";
+        var appContextIconPath = Path.Combine(AppContext.BaseDirectory, iconName);
 
-        path.AddArc(rectangle.X, rectangle.Y, diameter, diameter, 180, 90);
-        path.AddArc(rectangle.Right - diameter, rectangle.Y, diameter, diameter, 270, 90);
-        path.AddArc(rectangle.Right - diameter, rectangle.Bottom - diameter, diameter, diameter, 0, 90);
-        path.AddArc(rectangle.X, rectangle.Bottom - diameter, diameter, diameter, 90, 90);
-        path.CloseFigure();
+        if (File.Exists(appContextIconPath))
+        {
+            return appContextIconPath;
+        }
 
-        return path;
+        var sourceIconPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "assets", iconName));
+
+        if (File.Exists(sourceIconPath))
+        {
+            return sourceIconPath;
+        }
+
+        return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "assets", "app.ico"));
     }
 
     private static Color GetAccentColor(TrayIconState state)

@@ -9,20 +9,20 @@
         Height="550"
         Width="980"
         WindowStartupLocation="CenterScreen"
-        MinHeight="320"
-        MinWidth="360"
+        MinHeight="440"
+        MinWidth="420"
         Background="{DynamicResource WindowBackgroundBrush}">
   <Window.Resources>
     <DataTemplate DataType="{x:Type ui:ProfileListItem}">
-      <Border Padding="4">
+      <Border Padding="2">
         <StackPanel>
           <DockPanel LastChildFill="False">
             <TextBlock Text="{Binding Name}"
-                       FontSize="15"
+                       FontSize="14"
                        FontWeight="SemiBold"
                        VerticalAlignment="Center" />
-            <Border Margin="8,0,0,0"
-                    Padding="6,2"
+            <Border Margin="6,0,0,0"
+                    Padding="6,1"
                     Background="{DynamicResource AccentSurfaceBrush}"
                     CornerRadius="10"
                     HorizontalAlignment="Right">
@@ -32,14 +32,15 @@
                          Foreground="{DynamicResource AccentTextBrush}" />
             </Border>
           </DockPanel>
-          <TextBlock Margin="0,4,0,0"
+          <TextBlock Margin="0,2,0,0"
                      Text="{Binding StatusText}"
                      Foreground="{DynamicResource SecondaryTextBrush}"
-                     FontSize="12"
+                     FontSize="11"
                      TextWrapping="Wrap" />
-          <TextBlock Margin="0,4,0,0"
+          <TextBlock Margin="0,2,0,0"
                      Text="{Binding SummaryText}"
                      Foreground="{DynamicResource PrimaryTextBrush}"
+                     FontSize="12"
                      TextWrapping="Wrap" />
         </StackPanel>
       </Border>
@@ -65,43 +66,103 @@
           <Grid.RowDefinitions>
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
 
           <ListBox x:Name="ProfilesListBox"
+                   MinHeight="120"
                    SelectionChanged="OnProfileSelectionChanged"
                    HorizontalContentAlignment="Stretch" />
 
-          <WrapPanel Grid.Row="1"
-                     Margin="0,12,0,0">
-            <Button x:Name="ApplyButton"
-                    Width="96"
+          <Grid Grid.Row="1"
+                Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button x:Name="CreateProfileButton"
+                    Grid.Column="0"
                     Margin="0,0,8,8"
+                    Click="OnCreateProfileClicked"
+                    Content="Create" />
+            <Button x:Name="EditProfileButton"
+                    Grid.Column="1"
+                    Margin="0,0,8,8"
+                    Click="OnEditProfileClicked"
+                    Content="Edit" />
+            <Button x:Name="DeleteProfileButton"
+                    Grid.Column="2"
+                    Margin="0,0,0,8"
+                    Style="{StaticResource DangerActionButtonStyle}"
+                    Click="OnDeleteProfileClicked"
+                    Content="Delete" />
+          </Grid>
+
+          <Grid Grid.Row="2"
+                Margin="0,4,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button x:Name="ApplyButton"
+                    Grid.Column="0"
+                    Margin="0,0,8,8"
+                    Style="{StaticResource PrimaryActionButtonStyle}"
                     Click="OnApplyClicked"
                     Content="Apply" />
             <Button x:Name="ResetButton"
-                    Width="96"
-                    Margin="0,0,8,8"
+                    Grid.Column="1"
+                    Margin="0,0,0,8"
                     Click="OnResetClicked"
                     Content="Reset" />
-            <Button x:Name="TestDnsButton"
-                    Width="92"
+          </Grid>
+
+          <Grid Grid.Row="3"
+                Margin="0,4,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button x:Name="ChecksButton"
+                    Grid.Column="0"
                     Margin="0,0,8,8"
-                    Click="OnTestCurrentDnsClicked"
-                    Content="Test DNS"
-                    ToolTip="Test current DNS servers against configured test domains." />
-            <Button x:Name="TestSitesButton"
-                    Width="92"
-                    Margin="0,0,8,8"
-                    Click="OnTestSitesClicked"
-                    Content="Test Sites"
-                    ToolTip="Test configured site URLs for real connectivity." />
-            <Button x:Name="BenchmarkButton"
-                    Width="108"
-                    Margin="0,0,8,8"
-                    Click="OnBenchmarkClicked"
-                    Content="Benchmark"
-                    ToolTip="Benchmark all static DNS profiles and pick the best one by simple rules." />
-          </WrapPanel>
+                    Click="OnOpenChecksClicked"
+                    Content="Checks">
+              <Button.ContextMenu>
+                <ContextMenu x:Name="ChecksContextMenu"
+                             Placement="Bottom">
+                  <MenuItem x:Name="TestDnsMenuItem"
+                            Click="OnTestCurrentDnsClicked"
+                            Header="Test DNS" />
+                  <MenuItem x:Name="TestSitesMenuItem"
+                            Click="OnTestSitesClicked"
+                            Header="Test Sites" />
+                  <MenuItem x:Name="BenchmarkMenuItem"
+                            Click="OnBenchmarkClicked"
+                            Header="Benchmark" />
+                </ContextMenu>
+              </Button.ContextMenu>
+            </Button>
+            <Button x:Name="MoreToolsButton"
+                    Grid.Column="1"
+                    Margin="0,0,0,8"
+                    Click="OnOpenMoreToolsClicked"
+                    Content="Import / Export">
+              <Button.ContextMenu>
+                <ContextMenu x:Name="MoreToolsContextMenu"
+                             Placement="Bottom">
+                  <MenuItem x:Name="ImportProfilesMenuItem"
+                            Click="OnImportProfilesClicked"
+                            Header="Import" />
+                  <MenuItem x:Name="ExportProfileMenuItem"
+                            Click="OnExportProfileClicked"
+                            Header="Export" />
+                </ContextMenu>
+              </Button.ContextMenu>
+            </Button>
+          </Grid>
         </Grid>
       </GroupBox>
 
@@ -170,28 +231,28 @@
             </Grid.RowDefinitions>
 
             <TextBlock x:Name="CurrentProfileLabelTextBlock" Grid.Row="0" Text="Current profile:" FontWeight="SemiBold" />
-            <TextBlock x:Name="CurrentProfileValueTextBlock" Grid.Row="0" Grid.Column="2" TextWrapping="Wrap" />
+            <TextBlock x:Name="CurrentProfileValueTextBlock" Grid.Row="0" Grid.Column="2" TextWrapping="Wrap" FontWeight="SemiBold" />
 
             <TextBlock x:Name="ConfigActiveProfileLabelTextBlock" Grid.Row="1" Text="Config active profile:" FontWeight="SemiBold" />
-            <TextBlock x:Name="ConfigActiveProfileValueTextBlock" Grid.Row="1" Grid.Column="2" TextWrapping="Wrap" />
+            <TextBlock x:Name="ConfigActiveProfileValueTextBlock" Grid.Row="1" Grid.Column="2" TextWrapping="Wrap" FontWeight="SemiBold" />
 
             <TextBlock x:Name="SelectedAdapterLabelTextBlock" Grid.Row="2" Text="Selected adapter:" FontWeight="SemiBold" />
-            <TextBlock x:Name="SelectedAdapterValueTextBlock" Grid.Row="2" Grid.Column="2" TextWrapping="Wrap" />
+            <TextBlock x:Name="SelectedAdapterValueTextBlock" Grid.Row="2" Grid.Column="2" TextWrapping="Wrap" FontWeight="SemiBold" />
 
             <TextBlock x:Name="DnsModeLabelTextBlock" Grid.Row="3" Text="DNS mode:" FontWeight="SemiBold" />
-            <TextBlock x:Name="DnsModeValueTextBlock" Grid.Row="3" Grid.Column="2" TextWrapping="Wrap" />
+            <TextBlock x:Name="DnsModeValueTextBlock" Grid.Row="3" Grid.Column="2" TextWrapping="Wrap" FontWeight="SemiBold" />
 
             <TextBlock x:Name="AgentServiceLabelTextBlock" Grid.Row="4" Text="Agent service:" FontWeight="SemiBold" />
-            <TextBlock x:Name="AgentServiceStatusValueTextBlock" Grid.Row="4" Grid.Column="2" TextWrapping="Wrap" />
+            <TextBlock x:Name="AgentServiceStatusValueTextBlock" Grid.Row="4" Grid.Column="2" TextWrapping="Wrap" FontWeight="SemiBold" />
 
             <TextBlock x:Name="AgentAvailableLabelTextBlock" Grid.Row="5" Text="Agent available:" FontWeight="SemiBold" />
-            <TextBlock x:Name="AgentAvailableValueTextBlock" Grid.Row="5" Grid.Column="2" TextWrapping="Wrap" />
+            <TextBlock x:Name="AgentAvailableValueTextBlock" Grid.Row="5" Grid.Column="2" TextWrapping="Wrap" FontWeight="SemiBold" />
 
             <TextBlock x:Name="Ipv4LabelTextBlock" Grid.Row="6" Text="IPv4 DNS:" FontWeight="SemiBold" />
-            <TextBlock x:Name="Ipv4ValueTextBlock" Grid.Row="6" Grid.Column="2" TextWrapping="Wrap" />
+            <TextBlock x:Name="Ipv4ValueTextBlock" Grid.Row="6" Grid.Column="2" TextWrapping="Wrap" FontWeight="SemiBold" />
 
             <TextBlock x:Name="Ipv6LabelTextBlock" Grid.Row="7" Text="IPv6 DNS:" FontWeight="SemiBold" />
-            <TextBlock x:Name="Ipv6ValueTextBlock" Grid.Row="7" Grid.Column="2" TextWrapping="Wrap" />
+            <TextBlock x:Name="Ipv6ValueTextBlock" Grid.Row="7" Grid.Column="2" TextWrapping="Wrap" FontWeight="SemiBold" />
           </Grid>
         </GroupBox>
 

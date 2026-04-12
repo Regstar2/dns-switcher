@@ -157,5 +157,10 @@ public partial class App : System.Windows.Application
 
         Resources.MergedDictionaries.Insert(0, newDictionary);
         currentThemeDictionary = newDictionary;
+
+        foreach (Window window in Windows)
+        {
+            WindowThemeService.Apply(window);
+        }
     }
 }

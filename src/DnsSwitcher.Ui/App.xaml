@@ -26,12 +26,74 @@
       <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="Padding" Value="10,6" />
+      <Setter Property="MinHeight" Value="34" />
       <Style.Triggers>
         <Trigger Property="IsMouseOver" Value="True">
           <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
         </Trigger>
         <Trigger Property="IsPressed" Value="True">
           <Setter Property="Background" Value="{DynamicResource PressedBrush}" />
+        </Trigger>
+        <Trigger Property="IsEnabled" Value="False">
+          <Setter Property="Opacity" Value="0.7" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="PrimaryActionButtonStyle"
+           TargetType="{x:Type Button}"
+           BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="{DynamicResource PrimaryActionBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryActionTextBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource PrimaryActionBrush}" />
+      <Setter Property="Padding" Value="14,8" />
+      <Setter Property="MinHeight" Value="38" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Background" Value="{DynamicResource PrimaryActionHoverBrush}" />
+          <Setter Property="BorderBrush" Value="{DynamicResource PrimaryActionHoverBrush}" />
+        </Trigger>
+        <Trigger Property="IsPressed" Value="True">
+          <Setter Property="Background" Value="{DynamicResource PrimaryActionPressedBrush}" />
+          <Setter Property="BorderBrush" Value="{DynamicResource PrimaryActionPressedBrush}" />
+        </Trigger>
+        <Trigger Property="IsEnabled" Value="False">
+          <Setter Property="Opacity" Value="0.7" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="DangerActionButtonStyle"
+           TargetType="{x:Type Button}"
+           BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource DangerActionForegroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource DangerActionBorderBrush}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Background" Value="{DynamicResource DangerActionHoverBrush}" />
+        </Trigger>
+        <Trigger Property="IsPressed" Value="True">
+          <Setter Property="Background" Value="{DynamicResource DangerActionPressedBrush}" />
+        </Trigger>
+        <Trigger Property="IsEnabled" Value="False">
+          <Setter Property="Opacity" Value="0.7" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+    <Style TargetType="{x:Type ContextMenu}">
+      <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style TargetType="{x:Type MenuItem}">
+      <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+      <Setter Property="Padding" Value="10,6" />
+      <Style.Triggers>
+        <Trigger Property="IsHighlighted" Value="True">
+          <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
         </Trigger>
         <Trigger Property="IsEnabled" Value="False">
           <Setter Property="Opacity" Value="0.7" />

@@ -12,6 +12,7 @@ using DnsSwitcher.Infrastructure.Windows.Presentation;
 using DnsSwitcher.Infrastructure.Windows.Startup;
 using DnsSwitcher.Ui.UiModels;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
 using MediaBrush = System.Windows.Media.Brush;
 
 namespace DnsSwitcher.Ui;
@@ -22,6 +23,7 @@ public partial class MainWindow : Window
     private const double HideSelectedProfileHeightThreshold = 500;
     private const double HideCurrentStatusHeightThreshold = 380;
     private const string TrayAutostartValueName = "DnsSwitcherTray";
+    private const string LegacyUiAutostartValueName = "DnsSwitcherUi";
     private static readonly TimeSpan PeriodicRefreshInterval = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan ConfigRefreshDebounceInterval = TimeSpan.FromMilliseconds(500);
 
@@ -30,7 +32,9 @@ public partial class MainWindow : Window
     private readonly ILogger<MainWindow> logger;
     private readonly JsonUiSettingsStore uiSettingsStore;
     private readonly JsonAppPreferencesStore appPreferencesStore;
+    private readonly JsonDnsProfileExchangeService profileExchangeService;
     private readonly WindowsAutostartManager autostartManager;
+    private readonly WindowsAutostartManager legacyUiAutostartManager;
     private readonly DesktopClientLauncher desktopClientLauncher;
     private bool suppressAdapterSelectionChanged;
     private bool suppressProfileSelectionChanged;
@@ -48,10 +52,13 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        WindowThemeService.Attach(this);
         logger = App.Host.LoggerFactory.CreateLogger<MainWindow>();
         uiSettingsStore = new JsonUiSettingsStore(App.Host.Paths, App.Host.LoggerFactory.CreateLogger<JsonUiSettingsStore>());
         appPreferencesStore = new JsonAppPreferencesStore(App.Host.Paths, App.Host.LoggerFactory.CreateLogger<JsonAppPreferencesStore>());
+        profileExchangeService = new JsonDnsProfileExchangeService();
         autostartManager = new WindowsAutostartManager(TrayAutostartValueName);
+        legacyUiAutostartManager = new WindowsAutostartManager(LegacyUiAutostartValueName);
         desktopClientLauncher = new DesktopClientLauncher(App.Host.LoggerFactory.CreateLogger<DesktopClientLauncher>());
         periodicRefreshTimer = new DispatcherTimer { Interval = PeriodicRefreshInterval };
         periodicRefreshTimer.Tick += OnPeriodicRefreshTick;
@@ -74,6 +81,7 @@ public partial class MainWindow : Window
             appPreferences = await LoadAppPreferencesOrDefaultAsync().ConfigureAwait(true);
             localizer = new AppLocalizer(appPreferences.Language);
             uiSettings = await LoadUiSettingsOrDefaultAsync().ConfigureAwait(true);
+            MigrateLegacyUiAutostartIfNeeded();
             ApplyLocalization();
             InitializeExternalRefresh();
             await RefreshUiAsync(localizer["UiLoadedStatus"]).ConfigureAwait(true);
@@ -159,6 +167,18 @@ public partial class MainWindow : Window
         await RunBenchmarkAsync().ConfigureAwait(true);
     }
 
+    private void OnOpenChecksClicked(object sender, RoutedEventArgs e)
+    {
+        ChecksContextMenu.PlacementTarget = ChecksButton;
+        ChecksContextMenu.IsOpen = true;
+    }
+
+    private void OnOpenMoreToolsClicked(object sender, RoutedEventArgs e)
+    {
+        MoreToolsContextMenu.PlacementTarget = MoreToolsButton;
+        MoreToolsContextMenu.IsOpen = true;
+    }
+
     private async void OnResetClicked(object sender, RoutedEventArgs e)
     {
         logger.LogInformation("UI requested DHCP reset.");
@@ -199,6 +219,116 @@ public partial class MainWindow : Window
         }
 
         await PersistSelectionStateAsync().ConfigureAwait(true);
+    }
+
+    private async void OnCreateProfileClicked(object sender, RoutedEventArgs e)
+    {
+        await OpenProfileEditorAsync(profile: null, previousProfileId: null).ConfigureAwait(true);
+    }
+
+    private async void OnEditProfileClicked(object sender, RoutedEventArgs e)
+    {
+        if (ProfilesListBox.SelectedItem is not ProfileListItem profileItem)
+        {
+            SetOperationStatus(localizer["SelectProfileToEditError"], isError: true);
+            return;
+        }
+
+        await OpenProfileEditorAsync(profileItem.Profile, profileItem.Id).ConfigureAwait(true);
+    }
+
+    private async void OnDeleteProfileClicked(object sender, RoutedEventArgs e)
+    {
+        if (ProfilesListBox.SelectedItem is not ProfileListItem profileItem)
+        {
+            SetOperationStatus(localizer["SelectProfileToDeleteError"], isError: true);
+            return;
+        }
+
+        var result = System.Windows.MessageBox.Show(
+            localizer.Format("DeleteProfileConfirmFormat", profileItem.Name),
+            localizer["DeleteProfileTitle"],
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (result != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        await RunOperationAsync(
+            async () =>
+            {
+                await App.Host.ProfileService.DeleteProfileAsync(profileItem.Id).ConfigureAwait(true);
+                await PrepareSelectedProfileAsync(null).ConfigureAwait(true);
+            },
+            localizer["ProfileDeletedStatus"]).ConfigureAwait(true);
+    }
+
+    private async void OnImportProfilesClicked(object sender, RoutedEventArgs e)
+    {
+        if (isBusy)
+        {
+            return;
+        }
+
+        var dialog = new OpenFileDialog
+        {
+            Title = localizer["ImportProfilesDialogTitle"],
+            Filter = localizer["JsonFilesFilter"],
+            Multiselect = false,
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        await RunOperationAsync(
+            async () =>
+            {
+                var importedProfiles = await profileExchangeService.ImportProfilesAsync(dialog.FileName).ConfigureAwait(true);
+                var importedCount = await App.Host.ProfileService.ImportProfilesAsync(importedProfiles).ConfigureAwait(true);
+                var selectedProfileId = importedProfiles.LastOrDefault()?.Id;
+
+                if (!string.IsNullOrWhiteSpace(selectedProfileId))
+                {
+                    await PrepareSelectedProfileAsync(selectedProfileId).ConfigureAwait(true);
+                }
+
+                SetOperationStatus(localizer.Format("ProfilesImportedFormat", importedCount), isError: false);
+            },
+            successMessage: string.Empty).ConfigureAwait(true);
+    }
+
+    private async void OnExportProfileClicked(object sender, RoutedEventArgs e)
+    {
+        if (ProfilesListBox.SelectedItem is not ProfileListItem profileItem)
+        {
+            SetOperationStatus(localizer["SelectProfileToExportError"], isError: true);
+            return;
+        }
+
+        var dialog = new SaveFileDialog
+        {
+            Title = localizer["ExportProfileDialogTitle"],
+            Filter = localizer["JsonFilesFilter"],
+            FileName = $"{profileItem.Id}.json",
+            AddExtension = true,
+            DefaultExt = ".json",
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        await RunOperationAsync(
+            async () =>
+            {
+                await profileExchangeService.ExportProfileAsync(dialog.FileName, profileItem.Profile).ConfigureAwait(true);
+            },
+            localizer["ProfileExportedStatus"]).ConfigureAwait(true);
     }
 
     private void OnOpenConfigFolderClicked(object sender, RoutedEventArgs e)
@@ -343,6 +473,43 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task OpenProfileEditorAsync(DnsProfile? profile, string? previousProfileId)
+    {
+        if (isBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            var editorWindow = new ProfileEditorWindow(localizer, profile)
+            {
+                Owner = this,
+            };
+
+            if (editorWindow.ShowDialog() != true)
+            {
+                return;
+            }
+
+            var editedProfile = editorWindow.EditedProfile;
+
+            await RunOperationAsync(
+                async () =>
+                {
+                    await App.Host.ProfileService
+                        .SaveProfileAsync(editedProfile, previousProfileId)
+                        .ConfigureAwait(true);
+                    await PrepareSelectedProfileAsync(editedProfile.Id).ConfigureAwait(true);
+                },
+                profile is null ? localizer["ProfileCreatedStatus"] : localizer["ProfileUpdatedStatus"]).ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            HandleException(exception);
+        }
+    }
+
     private void RebuildAdapterOptions(
         IReadOnlyList<NetworkAdapter> adapters,
         NetworkAdapter? defaultAdapter,
@@ -445,15 +612,22 @@ public partial class MainWindow : Window
         var hasProfileSelection = ProfilesListBox.SelectedItem is ProfileListItem;
         var hasAdapterOptions = AdapterComboBox.Items.Count > 0;
 
+        CreateProfileButton.IsEnabled = !isBusy;
+        EditProfileButton.IsEnabled = !isBusy && hasProfileSelection;
+        DeleteProfileButton.IsEnabled = !isBusy && hasProfileSelection;
         ApplyButton.IsEnabled = !isBusy && hasProfileSelection;
         ResetButton.IsEnabled = !isBusy && hasAdapterOptions;
         ReloadButton.IsEnabled = !isBusy;
         SettingsButton.IsEnabled = !isBusy;
         OpenConfigButton.IsEnabled = !isBusy;
         OpenLogsButton.IsEnabled = !isBusy;
-        TestDnsButton.IsEnabled = !isBusy;
-        TestSitesButton.IsEnabled = !isBusy;
-        BenchmarkButton.IsEnabled = !isBusy;
+        ChecksButton.IsEnabled = !isBusy;
+        TestDnsMenuItem.IsEnabled = !isBusy;
+        TestSitesMenuItem.IsEnabled = !isBusy;
+        MoreToolsButton.IsEnabled = !isBusy;
+        BenchmarkMenuItem.IsEnabled = !isBusy;
+        ImportProfilesMenuItem.IsEnabled = !isBusy;
+        ExportProfileMenuItem.IsEnabled = !isBusy && hasProfileSelection;
         AdapterComboBox.IsEnabled = !isBusy;
         ProfilesListBox.IsEnabled = !isBusy;
     }
@@ -640,6 +814,14 @@ public partial class MainWindow : Window
         await PersistUiSettingsAsync(updatedSettings).ConfigureAwait(true);
     }
 
+    private async Task PrepareSelectedProfileAsync(string? profileId)
+    {
+        suppressProfileSelectionChanged = true;
+        ProfilesListBox.SelectedItem = null;
+        suppressProfileSelectionChanged = false;
+        await PersistUiSettingsAsync(uiSettings with { LastSelectedProfileId = profileId }).ConfigureAwait(true);
+    }
+
     private async Task PersistUiSettingsAsync(UiSettings updatedSettings, string? successMessage = null)
     {
         if (updatedSettings == uiSettings)
@@ -690,11 +872,18 @@ public partial class MainWindow : Window
         CurrentStatusGroupBox.Header = localizer["CurrentStatusHeader"];
         SelectedProfileGroupBox.Header = localizer["SelectedProfileHeader"];
 
-        ApplyButton.Content = localizer["ApplyButton"];
-        ResetButton.Content = localizer["ResetButton"];
-        TestDnsButton.Content = localizer["TestDnsButton"];
-        TestSitesButton.Content = localizer["TestSitesButton"];
-        BenchmarkButton.Content = localizer["BenchmarkButton"];
+        ApplyButton.Content = localizer["ApplyProfileButton"];
+        ResetButton.Content = localizer["RestoreAutoDnsButton"];
+        ChecksButton.Content = localizer["ChecksButton"];
+        TestDnsMenuItem.Header = localizer["CheckDnsButton"];
+        TestSitesMenuItem.Header = localizer["CheckSitesButton"];
+        MoreToolsButton.Content = localizer["ImportExportButton"];
+        BenchmarkMenuItem.Header = localizer["BenchmarkButton"];
+        ImportProfilesMenuItem.Header = localizer["ImportProfilesButton"];
+        ExportProfileMenuItem.Header = localizer["ExportProfileButton"];
+        CreateProfileButton.Content = localizer["CreateProfileButton"];
+        EditProfileButton.Content = localizer["EditProfileButton"];
+        DeleteProfileButton.Content = localizer["DeleteProfileButton"];
         ReloadButton.Content = localizer["ReloadButton"];
         SettingsButton.Content = localizer["SettingsButton"];
         OpenConfigButton.Content = localizer["OpenConfigButton"];
@@ -916,6 +1105,24 @@ public partial class MainWindow : Window
             : !string.IsNullOrWhiteSpace(autostartManager.GetCommandLine());
     }
 
+    private void MigrateLegacyUiAutostartIfNeeded()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(legacyUiAutostartManager.GetCommandLine()))
+            {
+                return;
+            }
+
+            legacyUiAutostartManager.Disable();
+            logger.LogInformation("Removed legacy UI autostart entry in favor of tray autostart.");
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Failed to remove legacy UI autostart entry.");
+        }
+    }
+
     private void OpenFolder(string folderPath, string successMessage)
     {
         try
@@ -974,10 +1181,12 @@ public partial class MainWindow : Window
         if (settingsWindow.StartWithWindowsEnabled)
         {
             autostartManager.Enable(GetTrayExecutablePath());
+            legacyUiAutostartManager.Disable();
         }
         else
         {
             autostartManager.Disable();
+            legacyUiAutostartManager.Disable();
         }
 
         var updatedSettings = uiSettings with

@@ -12,6 +12,14 @@
   <SolidColorBrush x:Key="SelectionBrush" Color="#FFE1E7EF" />
   <SolidColorBrush x:Key="AccentSurfaceBrush" Color="#FFE5EEF9" />
   <SolidColorBrush x:Key="AccentTextBrush" Color="#FF1F3D73" />
+  <SolidColorBrush x:Key="PrimaryActionBrush" Color="#FFDCEAF8" />
+  <SolidColorBrush x:Key="PrimaryActionHoverBrush" Color="#FFCFE1F5" />
+  <SolidColorBrush x:Key="PrimaryActionPressedBrush" Color="#FFC0D5EE" />
+  <SolidColorBrush x:Key="PrimaryActionTextBrush" Color="#FF173B67" />
+  <SolidColorBrush x:Key="DangerActionBorderBrush" Color="#FFD08C8C" />
+  <SolidColorBrush x:Key="DangerActionForegroundBrush" Color="#FF9F1D1D" />
+  <SolidColorBrush x:Key="DangerActionHoverBrush" Color="#FFFBE9E9" />
+  <SolidColorBrush x:Key="DangerActionPressedBrush" Color="#FFF7D9D9" />
   <SolidColorBrush x:Key="InfoStatusBrush" Color="#FFEFF6FF" />
   <SolidColorBrush x:Key="ErrorStatusBrush" Color="#FFFEE2E2" />
   <SolidColorBrush x:Key="ErrorTextBrush" Color="#FF991B1B" />

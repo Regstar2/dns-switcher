@@ -18,6 +18,7 @@ public partial class SettingsWindow : Window
         bool isDarkTheme)
     {
         InitializeComponent();
+        WindowThemeService.Attach(this);
         this.localizer = localizer;
 
         LanguageComboBox.ItemsSource = BuildLanguageOptions(localizer);

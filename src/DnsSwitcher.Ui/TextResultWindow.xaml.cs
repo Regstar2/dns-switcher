@@ -7,6 +7,7 @@ public partial class TextResultWindow : Window
     public TextResultWindow(string title, string content, Window? owner = null)
     {
         InitializeComponent();
+        WindowThemeService.Attach(this);
 
         Title = title;
         Owner = owner;

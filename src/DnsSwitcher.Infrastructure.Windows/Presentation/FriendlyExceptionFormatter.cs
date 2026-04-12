@@ -44,6 +44,11 @@ public static class FriendlyExceptionFormatter
             return "Tray settings could not be read. Default tray settings will be used.";
         }
 
+        if (exception.Message.Contains("profile import file", StringComparison.OrdinalIgnoreCase))
+        {
+            return "The selected profile import file could not be read.";
+        }
+
         return "A required application file could not be read.";
     }
 

@@ -25,6 +25,8 @@ The project also includes a privileged Windows agent so UI and tray can change D
 - Interactive console mode for users who prefer a console menu
 - Desktop UI for standard usage
 - Tray client for fast switching
+- Automatic language selection from the system with manual override
+- Automatic light/dark UI theme from the system
 - Agent/service model for privileged DNS operations
 - File logging and graceful error handling
 
@@ -85,8 +87,10 @@ DnsSwitcher.Tests
 ```text
 data/
   config/
+    app-preferences.json
     profiles.json
     tray-settings.json
+    ui-settings.json
   logs/
     dns-switcher.log
 ```
@@ -138,6 +142,12 @@ dotnet run --project src/DnsSwitcher.Cli
 - apply/reset actions
 - DNS test
 - site test
+- remember last selected adapter and profile
+- optional continue-in-tray behavior on window close
+- open config/log folders
+- optional Windows autostart for the tray client
+- automatic language/theme from the system
+- manual language selection
 - background refresh for config and external state changes
 
 ### Screenshots
@@ -156,6 +166,8 @@ UI and tray screenshots can be added later without changing the shipped function
 - profile list
 - DNS and site tests
 - persistent tray settings
+- open UI action
+- shared app language preference
 
 ## Diagnostics
 
@@ -225,8 +237,7 @@ dotnet publish src\DnsSwitcher.Agent.Windows\DnsSwitcher.Agent.Windows.csproj -c
 - DNS changes still depend on Windows networking APIs and command-line tools
 - Agent/service installation requires administrator rights
 - Without screenshots, portfolio presentation is documentation-first in `v1.0`
-- Full i18n is planned, but not fully implemented yet
-- Dark theme is planned, but not implemented yet
+- CLI is still not fully localized
 - Editing/adding/removing profiles from the UI is intentionally deferred
 - Private DNS profiles should stay in local ignored config files and must not be committed
 

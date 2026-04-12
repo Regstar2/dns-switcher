@@ -1,3 +1,4 @@
+using System.Reflection;
 using DnsSwitcher.Core.Exceptions;
 using DnsSwitcher.Core.Models;
 using DnsSwitcher.Core.Services;
@@ -7,6 +8,7 @@ using DnsSwitcher.Infrastructure.Windows.Desktop;
 using DnsSwitcher.Infrastructure.Windows.Presentation;
 using DnsSwitcher.Infrastructure.Windows.Tray;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
 using ToolStripProfessionalRenderer = System.Windows.Forms.ToolStripProfessionalRenderer;
 
 namespace DnsSwitcher.Tray;
@@ -14,6 +16,9 @@ namespace DnsSwitcher.Tray;
 public sealed class TrayApplicationContext : ApplicationContext
 {
     private const int RefreshIntervalMilliseconds = 15000;
+    private static readonly MethodInfo? ShowContextMenuMethod = typeof(NotifyIcon).GetMethod(
+        "ShowContextMenu",
+        BindingFlags.Instance | BindingFlags.NonPublic);
 
     private readonly WindowsDnsSwitcherHost host;
     private readonly ILogger<TrayApplicationContext> logger;
@@ -39,6 +44,9 @@ public sealed class TrayApplicationContext : ApplicationContext
     private readonly ToolStripMenuItem showAdapterNameMenuItem;
     private readonly ToolStripMenuItem exitMenuItem;
     private readonly System.Windows.Forms.Timer refreshTimer;
+    private readonly System.Windows.Forms.Timer appPreferencesChangedTimer;
+    private readonly FileSystemWatcher appPreferencesWatcher;
+    private readonly Control synchronizationControl;
     private readonly TrayIconProvider trayIconProvider = new();
     private readonly DnsProfileSelectionService profileSelectionService = new();
     private readonly DesktopClientLauncher desktopClientLauncher;
@@ -54,6 +62,8 @@ public sealed class TrayApplicationContext : ApplicationContext
     private TraySettings traySettings = TraySettings.Default;
     private bool isRefreshing;
     private bool isActionInProgress;
+    private bool isAppPreferencesRefreshInProgress;
+    private bool forceAppPreferencesRefresh;
 
     public TrayApplicationContext(WindowsDnsSwitcherHost host)
     {
@@ -65,6 +75,15 @@ public sealed class TrayApplicationContext : ApplicationContext
         appPreferences = LoadAppPreferencesOrDefault();
         localizer = new AppLocalizer(appPreferences.Language);
         traySettings = LoadTraySettingsOrDefault();
+        synchronizationControl = new Control();
+        _ = synchronizationControl.Handle;
+        appPreferencesWatcher = CreateAppPreferencesWatcher();
+        appPreferencesWatcher.SynchronizingObject = synchronizationControl;
+        appPreferencesChangedTimer = new System.Windows.Forms.Timer
+        {
+            Interval = 250,
+        };
+        appPreferencesChangedTimer.Tick += OnAppPreferencesChangedTimerTick;
 
         openUiMenuItem = new ToolStripMenuItem(localizer["TrayOpenUi"]);
         statusMenuItem = new ToolStripMenuItem(localizer["TrayStatusLoading"])
@@ -138,12 +157,13 @@ public sealed class TrayApplicationContext : ApplicationContext
 
         notifyIcon = new NotifyIcon
         {
-            Icon = trayIconProvider.GetIcon(TrayIconState.Default),
+            Icon = trayIconProvider.GetIcon(TrayIconState.Default, IsDarkThemeActive()),
             Text = localizer["DnsSwitcherTrayTitle"],
             ContextMenuStrip = contextMenu,
             Visible = true,
         };
 
+        notifyIcon.MouseClick += OnNotifyIconMouseClick;
         notifyIcon.DoubleClick += async (_, _) => await ShowStatusDialogAsync().ConfigureAwait(true);
 
         refreshTimer = new System.Windows.Forms.Timer
@@ -153,6 +173,8 @@ public sealed class TrayApplicationContext : ApplicationContext
         };
 
         refreshTimer.Tick += async (_, _) => await RefreshStateAsync().ConfigureAwait(true);
+        appPreferencesWatcher.EnableRaisingEvents = true;
+        SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
         Application.Idle += HandleApplicationIdle;
     }
 
@@ -161,6 +183,11 @@ public sealed class TrayApplicationContext : ApplicationContext
         if (disposing)
         {
             Application.Idle -= HandleApplicationIdle;
+            SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+            appPreferencesWatcher.EnableRaisingEvents = false;
+            appPreferencesWatcher.Dispose();
+            appPreferencesChangedTimer.Dispose();
+            synchronizationControl.Dispose();
             refreshTimer.Dispose();
             notifyIcon.Dispose();
             contextMenu.Dispose();
@@ -168,6 +195,98 @@ public sealed class TrayApplicationContext : ApplicationContext
         }
 
         base.Dispose(disposing);
+    }
+
+    private void OnNotifyIconMouseClick(object? sender, MouseEventArgs eventArgs)
+    {
+        if (eventArgs.Button != MouseButtons.Left)
+        {
+            return;
+        }
+
+        if (ShowContextMenuMethod is not null)
+        {
+            ShowContextMenuMethod.Invoke(notifyIcon, null);
+            return;
+        }
+
+        contextMenu.Show(Cursor.Position, ToolStripDropDownDirection.AboveLeft);
+    }
+
+    private FileSystemWatcher CreateAppPreferencesWatcher()
+    {
+        var directory = Path.GetDirectoryName(appPreferencesStore.FilePath) ?? ".";
+        Directory.CreateDirectory(directory);
+
+        var watcher = new FileSystemWatcher(directory, JsonAppPreferencesStore.FileName)
+        {
+            IncludeSubdirectories = false,
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.CreationTime,
+            EnableRaisingEvents = false,
+        };
+
+        watcher.Changed += OnAppPreferencesFileChanged;
+        watcher.Created += OnAppPreferencesFileChanged;
+        watcher.Renamed += OnAppPreferencesFileRenamed;
+        watcher.Error += OnAppPreferencesWatcherError;
+
+        return watcher;
+    }
+
+    private void OnAppPreferencesFileChanged(object sender, FileSystemEventArgs eventArgs)
+    {
+        ScheduleAppPreferencesRefresh();
+    }
+
+    private void OnAppPreferencesFileRenamed(object sender, RenamedEventArgs eventArgs)
+    {
+        ScheduleAppPreferencesRefresh();
+    }
+
+    private void OnUserPreferenceChanged(object? sender, UserPreferenceChangedEventArgs eventArgs)
+    {
+        if (appPreferences.Theme == AppTheme.System)
+        {
+            ScheduleAppPreferencesRefresh(forceApply: true);
+        }
+    }
+
+    private void OnAppPreferencesWatcherError(object sender, ErrorEventArgs eventArgs)
+    {
+        logger.LogWarning(eventArgs.GetException(), "App preferences watcher failed. Tray will refresh preferences on the next regular refresh.");
+    }
+
+    private void ScheduleAppPreferencesRefresh(bool forceApply = false)
+    {
+        if (synchronizationControl.IsDisposed || !synchronizationControl.IsHandleCreated)
+        {
+            return;
+        }
+
+        if (synchronizationControl.InvokeRequired)
+        {
+            try
+            {
+                synchronizationControl.BeginInvoke((System.Windows.Forms.MethodInvoker)(() => ScheduleAppPreferencesRefresh(forceApply)));
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
+            return;
+        }
+
+        forceAppPreferencesRefresh |= forceApply;
+        appPreferencesChangedTimer.Stop();
+        appPreferencesChangedTimer.Start();
+    }
+
+    private async void OnAppPreferencesChangedTimerTick(object? sender, EventArgs eventArgs)
+    {
+        appPreferencesChangedTimer.Stop();
+        var forceApply = forceAppPreferencesRefresh;
+        forceAppPreferencesRefresh = false;
+        await RefreshAppPreferencesAsync(forceApply).ConfigureAwait(true);
     }
 
     private async void HandleApplicationIdle(object? sender, EventArgs eventArgs)
@@ -507,19 +626,19 @@ public sealed class TrayApplicationContext : ApplicationContext
         {
             statusMenuItem.Text = localizer["TrayErrorStatus"];
             adapterMenuItem.Visible = false;
-            notifyIcon.Icon = trayIconProvider.GetIcon(TrayIconState.Error);
+            notifyIcon.Icon = trayIconProvider.GetIcon(TrayIconState.Error, IsDarkThemeActive());
             notifyIcon.Text = TrayTextFormatter.BuildErrorNotifyIconText(error.Message, localizer);
             return;
         }
 
         if (configuration is null || status is null)
         {
-            notifyIcon.Icon = trayIconProvider.GetIcon(TrayIconState.Default);
+            notifyIcon.Icon = trayIconProvider.GetIcon(TrayIconState.Default, IsDarkThemeActive());
             notifyIcon.Text = localizer["DnsSwitcherTrayTitle"];
             return;
         }
 
-        notifyIcon.Icon = trayIconProvider.GetIcon(ResolveTrayIconState(status));
+        notifyIcon.Icon = trayIconProvider.GetIcon(ResolveTrayIconState(status), IsDarkThemeActive());
         notifyIcon.Text = TrayTextFormatter.BuildNotifyIconText(configuration, status, traySettings, localizer);
     }
 
@@ -553,7 +672,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         settingsMenuItem.Enabled = false;
     }
 
-    private void ApplyPresentationState()
+    private void ApplyPresentationState(bool forceNotifyIconRedraw = false)
     {
         if (lastRefreshError is not null)
         {
@@ -566,19 +685,33 @@ public sealed class TrayApplicationContext : ApplicationContext
             notificationsMenuItem.Checked = traySettings.NotificationsEnabled;
             showAdapterNameMenuItem.Checked = traySettings.ShowAdapterName;
             UpdateNotifyIcon(null, null, lastRefreshError);
+            ForceNotifyIconRedraw(forceNotifyIconRedraw);
             return;
         }
 
         if (lastConfiguration is null || lastStatus is null)
         {
-            notifyIcon.Icon = trayIconProvider.GetIcon(TrayIconState.Default);
+            notifyIcon.Icon = trayIconProvider.GetIcon(TrayIconState.Default, IsDarkThemeActive());
             notifyIcon.Text = localizer["DnsSwitcherTrayTitle"];
+            ForceNotifyIconRedraw(forceNotifyIconRedraw);
             return;
         }
 
         RebuildProfilesMenu(lastConfiguration, lastStatus);
         UpdateMenuState(lastConfiguration, lastStatus);
         UpdateNotifyIcon(lastConfiguration, lastStatus, error: null);
+        ForceNotifyIconRedraw(forceNotifyIconRedraw);
+    }
+
+    private void ForceNotifyIconRedraw(bool force)
+    {
+        if (!force || !notifyIcon.Visible)
+        {
+            return;
+        }
+
+        notifyIcon.Visible = false;
+        notifyIcon.Visible = true;
     }
 
     private static TrayIconState ResolveTrayIconState(DnsStatus status)
@@ -593,9 +726,40 @@ public sealed class TrayApplicationContext : ApplicationContext
         };
     }
 
+    private bool IsDarkThemeActive() => ThemeModeResolver.IsDarkTheme(appPreferences.Theme);
+
     private string FormatServers(IReadOnlyList<string> servers)
     {
         return servers.Count == 0 ? localizer["NoneValue"] : string.Join(", ", servers);
+    }
+
+    private async Task RefreshAppPreferencesAsync(bool forceApply)
+    {
+        if (isAppPreferencesRefreshInProgress)
+        {
+            return;
+        }
+
+        isAppPreferencesRefreshInProgress = true;
+
+        try
+        {
+            var updatedPreferences = await LoadAppPreferencesOrDefaultAsync().ConfigureAwait(true);
+            if (updatedPreferences == appPreferences && !forceApply)
+            {
+                return;
+            }
+
+            var themeChanged = forceApply || updatedPreferences.Theme != appPreferences.Theme;
+            appPreferences = updatedPreferences;
+            localizer = new AppLocalizer(appPreferences.Language);
+            ApplyTheme(appPreferences.Theme);
+            ApplyPresentationState(forceNotifyIconRedraw: themeChanged);
+        }
+        finally
+        {
+            isAppPreferencesRefreshInProgress = false;
+        }
     }
 
     private async Task<AppPreferences> LoadAppPreferencesOrDefaultAsync()
@@ -688,7 +852,7 @@ public sealed class TrayApplicationContext : ApplicationContext
 
             await appPreferencesStore.SaveAsync(appPreferences).ConfigureAwait(true);
             ApplyTheme(appPreferences.Theme);
-            ApplyPresentationState();
+            ApplyPresentationState(forceNotifyIconRedraw: true);
         }
         catch (Exception exception)
         {

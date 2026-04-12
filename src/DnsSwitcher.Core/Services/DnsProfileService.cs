@@ -64,4 +64,114 @@ public sealed class DnsProfileService(IProfileStore profileStore)
     {
         return SetActiveProfileAsync(null, cancellationToken);
     }
+
+    public Task SaveConfigurationAsync(AppConfig configuration, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        return profileStore.SaveAsync(configuration, cancellationToken);
+    }
+
+    public async Task SaveProfileAsync(
+        DnsProfile profile,
+        string? previousProfileId = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+
+        var configuration = await profileStore.LoadAsync(cancellationToken).ConfigureAwait(false);
+        var profiles = configuration.Profiles.ToList();
+        var activeProfileId = configuration.ActiveProfileId;
+
+        if (!string.IsNullOrWhiteSpace(previousProfileId)
+            && !string.Equals(previousProfileId, profile.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            var previousIndex = profiles.FindIndex(existing =>
+                string.Equals(existing.Id, previousProfileId, StringComparison.OrdinalIgnoreCase));
+
+            if (previousIndex >= 0)
+            {
+                profiles.RemoveAt(previousIndex);
+
+                if (string.Equals(activeProfileId, previousProfileId, StringComparison.OrdinalIgnoreCase))
+                {
+                    activeProfileId = profile.Id;
+                }
+            }
+        }
+
+        var existingIndex = profiles.FindIndex(existing =>
+            string.Equals(existing.Id, profile.Id, StringComparison.OrdinalIgnoreCase));
+
+        if (existingIndex >= 0)
+        {
+            profiles[existingIndex] = profile;
+        }
+        else
+        {
+            profiles.Add(profile);
+        }
+
+        await profileStore
+            .SaveAsync(configuration with { Profiles = profiles, ActiveProfileId = activeProfileId }, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task DeleteProfileAsync(string profileId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
+
+        var configuration = await profileStore.LoadAsync(cancellationToken).ConfigureAwait(false);
+        var profiles = configuration.Profiles
+            .Where(profile => !string.Equals(profile.Id, profileId, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (profiles.Count == configuration.Profiles.Count)
+        {
+            throw new DnsProfileNotFoundException(profileId);
+        }
+
+        var activeProfileId = string.Equals(configuration.ActiveProfileId, profileId, StringComparison.OrdinalIgnoreCase)
+            ? null
+            : configuration.ActiveProfileId;
+
+        await profileStore
+            .SaveAsync(configuration with { Profiles = profiles, ActiveProfileId = activeProfileId }, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<int> ImportProfilesAsync(
+        IReadOnlyList<DnsProfile> importedProfiles,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(importedProfiles);
+
+        if (importedProfiles.Count == 0)
+        {
+            return 0;
+        }
+
+        var configuration = await profileStore.LoadAsync(cancellationToken).ConfigureAwait(false);
+        var profiles = configuration.Profiles.ToList();
+
+        foreach (var importedProfile in importedProfiles)
+        {
+            var existingIndex = profiles.FindIndex(profile =>
+                string.Equals(profile.Id, importedProfile.Id, StringComparison.OrdinalIgnoreCase));
+
+            if (existingIndex >= 0)
+            {
+                profiles[existingIndex] = importedProfile;
+            }
+            else
+            {
+                profiles.Add(importedProfile);
+            }
+        }
+
+        await profileStore
+            .SaveAsync(configuration with { Profiles = profiles }, cancellationToken)
+            .ConfigureAwait(false);
+
+        return importedProfiles.Count;
+    }
 }
