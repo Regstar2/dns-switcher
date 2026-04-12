@@ -13,4 +13,14 @@ public sealed class DesktopClientLayoutTests
 
         Assert.Equal(@"C:\Base\projects\changeDNS", root);
     }
+
+    [Fact]
+    public void GetApplicationRoot_ReturnsPackageRoot_ForPublishedUiFolder()
+    {
+        var baseDirectory = @"C:\Apps\DnsSwitcher\ui\";
+
+        var root = DesktopClientLayout.GetApplicationRoot(baseDirectory);
+
+        Assert.Equal(@"C:\Apps\DnsSwitcher", root);
+    }
 }

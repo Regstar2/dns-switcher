@@ -166,6 +166,7 @@ public sealed class WindowsAgentServiceManager(ILogger<WindowsAgentServiceManage
         [
             Path.GetFullPath(Path.Combine(baseDirectory, "DnsSwitcher.Agent.Windows.exe")),
             Path.GetFullPath(Path.Combine(baseDirectory, "DnsSwitcher.Agent.Windows", "DnsSwitcher.Agent.Windows.exe")),
+            Path.GetFullPath(Path.Combine(applicationRoot, "agent", "DnsSwitcher.Agent.Windows.exe")),
             Path.GetFullPath(Path.Combine(applicationRoot, "src", "DnsSwitcher.Agent.Windows", "bin", "Release", "net10.0-windows", "DnsSwitcher.Agent.Windows.exe")),
             Path.GetFullPath(Path.Combine(applicationRoot, "src", "DnsSwitcher.Agent.Windows", "bin", "Debug", "net10.0-windows", "DnsSwitcher.Agent.Windows.exe")),
         ];

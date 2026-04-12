@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.3.0] - 2026-04-12
+
+Release candidate for the current desktop/tray workflow.
+
+### Added
+
+- UI profile management: create, edit, delete, import, and export DNS profiles
+- Editable per-profile DNS test domains and site test URLs
+- DNS benchmark flow across switchable profiles with latency comparison, best-profile selection, history storage, and restore of original DNS settings
+- UI settings for language, theme, autostart, and continue-in-tray behavior
+- Automatic system language detection with Russian and English UI resources
+- Automatic system theme detection with manual light/dark/system selection
+- Themed window icons, tray icons, and dark title bars across UI dialogs
+- Tray reaction to theme preference changes without requiring a manual tray click
+- Release metadata for assemblies
+
+### Improved
+
+- UI action layout for profile operations, DNS operations, diagnostics, and tools
+- Tray diagnostics menu organization and persistent tray preferences
+- Autostart now targets the tray client instead of the desktop UI
+- Shared profile editing/import/export logic and tests
+- Additional tests for UI layout, profile service operations, settings storage, autostart, and tray formatting
+
+### Notes
+
+- This release is still Windows-only.
+- Screenshots are intentionally not included yet.
+- Private DNS profiles must remain in ignored local config files.
+
 ## [1.0.0] - 2026-04-09
 
 First portfolio-ready release.

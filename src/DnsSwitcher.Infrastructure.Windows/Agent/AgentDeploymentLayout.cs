@@ -36,6 +36,19 @@ public static class AgentDeploymentLayout
             }
         }
 
+        if (IsPublishedClientDirectory(directory) && directory.Parent is not null)
+        {
+            return directory.Parent.FullName;
+        }
+
         return normalizedBaseDirectory;
+    }
+
+    private static bool IsPublishedClientDirectory(DirectoryInfo directory)
+    {
+        return directory.Name.Equals("agent", StringComparison.OrdinalIgnoreCase)
+            || directory.Name.Equals("cli", StringComparison.OrdinalIgnoreCase)
+            || directory.Name.Equals("tray", StringComparison.OrdinalIgnoreCase)
+            || directory.Name.Equals("ui", StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -22,11 +22,13 @@ The project also includes a privileged Windows agent so UI and tray can change D
 - Default network adapter selection
 - DNS diagnostics by domain
 - Site accessibility diagnostics by URL
+- Multi-profile DNS benchmark with best-profile selection and history storage
 - Interactive console mode for users who prefer a console menu
 - Desktop UI for standard usage
 - Tray client for fast switching
 - Automatic language selection from the system with manual override
-- Automatic light/dark UI theme from the system
+- Automatic light/dark UI theme from the system with manual override
+- UI profile create/edit/delete plus import/export
 - Agent/service model for privileged DNS operations
 - File logging and graceful error handling
 
@@ -88,6 +90,7 @@ DnsSwitcher.Tests
 data/
   config/
     app-preferences.json
+    dns-benchmark-history.json
     profiles.json
     tray-settings.json
     ui-settings.json
@@ -115,6 +118,7 @@ dns-switcher apply <profile-id>
 dns-switcher reset
 dns-switcher test
 dns-switcher test-sites
+dns-switcher benchmark
 dns-switcher validate-config
 dns-switcher service status
 ```
@@ -142,17 +146,21 @@ dotnet run --project src/DnsSwitcher.Cli
 - apply/reset actions
 - DNS test
 - site test
+- profile benchmark
+- create/edit/delete profiles
+- import/export profiles
 - remember last selected adapter and profile
 - optional continue-in-tray behavior on window close
 - open config/log folders
 - optional Windows autostart for the tray client
 - automatic language/theme from the system
 - manual language selection
+- manual theme selection
 - background refresh for config and external state changes
 
 ### Screenshots
 
-Screenshots are intentionally not included in `v1.0` yet.  
+Screenshots are intentionally not included in `v1.3.0` yet.  
 UI and tray screenshots can be added later without changing the shipped functionality.
 
 ## Tray
@@ -165,21 +173,25 @@ UI and tray screenshots can be added later without changing the shipped function
 - switch next profile
 - profile list
 - DNS and site tests
+- profile benchmark
 - persistent tray settings
 - open UI action
 - shared app language preference
+- shared app theme preference
 
 ## Diagnostics
 
-Two different diagnostics are built in:
+Three diagnostics are built in:
 
 - `test`
   DNS resolution check using `testDomains`
 - `test-sites`
   Site accessibility check using `testUrls` with staged:
   DNS -> TCP -> TLS -> HTTP probing
+- `benchmark`
+  sequentially applies switchable DNS profiles, tests domains, compares latency, stores recent results, and restores the original DNS settings
 
-These are kept separate on purpose so DNS issues and HTTP/connectivity issues are not mixed into one unclear result.
+These are kept separate on purpose so DNS issues, HTTP/connectivity issues, and profile comparison are not mixed into one unclear result.
 
 ## Example config
 
@@ -220,15 +232,18 @@ dotnet build DnsSwitcher.sln -c Release
 dotnet test tests\DnsSwitcher.Tests\DnsSwitcher.Tests.csproj -c Release
 ```
 
-### Publish
+### Release Build
 
-Example publish commands:
+Create a framework-dependent Windows release package:
 
 ```powershell
-dotnet publish src\DnsSwitcher.Cli\DnsSwitcher.Cli.csproj -c Release -r win-x64 --self-contained false -o artifacts\release\v1.0\cli
-dotnet publish src\DnsSwitcher.Ui\DnsSwitcher.Ui.csproj -c Release -r win-x64 --self-contained false -o artifacts\release\v1.0\ui
-dotnet publish src\DnsSwitcher.Tray\DnsSwitcher.Tray.csproj -c Release -r win-x64 --self-contained false -o artifacts\release\v1.0\tray
-dotnet publish src\DnsSwitcher.Agent.Windows\DnsSwitcher.Agent.Windows.csproj -c Release -r win-x64 --self-contained false -o artifacts\release\v1.0\agent
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1
+```
+
+The release archive is written under:
+
+```text
+artifacts/release/v1.3.0/
 ```
 
 ## Limitations
@@ -236,9 +251,8 @@ dotnet publish src\DnsSwitcher.Agent.Windows\DnsSwitcher.Agent.Windows.csproj -c
 - Windows-only
 - DNS changes still depend on Windows networking APIs and command-line tools
 - Agent/service installation requires administrator rights
-- Without screenshots, portfolio presentation is documentation-first in `v1.0`
+- Without screenshots, portfolio presentation is documentation-first in `v1.3.0`
 - CLI is still not fully localized
-- Editing/adding/removing profiles from the UI is intentionally deferred
 - Private DNS profiles should stay in local ignored config files and must not be committed
 
 ## Portfolio notes

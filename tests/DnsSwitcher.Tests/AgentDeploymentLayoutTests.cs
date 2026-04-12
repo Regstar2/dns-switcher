@@ -23,4 +23,14 @@ public sealed class AgentDeploymentLayoutTests
 
         Assert.Equal(@"C:\Apps\DnsSwitcher\", root);
     }
+
+    [Fact]
+    public void GetApplicationRoot_ReturnsPackageRoot_ForPublishedCliFolder()
+    {
+        var baseDirectory = @"C:\Apps\DnsSwitcher\cli\";
+
+        var root = AgentDeploymentLayout.GetApplicationRoot(baseDirectory);
+
+        Assert.Equal(@"C:\Apps\DnsSwitcher", root);
+    }
 }

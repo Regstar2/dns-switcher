@@ -24,6 +24,11 @@ public static class DesktopClientLayout
             }
         }
 
+        if (IsPublishedClientDirectory(directory) && directory.Parent is not null)
+        {
+            return directory.Parent.FullName;
+        }
+
         return normalizedBaseDirectory;
     }
 
@@ -50,6 +55,7 @@ public static class DesktopClientLayout
             siblingProjectOutputPath,
             Path.Combine(applicationRoot, $"{projectName}.exe"),
             Path.Combine(applicationRoot, publishedFolderName, $"{projectName}.exe"),
+            Path.Combine(applicationRoot, "artifacts", "release", "v1.3.0", publishedFolderName, $"{projectName}.exe"),
             Path.Combine(applicationRoot, "artifacts", "release", "v1.0", publishedFolderName, $"{projectName}.exe"),
         };
 
@@ -91,5 +97,13 @@ public static class DesktopClientLayout
             configuration,
             "net10.0-windows",
             $"{projectName}.exe");
+    }
+
+    private static bool IsPublishedClientDirectory(DirectoryInfo directory)
+    {
+        return directory.Name.Equals("agent", StringComparison.OrdinalIgnoreCase)
+            || directory.Name.Equals("cli", StringComparison.OrdinalIgnoreCase)
+            || directory.Name.Equals("tray", StringComparison.OrdinalIgnoreCase)
+            || directory.Name.Equals("ui", StringComparison.OrdinalIgnoreCase);
     }
 }

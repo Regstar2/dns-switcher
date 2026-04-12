@@ -8,9 +8,13 @@ Default layout:
 <app-base-directory>/
   data/
     config/
+      app-preferences.json
+      dns-benchmark-history.json
       profiles.json
+      tray-settings.json
+      ui-settings.json
     logs/
       dns-switcher.log
 ```
 
-In development, `<app-base-directory>` is the built project's output directory, for example `src/DnsSwitcher.Cli/bin/Debug/net10.0/`.
+In development, clients started from this repository share the solution-level `data/config/profiles.json` path when available.
