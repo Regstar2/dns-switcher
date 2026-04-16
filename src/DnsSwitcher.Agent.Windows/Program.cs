@@ -27,6 +27,7 @@ builder.Services.AddSingleton(paths);
 builder.Services.AddSingleton<WindowsDnsSwitcherHost>(serviceProvider =>
     new WindowsDnsSwitcherHost(paths, serviceProvider.GetRequiredService<ILoggerFactory>()));
 builder.Services.AddHostedService<DnsAgentWorker>();
+builder.Services.AddHostedService<DnsHealthMonitorWorker>();
 
 var host = builder.Build();
 await host.RunAsync().ConfigureAwait(false);

@@ -6,4 +6,5 @@ public sealed record AgentRequest(
     int Version,
     AgentCommand Command,
     DnsProfile? Profile,
-    string? AdapterSelection);
+    string? AdapterSelection,
+    SplitDnsConfiguration? SplitDnsConfiguration = null);

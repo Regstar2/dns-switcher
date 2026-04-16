@@ -153,5 +153,15 @@ public sealed class AgentAwareDnsSwitchServiceTests
             ResetToDhcpWasCalled = true;
             return Task.CompletedTask;
         }
+
+        public Task ApplySplitDnsAsync(SplitDnsConfiguration configuration, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task ResetSplitDnsAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 }

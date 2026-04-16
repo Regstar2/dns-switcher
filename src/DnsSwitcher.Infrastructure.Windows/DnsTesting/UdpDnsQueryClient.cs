@@ -90,7 +90,8 @@ public sealed class UdpDnsQueryClient(ILogger<UdpDnsQueryClient> logger) : IDnsQ
                     ServerAddress: serverIpAddress.ToString(),
                     Latency: stopwatch.Elapsed,
                     AnswerCount: parseResult.AnswerCount,
-                    Details: parseResult.Details);
+                    Details: parseResult.Details,
+                    AnswerAddresses: parseResult.AnswerAddresses);
             }
 
             return new DnsQueryProbeResult(
@@ -98,7 +99,8 @@ public sealed class UdpDnsQueryClient(ILogger<UdpDnsQueryClient> logger) : IDnsQ
                 ServerAddress: serverIpAddress.ToString(),
                 Latency: stopwatch.Elapsed,
                 AnswerCount: parseResult.AnswerCount,
-                Details: $"Resolved with {parseResult.AnswerCount} answer(s).");
+                Details: $"Resolved with {parseResult.AnswerCount} answer(s).",
+                AnswerAddresses: parseResult.AnswerAddresses);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -159,18 +161,20 @@ public sealed class UdpDnsQueryClient(ILogger<UdpDnsQueryClient> logger) : IDnsQ
         return stream.ToArray();
     }
 
-    private static (bool Success, int AnswerCount, string Details) ParseResponse(byte[] buffer, ushort expectedTransactionId)
+    private static (bool Success, int AnswerCount, string Details, IReadOnlyList<string> AnswerAddresses) ParseResponse(
+        byte[] buffer,
+        ushort expectedTransactionId)
     {
         if (buffer.Length < HeaderLength)
         {
-            return (false, 0, "DNS response is too short.");
+            return (false, 0, "DNS response is too short.", []);
         }
 
         var transactionId = BinaryPrimitives.ReadUInt16BigEndian(buffer.AsSpan(0, 2));
 
         if (transactionId != expectedTransactionId)
         {
-            return (false, 0, "DNS response transaction id does not match the request.");
+            return (false, 0, "DNS response transaction id does not match the request.", []);
         }
 
         var flags = BinaryPrimitives.ReadUInt16BigEndian(buffer.AsSpan(2, 2));
@@ -179,20 +183,124 @@ public sealed class UdpDnsQueryClient(ILogger<UdpDnsQueryClient> logger) : IDnsQ
 
         if ((flags & 0x8000) == 0)
         {
-            return (false, answerCount, "DNS response flag is missing.");
+            return (false, answerCount, "DNS response flag is missing.", []);
         }
 
         if (responseCode != 0)
         {
-            return (false, answerCount, $"DNS server returned {GetResponseCodeName(responseCode)}.");
+            return (false, answerCount, $"DNS server returned {GetResponseCodeName(responseCode)}.", []);
         }
 
         if (answerCount == 0)
         {
-            return (false, 0, "DNS server returned no answers.");
+            return (false, 0, "DNS server returned no answers.", []);
         }
 
-        return (true, answerCount, string.Empty);
+        return (true, answerCount, string.Empty, ParseAnswerAddresses(buffer, answerCount));
+    }
+
+    private static IReadOnlyList<string> ParseAnswerAddresses(byte[] buffer, int answerCount)
+    {
+        var offset = HeaderLength;
+
+        if (!TrySkipName(buffer, ref offset))
+        {
+            return [];
+        }
+
+        if (!TrySkipBytes(buffer, ref offset, 4))
+        {
+            return [];
+        }
+
+        var addresses = new List<string>();
+
+        for (var index = 0; index < answerCount; index++)
+        {
+            if (!TrySkipName(buffer, ref offset) || !TryReadUInt16(buffer, ref offset, out var type))
+            {
+                break;
+            }
+
+            if (!TryReadUInt16(buffer, ref offset, out _)
+                || !TrySkipBytes(buffer, ref offset, 4)
+                || !TryReadUInt16(buffer, ref offset, out var dataLength))
+            {
+                break;
+            }
+
+            if (offset + dataLength > buffer.Length)
+            {
+                break;
+            }
+
+            if (type == QueryTypeA && dataLength == 4)
+            {
+                addresses.Add(new IPAddress(buffer.AsSpan(offset, dataLength)).ToString());
+            }
+            else if (type == QueryTypeAaaa && dataLength == 16)
+            {
+                addresses.Add(new IPAddress(buffer.AsSpan(offset, dataLength)).ToString());
+            }
+
+            offset += dataLength;
+        }
+
+        return addresses
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static bool TrySkipName(byte[] buffer, ref int offset)
+    {
+        while (offset < buffer.Length)
+        {
+            var length = buffer[offset];
+
+            if ((length & 0xC0) == 0xC0)
+            {
+                return TrySkipBytes(buffer, ref offset, 2);
+            }
+
+            offset++;
+
+            if (length == 0)
+            {
+                return true;
+            }
+
+            if (!TrySkipBytes(buffer, ref offset, length))
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryReadUInt16(byte[] buffer, ref int offset, out ushort value)
+    {
+        value = 0;
+
+        if (offset + 2 > buffer.Length)
+        {
+            return false;
+        }
+
+        value = BinaryPrimitives.ReadUInt16BigEndian(buffer.AsSpan(offset, 2));
+        offset += 2;
+        return true;
+    }
+
+    private static bool TrySkipBytes(byte[] buffer, ref int offset, int length)
+    {
+        if (offset + length > buffer.Length)
+        {
+            return false;
+        }
+
+        offset += length;
+        return true;
     }
 
     private static bool ShouldFallbackToIpv6(string details)

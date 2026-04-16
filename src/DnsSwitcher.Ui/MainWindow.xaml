@@ -142,6 +142,16 @@
                   <MenuItem x:Name="BenchmarkMenuItem"
                             Click="OnBenchmarkClicked"
                             Header="Benchmark" />
+                  <MenuItem x:Name="HealthCheckMenuItem"
+                            Click="OnHealthCheckClicked"
+                            Header="Health Check" />
+                  <Separator />
+                  <MenuItem x:Name="HealthEnableMenuItem"
+                            Click="OnHealthEnableClicked"
+                            Header="Enable Health Monitor" />
+                  <MenuItem x:Name="HealthDisableMenuItem"
+                            Click="OnHealthDisableClicked"
+                            Header="Disable Health Monitor" />
                 </ContextMenu>
               </Button.ContextMenu>
             </Button>
@@ -159,6 +169,16 @@
                   <MenuItem x:Name="ExportProfileMenuItem"
                             Click="OnExportProfileClicked"
                             Header="Export" />
+                  <Separator />
+                  <MenuItem x:Name="SplitDnsStatusMenuItem"
+                            Click="OnSplitDnsStatusClicked"
+                            Header="Split DNS Status" />
+                  <MenuItem x:Name="SplitDnsApplyMenuItem"
+                            Click="OnSplitDnsApplyClicked"
+                            Header="Apply Split DNS" />
+                  <MenuItem x:Name="SplitDnsResetMenuItem"
+                            Click="OnSplitDnsResetClicked"
+                            Header="Reset Split DNS" />
                 </ContextMenu>
               </Button.ContextMenu>
             </Button>
@@ -228,6 +248,8 @@
               <RowDefinition Height="Auto" />
               <RowDefinition Height="Auto" />
               <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <TextBlock x:Name="CurrentProfileLabelTextBlock" Grid.Row="0" Text="Current profile:" FontWeight="SemiBold" />
@@ -248,11 +270,17 @@
             <TextBlock x:Name="AgentAvailableLabelTextBlock" Grid.Row="5" Text="Agent available:" FontWeight="SemiBold" />
             <TextBlock x:Name="AgentAvailableValueTextBlock" Grid.Row="5" Grid.Column="2" TextWrapping="Wrap" FontWeight="SemiBold" />
 
-            <TextBlock x:Name="Ipv4LabelTextBlock" Grid.Row="6" Text="IPv4 DNS:" FontWeight="SemiBold" />
-            <TextBlock x:Name="Ipv4ValueTextBlock" Grid.Row="6" Grid.Column="2" TextWrapping="Wrap" FontWeight="SemiBold" />
+            <TextBlock x:Name="HealthMonitorLabelTextBlock" Grid.Row="6" Text="Health monitor:" FontWeight="SemiBold" />
+            <TextBlock x:Name="HealthMonitorValueTextBlock" Grid.Row="6" Grid.Column="2" TextWrapping="Wrap" FontWeight="SemiBold" />
 
-            <TextBlock x:Name="Ipv6LabelTextBlock" Grid.Row="7" Text="IPv6 DNS:" FontWeight="SemiBold" />
-            <TextBlock x:Name="Ipv6ValueTextBlock" Grid.Row="7" Grid.Column="2" TextWrapping="Wrap" FontWeight="SemiBold" />
+            <TextBlock x:Name="SplitDnsLabelTextBlock" Grid.Row="7" Text="Split DNS:" FontWeight="SemiBold" />
+            <TextBlock x:Name="SplitDnsValueTextBlock" Grid.Row="7" Grid.Column="2" TextWrapping="Wrap" FontWeight="SemiBold" />
+
+            <TextBlock x:Name="Ipv4LabelTextBlock" Grid.Row="8" Text="IPv4 DNS:" FontWeight="SemiBold" />
+            <TextBlock x:Name="Ipv4ValueTextBlock" Grid.Row="8" Grid.Column="2" TextWrapping="Wrap" FontWeight="SemiBold" />
+
+            <TextBlock x:Name="Ipv6LabelTextBlock" Grid.Row="9" Text="IPv6 DNS:" FontWeight="SemiBold" />
+            <TextBlock x:Name="Ipv6ValueTextBlock" Grid.Row="9" Grid.Column="2" TextWrapping="Wrap" FontWeight="SemiBold" />
           </Grid>
         </GroupBox>
 
@@ -313,20 +341,38 @@
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <Button x:Name="SettingsButton"
+        <Button x:Name="AgentButton"
                 Grid.Column="0"
+                Margin="0,0,8,0"
+                Click="OnOpenAgentManagerClicked"
+                Content="Agent" />
+        <Button x:Name="HealthSettingsButton"
+                Grid.Column="1"
+                Margin="0,0,8,0"
+                Click="OnOpenHealthSettingsClicked"
+                Content="Health" />
+        <Button x:Name="SplitDnsButton"
+                Grid.Column="2"
+                Margin="0,0,8,0"
+                Click="OnOpenSplitDnsRulesClicked"
+                Content="Split DNS" />
+        <Button x:Name="SettingsButton"
+                Grid.Column="3"
                 Margin="0,0,8,0"
                 Click="OnOpenSettingsClicked"
                 Content="Settings" />
         <Button x:Name="OpenConfigButton"
-                Grid.Column="1"
+                Grid.Column="4"
                 Margin="0,0,8,0"
                 Click="OnOpenConfigFolderClicked"
                 Content="Open Config" />
         <Button x:Name="OpenLogsButton"
-                Grid.Column="2"
+                Grid.Column="5"
                 Click="OnOpenLogsFolderClicked"
                 Content="Open Logs" />
       </Grid>

@@ -167,6 +167,22 @@ public partial class MainWindow : Window
         await RunBenchmarkAsync().ConfigureAwait(true);
     }
 
+    private async void OnHealthCheckClicked(object sender, RoutedEventArgs e)
+    {
+        logger.LogInformation("UI requested DNS health check.");
+        await RunHealthCheckAsync().ConfigureAwait(true);
+    }
+
+    private async void OnHealthEnableClicked(object sender, RoutedEventArgs e)
+    {
+        await SetHealthMonitorEnabledAsync(enabled: true).ConfigureAwait(true);
+    }
+
+    private async void OnHealthDisableClicked(object sender, RoutedEventArgs e)
+    {
+        await SetHealthMonitorEnabledAsync(enabled: false).ConfigureAwait(true);
+    }
+
     private void OnOpenChecksClicked(object sender, RoutedEventArgs e)
     {
         ChecksContextMenu.PlacementTarget = ChecksButton;
@@ -331,6 +347,21 @@ public partial class MainWindow : Window
             localizer["ProfileExportedStatus"]).ConfigureAwait(true);
     }
 
+    private async void OnSplitDnsStatusClicked(object sender, RoutedEventArgs e)
+    {
+        await ShowSplitDnsStatusAsync().ConfigureAwait(true);
+    }
+
+    private async void OnSplitDnsApplyClicked(object sender, RoutedEventArgs e)
+    {
+        await RunSplitDnsApplyAsync().ConfigureAwait(true);
+    }
+
+    private async void OnSplitDnsResetClicked(object sender, RoutedEventArgs e)
+    {
+        await RunSplitDnsResetAsync().ConfigureAwait(true);
+    }
+
     private void OnOpenConfigFolderClicked(object sender, RoutedEventArgs e)
     {
         OpenFolder(App.Host.Paths.ConfigDirectory, localizer["OpenedConfigFolder"]);
@@ -367,6 +398,86 @@ public partial class MainWindow : Window
             }
 
             await ApplySettingsAsync(settingsWindow).ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            HandleException(exception);
+        }
+    }
+
+    private async void OnOpenAgentManagerClicked(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var window = new AgentManagerWindow(App.Host, localizer)
+            {
+                Owner = this,
+            };
+            window.ShowDialog();
+            await RefreshUiAsync(showBusyMessage: false, showErrorDialog: false, preserveOperationStatus: true, disableControls: false).ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            HandleException(exception);
+        }
+    }
+
+    private async void OnOpenHealthSettingsClicked(object sender, RoutedEventArgs e)
+    {
+        if (isBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            var settings = await App.Host.DnsHealthFailoverService.GetSettingsAsync().ConfigureAwait(true);
+            var state = await App.Host.DnsHealthFailoverService.GetStateAsync().ConfigureAwait(true);
+            var configuration = await App.Host.ProfileService.GetConfigurationAsync().ConfigureAwait(true);
+            var window = new HealthFailoverSettingsWindow(settings, state, configuration.Profiles)
+            {
+                Owner = this,
+            };
+
+            if (window.ShowDialog() != true)
+            {
+                return;
+            }
+
+            await RunOperationAsync(
+                async () =>
+                {
+                    await App.Host.DnsHealthFailoverService.SaveSettingsAsync(window.EditedSettings).ConfigureAwait(true);
+
+                    if (window.RunCheckRequested)
+                    {
+                        var result = await App.Host.DnsHealthFailoverService.EvaluateAsync(GetSelectedAdapterValue()).ConfigureAwait(true);
+                        SetOperationStatus($"Health: {result.Status}. {result.Details}", result.Status == DnsHealthStatus.Failed);
+                    }
+                },
+                window.RunCheckRequested ? string.Empty : localizer["HealthSettingsSavedStatus"]).ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            HandleException(exception);
+        }
+    }
+
+    private async void OnOpenSplitDnsRulesClicked(object sender, RoutedEventArgs e)
+    {
+        if (isBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            var window = new SplitDnsRulesWindow(App.Host)
+            {
+                Owner = this,
+            };
+            window.ShowDialog();
+            await RefreshUiAsync(showBusyMessage: false, showErrorDialog: false, preserveOperationStatus: true, disableControls: false).ConfigureAwait(true);
         }
         catch (Exception exception)
         {
@@ -422,10 +533,21 @@ public partial class MainWindow : Window
             var dnsStatus = await App.Host.DnsManager.GetStatusAsync(resolvedAdapterSelection).ConfigureAwait(true);
             var agentServiceStatus = await App.Host.AgentServiceManager.GetStatusAsync().ConfigureAwait(true);
             var agentAvailable = await App.Host.AgentDnsSwitchService.IsAgentAvailableAsync().ConfigureAwait(true);
+            var healthSettings = await App.Host.DnsHealthFailoverService.GetSettingsAsync().ConfigureAwait(true);
+            var healthState = await App.Host.DnsHealthFailoverService.GetStateAsync().ConfigureAwait(true);
+            var splitDnsConfiguration = await App.Host.SplitDnsRuleService.GetConfigurationAsync().ConfigureAwait(true);
 
             RebuildAdapterOptions(adapters, defaultAdapter, resolvedAdapterSelection);
             RebuildProfiles(configuration, dnsStatus, activeProfile, selectedProfileId);
-            UpdateStatusPanel(configuration, activeProfile, dnsStatus, agentServiceStatus, agentAvailable);
+            UpdateStatusPanel(
+                configuration,
+                activeProfile,
+                dnsStatus,
+                agentServiceStatus,
+                agentAvailable,
+                healthSettings,
+                healthState,
+                splitDnsConfiguration);
             UpdateActionButtons();
             pendingExternalRefresh = false;
             lastProfilesWriteUtc = GetProfilesLastWriteUtc();
@@ -576,7 +698,10 @@ public partial class MainWindow : Window
         DnsProfile? activeProfile,
         DnsStatus status,
         AgentServiceStatus agentServiceStatus,
-        bool agentAvailable)
+        bool agentAvailable,
+        DnsHealthSettings healthSettings,
+        DnsHealthState healthState,
+        SplitDnsConfiguration splitDnsConfiguration)
     {
         CurrentProfileValueTextBlock.Text = GetCurrentProfileText(configuration, status);
         ConfigActiveProfileValueTextBlock.Text = activeProfile is null
@@ -586,6 +711,8 @@ public partial class MainWindow : Window
         DnsModeValueTextBlock.Text = status.Mode.ToString();
         AgentServiceStatusValueTextBlock.Text = agentServiceStatus.ToString();
         AgentAvailableValueTextBlock.Text = agentAvailable ? localizer["YesValue"] : localizer["NoValue"];
+        HealthMonitorValueTextBlock.Text = $"{(healthSettings.Enabled ? localizer["EnabledValue"] : localizer["DisabledValue"])} ({healthState.Status})";
+        SplitDnsValueTextBlock.Text = $"{(splitDnsConfiguration.Enabled ? localizer["EnabledValue"] : localizer["DisabledValue"])} ({splitDnsConfiguration.Rules.Count} rule(s))";
         Ipv4ValueTextBlock.Text = FormatServers(status.Ipv4.NameServers);
         Ipv6ValueTextBlock.Text = FormatServers(status.Ipv6.NameServers);
     }
@@ -618,6 +745,9 @@ public partial class MainWindow : Window
         ApplyButton.IsEnabled = !isBusy && hasProfileSelection;
         ResetButton.IsEnabled = !isBusy && hasAdapterOptions;
         ReloadButton.IsEnabled = !isBusy;
+        AgentButton.IsEnabled = !isBusy;
+        HealthSettingsButton.IsEnabled = !isBusy;
+        SplitDnsButton.IsEnabled = !isBusy;
         SettingsButton.IsEnabled = !isBusy;
         OpenConfigButton.IsEnabled = !isBusy;
         OpenLogsButton.IsEnabled = !isBusy;
@@ -626,8 +756,14 @@ public partial class MainWindow : Window
         TestSitesMenuItem.IsEnabled = !isBusy;
         MoreToolsButton.IsEnabled = !isBusy;
         BenchmarkMenuItem.IsEnabled = !isBusy;
+        HealthCheckMenuItem.IsEnabled = !isBusy;
+        HealthEnableMenuItem.IsEnabled = !isBusy;
+        HealthDisableMenuItem.IsEnabled = !isBusy;
         ImportProfilesMenuItem.IsEnabled = !isBusy;
         ExportProfileMenuItem.IsEnabled = !isBusy && hasProfileSelection;
+        SplitDnsStatusMenuItem.IsEnabled = !isBusy;
+        SplitDnsApplyMenuItem.IsEnabled = !isBusy;
+        SplitDnsResetMenuItem.IsEnabled = !isBusy;
         AdapterComboBox.IsEnabled = !isBusy;
         ProfilesListBox.IsEnabled = !isBusy;
     }
@@ -879,12 +1015,21 @@ public partial class MainWindow : Window
         TestSitesMenuItem.Header = localizer["CheckSitesButton"];
         MoreToolsButton.Content = localizer["ImportExportButton"];
         BenchmarkMenuItem.Header = localizer["BenchmarkButton"];
+        HealthCheckMenuItem.Header = localizer["HealthCheckButton"];
+        HealthEnableMenuItem.Header = localizer["HealthEnableButton"];
+        HealthDisableMenuItem.Header = localizer["HealthDisableButton"];
         ImportProfilesMenuItem.Header = localizer["ImportProfilesButton"];
         ExportProfileMenuItem.Header = localizer["ExportProfileButton"];
+        SplitDnsStatusMenuItem.Header = localizer["SplitDnsStatusButton"];
+        SplitDnsApplyMenuItem.Header = localizer["SplitDnsApplyButton"];
+        SplitDnsResetMenuItem.Header = localizer["SplitDnsResetButton"];
         CreateProfileButton.Content = localizer["CreateProfileButton"];
         EditProfileButton.Content = localizer["EditProfileButton"];
         DeleteProfileButton.Content = localizer["DeleteProfileButton"];
         ReloadButton.Content = localizer["ReloadButton"];
+        AgentButton.Content = localizer["AgentManagerButton"];
+        HealthSettingsButton.Content = localizer["HealthSettingsButton"];
+        SplitDnsButton.Content = localizer["SplitDnsButton"];
         SettingsButton.Content = localizer["SettingsButton"];
         OpenConfigButton.Content = localizer["OpenConfigButton"];
         OpenLogsButton.Content = localizer["OpenLogsButton"];
@@ -895,6 +1040,8 @@ public partial class MainWindow : Window
         DnsModeLabelTextBlock.Text = localizer["DnsModeLabel"];
         AgentServiceLabelTextBlock.Text = localizer["AgentServiceLabel"];
         AgentAvailableLabelTextBlock.Text = localizer["AgentAvailableLabel"];
+        HealthMonitorLabelTextBlock.Text = localizer["HealthMonitorLabel"];
+        SplitDnsLabelTextBlock.Text = localizer["SplitDnsLabel"];
         Ipv4LabelTextBlock.Text = localizer["Ipv4Label"];
         Ipv6LabelTextBlock.Text = localizer["Ipv6Label"];
         ProfileLabelTextBlock.Text = localizer["ProfileLabel"];
@@ -1064,6 +1211,135 @@ public partial class MainWindow : Window
             HandleException(exception);
             SetBusyState(false, showBusyMessage: false);
         }
+    }
+
+    private async Task RunHealthCheckAsync()
+    {
+        if (isBusy)
+        {
+            return;
+        }
+
+        SetBusyState(true);
+
+        try
+        {
+            var result = await App.Host.DnsHealthFailoverService.EvaluateAsync(GetSelectedAdapterValue()).ConfigureAwait(true);
+            SetBusyState(false, showBusyMessage: false);
+            await RefreshUiAsync(
+                showBusyMessage: false,
+                showErrorDialog: false,
+                preserveOperationStatus: true,
+                disableControls: false).ConfigureAwait(true);
+            SetOperationStatus(
+                $"Health: {result.Status}. {result.Details}",
+                isError: result.Status == DnsHealthStatus.Failed);
+            TextResultWindow.ShowDialog(
+                $"{localizer["AppTitle"]} {localizer["HealthCheckTitle"]}",
+                BuildHealthDetails(result),
+                this);
+        }
+        catch (Exception exception)
+        {
+            HandleException(exception);
+            SetBusyState(false, showBusyMessage: false);
+        }
+    }
+
+    private async Task SetHealthMonitorEnabledAsync(bool enabled)
+    {
+        await RunOperationAsync(
+            async () =>
+            {
+                var settings = await App.Host.DnsHealthFailoverService.GetSettingsAsync().ConfigureAwait(true);
+                await App.Host.DnsHealthFailoverService.SaveSettingsAsync(settings with { Enabled = enabled }).ConfigureAwait(true);
+            },
+            enabled ? localizer["HealthEnabledStatus"] : localizer["HealthDisabledStatus"]).ConfigureAwait(true);
+    }
+
+    private async Task ShowSplitDnsStatusAsync()
+    {
+        if (isBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            var configuration = await App.Host.SplitDnsRuleService.GetConfigurationAsync().ConfigureAwait(true);
+            TextResultWindow.ShowDialog(
+                $"{localizer["AppTitle"]} {localizer["SplitDnsTitle"]}",
+                BuildSplitDnsDetails(configuration),
+                this);
+        }
+        catch (Exception exception)
+        {
+            HandleException(exception);
+        }
+    }
+
+    private async Task RunSplitDnsApplyAsync()
+    {
+        await RunOperationAsync(
+            async () =>
+            {
+                var configuration = await App.Host.SplitDnsRuleService.GetConfigurationAsync().ConfigureAwait(true);
+                await App.Host.AgentSplitDnsService.ApplyAsync(configuration).ConfigureAwait(true);
+            },
+            localizer["SplitDnsAppliedStatus"]).ConfigureAwait(true);
+    }
+
+    private async Task RunSplitDnsResetAsync()
+    {
+        await RunOperationAsync(
+            async () =>
+            {
+                await App.Host.AgentSplitDnsService.ResetAsync().ConfigureAwait(true);
+            },
+            localizer["SplitDnsResetStatus"]).ConfigureAwait(true);
+    }
+
+    private static string BuildHealthDetails(DnsHealthEvaluationResult result)
+    {
+        return
+            $"Status: {result.Status}{Environment.NewLine}" +
+            $"Switched profile: {result.SwitchedProfile}{Environment.NewLine}" +
+            $"Active profile: {result.ActiveProfileId ?? "<none>"}{Environment.NewLine}" +
+            $"Target profile: {result.TargetProfileId ?? "<none>"}{Environment.NewLine}" +
+            $"Last action: {result.State.LastAction ?? "<none>"}{Environment.NewLine}" +
+            $"Last failure: {result.State.LastFailureReason ?? "<none>"}{Environment.NewLine}" +
+            $"Last checked UTC: {result.State.LastCheckedUtc?.ToString("O") ?? "<never>"}{Environment.NewLine}" +
+            $"Cooldown until UTC: {result.State.CooldownUntilUtc?.ToString("O") ?? "<none>"}{Environment.NewLine}" +
+            $"{Environment.NewLine}{result.Details}";
+    }
+
+    private static string BuildSplitDnsDetails(SplitDnsConfiguration configuration)
+    {
+        var lines = new List<string>
+        {
+            $"Enabled: {configuration.Enabled}",
+            $"Mode: {configuration.Mode}",
+            $"Default behavior: {configuration.DefaultBehavior}",
+            $"Rules: {configuration.Rules.Count}",
+            string.Empty,
+        };
+
+        foreach (var rule in configuration.Rules
+            .OrderByDescending(rule => rule.Priority)
+            .ThenBy(rule => rule.Namespace, StringComparer.OrdinalIgnoreCase))
+        {
+            lines.Add(
+                $"{rule.Id}: {rule.Namespace} -> {rule.ProfileId} | " +
+                $"enabled={rule.Enabled} priority={rule.Priority}" +
+                $"{(string.IsNullOrWhiteSpace(rule.Comment) ? string.Empty : $" | {rule.Comment}")}");
+        }
+
+        if (configuration.Rules.Count == 0)
+        {
+            lines.Add("No Split DNS rules configured. Use CLI or edit data\\config\\split-dns-rules.json.");
+        }
+
+        return string.Join(Environment.NewLine, lines);
     }
 
     private static string? ResolveAdapterSelectionValue(string? selectionValue, IReadOnlyList<NetworkAdapter> adapters)

@@ -13,4 +13,6 @@ public enum CliCommand
     Test = 8,
     TestSites = 9,
     Benchmark = 10,
+    Health = 11,
+    SplitDns = 12,
 }

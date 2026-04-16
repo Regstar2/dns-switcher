@@ -24,6 +24,14 @@ public sealed class DnsTester(
         string? adapterIdOrName = null,
         CancellationToken cancellationToken = default)
     {
+        return await TestCurrentDnsAsync(adapterIdOrName, domainsOverride: null, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<DnsTestResult> TestCurrentDnsAsync(
+        string? adapterIdOrName,
+        IReadOnlyList<string>? domainsOverride,
+        CancellationToken cancellationToken = default)
+    {
         var configuration = await profileService.GetConfigurationAsync(cancellationToken).ConfigureAwait(false);
         var activeProfile = await profileService.GetActiveProfileAsync(cancellationToken).ConfigureAwait(false);
         var status = await dnsManager.GetStatusAsync(adapterIdOrName, cancellationToken).ConfigureAwait(false);
@@ -32,7 +40,7 @@ public sealed class DnsTester(
             string.Equals(profile.Id, status.MatchedProfileId, StringComparison.OrdinalIgnoreCase))
             ?? activeProfile;
 
-        var domains = ResolveDomains(configuration, selectedProfile);
+        var domains = ResolveDomains(configuration, selectedProfile, domainsOverride);
         var dnsServers = ResolveNameServers(status);
 
         if (dnsServers.Count == 0)
@@ -90,6 +98,7 @@ public sealed class DnsTester(
         CancellationToken cancellationToken)
     {
         var successfulLatencies = new List<TimeSpan>(AttemptCount);
+        var answerAddresses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         string? lastFailureDetails = null;
 
         for (var attemptIndex = 0; attemptIndex < AttemptCount; attemptIndex++)
@@ -99,6 +108,11 @@ public sealed class DnsTester(
             if (probeResult.Success)
             {
                 successfulLatencies.Add(probeResult.Latency);
+
+                foreach (var answerAddress in probeResult.AnswerAddresses ?? [])
+                {
+                    answerAddresses.Add(answerAddress);
+                }
             }
             else
             {
@@ -115,7 +129,8 @@ public sealed class DnsTester(
                 TotalAttempts: AttemptCount,
                 AverageLatency: null,
                 BestLatency: null,
-                Details: lastFailureDetails ?? "All DNS resolution attempts failed.");
+                Details: lastFailureDetails ?? "All DNS resolution attempts failed.",
+                AnswerAddresses: []);
         }
 
         var averageLatency = TimeSpan.FromMilliseconds(successfulLatencies.Average(latency => latency.TotalMilliseconds));
@@ -137,7 +152,8 @@ public sealed class DnsTester(
             TotalAttempts: AttemptCount,
             AverageLatency: averageLatency,
             BestLatency: bestLatency,
-            Details: details);
+            Details: details,
+            AnswerAddresses: answerAddresses.ToArray());
     }
 
     private async Task<DnsQueryProbeResult> ProbeDomainAsync(
@@ -171,6 +187,25 @@ public sealed class DnsTester(
 
     private static IReadOnlyList<string> ResolveDomains(AppConfig configuration, DnsProfile? selectedProfile)
     {
+        return ResolveDomains(configuration, selectedProfile, domainsOverride: null);
+    }
+
+    private static IReadOnlyList<string> ResolveDomains(
+        AppConfig configuration,
+        DnsProfile? selectedProfile,
+        IReadOnlyList<string>? domainsOverride)
+    {
+        var normalizedOverride = domainsOverride?
+            .Where(domain => !string.IsNullOrWhiteSpace(domain))
+            .Select(NormalizeDomain)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (normalizedOverride is { Length: > 0 })
+        {
+            return normalizedOverride;
+        }
+
         var fromSelectedProfile = selectedProfile?.TestDomains
             .Where(domain => !string.IsNullOrWhiteSpace(domain))
             .Select(NormalizeDomain)

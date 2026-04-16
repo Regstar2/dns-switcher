@@ -67,7 +67,13 @@ public static class CliArgumentParser
             return CliParseResult.Failure(error);
         }
 
-        return CliParseResult.Success(new CliInvocation(command, commandArgument, adapterSelection, configPath, secondaryArgument));
+        return CliParseResult.Success(new CliInvocation(
+            command,
+            commandArgument,
+            adapterSelection,
+            configPath,
+            secondaryArgument,
+            positionals.Skip(1).ToArray()));
     }
 
     private static bool IsHelpToken(string token)
@@ -128,6 +134,7 @@ public static class CliArgumentParser
                 command = CliCommand.Adapters;
                 return true;
             case "status":
+            case "current":
                 command = CliCommand.Status;
                 return true;
             case "apply":
@@ -152,6 +159,14 @@ public static class CliArgumentParser
             case "benchmark":
                 command = CliCommand.Benchmark;
                 return true;
+            case "health":
+            case "health-monitor":
+                command = CliCommand.Health;
+                return true;
+            case "split-dns":
+            case "splitdns":
+                command = CliCommand.SplitDns;
+                return true;
             case "service":
                 command = CliCommand.Service;
                 return true;
@@ -170,6 +185,8 @@ public static class CliArgumentParser
         {
             CliCommand.Apply => positionalCount == 2,
             CliCommand.Service => positionalCount is 2 or 3,
+            CliCommand.Health => positionalCount >= 2,
+            CliCommand.SplitDns => positionalCount >= 2,
             CliCommand.Help or CliCommand.Profiles or CliCommand.Adapters or CliCommand.Status
                 or CliCommand.Reset or CliCommand.ValidateConfig or CliCommand.Test or CliCommand.TestSites
                 or CliCommand.Benchmark => positionalCount == 1,
@@ -192,8 +209,10 @@ public static class CliArgumentParser
             CliCommand.Test => "Usage: dns-switcher test [--adapter <id|name>] [--config <path>]",
             CliCommand.TestSites => "Usage: dns-switcher test-sites [--adapter <id|name>] [--config <path>]",
             CliCommand.Benchmark => "Usage: dns-switcher benchmark [--adapter <id|name>] [--config <path>]",
+            CliCommand.Health => "Usage: dns-switcher health <status|enable|disable|check|chain|fallback|action|domains> [args]",
+            CliCommand.SplitDns => "Usage: dns-switcher split-dns <status|enable|disable|list|add|remove|update|enable-rule|disable-rule|test|apply|reset> [args]",
             CliCommand.ValidateConfig => "Usage: dns-switcher validate-config [--config <path>]",
-            CliCommand.Service => "Usage: dns-switcher service <install|uninstall|start|stop|status> [agent-exe-path]",
+            CliCommand.Service => "Usage: dns-switcher service <install|reinstall|uninstall|start|stop|status> [agent-exe-path]",
             _ => "Invalid command arguments.",
         };
 

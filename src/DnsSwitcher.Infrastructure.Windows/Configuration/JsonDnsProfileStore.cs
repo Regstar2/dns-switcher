@@ -65,7 +65,7 @@ public sealed class JsonDnsProfileStore(IAppPaths paths, ILogger<JsonDnsProfileS
 
         Directory.CreateDirectory(paths.ConfigDirectory);
 
-        var tempPath = $"{paths.ProfilesFilePath}.tmp";
+        var tempPath = AtomicFileWriter.CreateTempPath(paths.ProfilesFilePath);
         await using (var stream = File.Create(tempPath))
         {
             await JsonSerializer
@@ -73,31 +73,14 @@ public sealed class JsonDnsProfileStore(IAppPaths paths, ILogger<JsonDnsProfileS
                 .ConfigureAwait(false);
         }
 
-        try
-        {
-            File.Move(tempPath, paths.ProfilesFilePath, overwrite: true);
-            logger.LogInformation(
-                "Saved profiles configuration to {ProfilesFilePath}. Profiles: {ProfileCount}. Active profile: {ActiveProfileId}",
-                paths.ProfilesFilePath,
-                configuration.Profiles.Count,
-                configuration.ActiveProfileId ?? "<none>");
-        }
-        finally
-        {
-            if (File.Exists(tempPath))
-            {
-                try
-                {
-                    File.Delete(tempPath);
-                }
-                catch (IOException)
-                {
-                }
-                catch (UnauthorizedAccessException)
-                {
-                }
-            }
-        }
+        await AtomicFileWriter
+            .MoveOverwritingWithRetryAsync(tempPath, paths.ProfilesFilePath, cancellationToken)
+            .ConfigureAwait(false);
+        logger.LogInformation(
+            "Saved profiles configuration to {ProfilesFilePath}. Profiles: {ProfileCount}. Active profile: {ActiveProfileId}",
+            paths.ProfilesFilePath,
+            configuration.Profiles.Count,
+            configuration.ActiveProfileId ?? "<none>");
     }
 
     private void ValidateOrThrow(AppConfig configuration)

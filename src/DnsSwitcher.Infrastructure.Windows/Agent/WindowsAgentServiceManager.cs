@@ -4,6 +4,7 @@ using DnsSwitcher.Contracts;
 using DnsSwitcher.Core.Exceptions;
 using DnsSwitcher.Infrastructure.Windows.Security;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
 
 namespace DnsSwitcher.Infrastructure.Windows.Agent;
 
@@ -66,6 +67,19 @@ public sealed class WindowsAgentServiceManager(ILogger<WindowsAgentServiceManage
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         EnsureAdministrator();
+
+        var status = await GetStatusAsync(cancellationToken).ConfigureAwait(false);
+
+        if (status == AgentServiceStatus.NotInstalled)
+        {
+            throw new DnsOperationFailedException("DnsSwitcher Agent service is not installed.");
+        }
+
+        if (status is AgentServiceStatus.Running or AgentServiceStatus.StartPending)
+        {
+            return;
+        }
+
         await RunScAsync($"start {AgentProtocol.ServiceName}", "start DnsSwitcher Agent service", cancellationToken)
             .ConfigureAwait(false);
     }
@@ -73,6 +87,14 @@ public sealed class WindowsAgentServiceManager(ILogger<WindowsAgentServiceManage
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         EnsureAdministrator();
+
+        var status = await GetStatusAsync(cancellationToken).ConfigureAwait(false);
+
+        if (status is AgentServiceStatus.NotInstalled or AgentServiceStatus.Stopped or AgentServiceStatus.StopPending)
+        {
+            return;
+        }
+
         await RunScAsync($"stop {AgentProtocol.ServiceName}", "stop DnsSwitcher Agent service", cancellationToken)
             .ConfigureAwait(false);
     }
@@ -117,6 +139,22 @@ public sealed class WindowsAgentServiceManager(ILogger<WindowsAgentServiceManage
         }
 
         return AgentServiceStatus.Unknown;
+    }
+
+    public async Task<AgentServiceInfo> GetInfoAsync(CancellationToken cancellationToken = default)
+    {
+        var status = await GetStatusAsync(cancellationToken).ConfigureAwait(false);
+        var expectedPath = AgentDeploymentLayout.GetDeploymentExecutablePath(AppContext.BaseDirectory);
+        var serviceBinaryPath = status == AgentServiceStatus.NotInstalled
+            ? null
+            : await TryGetServiceBinaryPathAsync(cancellationToken).ConfigureAwait(false);
+        var pointsToExpectedPath = serviceBinaryPath is not null
+            && string.Equals(
+                Path.GetFullPath(serviceBinaryPath),
+                Path.GetFullPath(expectedPath),
+                StringComparison.OrdinalIgnoreCase);
+
+        return new AgentServiceInfo(status, serviceBinaryPath, expectedPath, pointsToExpectedPath);
     }
 
     private static void EnsureAdministrator()
@@ -164,12 +202,91 @@ public sealed class WindowsAgentServiceManager(ILogger<WindowsAgentServiceManage
 
         return
         [
-            Path.GetFullPath(Path.Combine(baseDirectory, "DnsSwitcher.Agent.Windows.exe")),
-            Path.GetFullPath(Path.Combine(baseDirectory, "DnsSwitcher.Agent.Windows", "DnsSwitcher.Agent.Windows.exe")),
-            Path.GetFullPath(Path.Combine(applicationRoot, "agent", "DnsSwitcher.Agent.Windows.exe")),
-            Path.GetFullPath(Path.Combine(applicationRoot, "src", "DnsSwitcher.Agent.Windows", "bin", "Release", "net10.0-windows", "DnsSwitcher.Agent.Windows.exe")),
-            Path.GetFullPath(Path.Combine(applicationRoot, "src", "DnsSwitcher.Agent.Windows", "bin", "Debug", "net10.0-windows", "DnsSwitcher.Agent.Windows.exe")),
+            Path.GetFullPath(Path.Combine(baseDirectory, AgentDeploymentLayout.AgentExecutableName)),
+            Path.GetFullPath(Path.Combine(baseDirectory, "DnsSwitcher.Agent.Windows", AgentDeploymentLayout.AgentExecutableName)),
+            Path.GetFullPath(Path.Combine(applicationRoot, "agent", AgentDeploymentLayout.AgentExecutableName)),
+            Path.GetFullPath(Path.Combine(applicationRoot, "src", "DnsSwitcher.Agent.Windows", "bin", "Release", "net10.0-windows", AgentDeploymentLayout.AgentExecutableName)),
+            Path.GetFullPath(Path.Combine(applicationRoot, "src", "DnsSwitcher.Agent.Windows", "bin", "Debug", "net10.0-windows", AgentDeploymentLayout.AgentExecutableName)),
         ];
+    }
+
+    private async Task<string?> TryGetServiceBinaryPathAsync(CancellationToken cancellationToken)
+    {
+        var registryPath = TryGetServiceBinaryPathFromRegistry();
+
+        if (!string.IsNullOrWhiteSpace(registryPath))
+        {
+            return NormalizeServiceBinaryPath(registryPath);
+        }
+
+        var result = await RunProcessAsync("sc.exe", $"qc {AgentProtocol.ServiceName}", cancellationToken).ConfigureAwait(false);
+
+        if (result.ExitCode != 0)
+        {
+            logger.LogWarning("Failed to query DnsSwitcher Agent service config. Details: {Details}", GetDetails(result));
+            return null;
+        }
+
+        var text = string.IsNullOrWhiteSpace(result.Output) ? result.Error : result.Output;
+        var line = text
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .FirstOrDefault(line => line.StartsWith("BINARY_PATH_NAME", StringComparison.OrdinalIgnoreCase));
+
+        if (line is null)
+        {
+            return null;
+        }
+
+        var separatorIndex = line.IndexOf(':', StringComparison.Ordinal);
+
+        if (separatorIndex < 0 || separatorIndex + 1 >= line.Length)
+        {
+            return null;
+        }
+
+        return NormalizeServiceBinaryPath(line[(separatorIndex + 1)..]);
+    }
+
+    private static string? TryGetServiceBinaryPathFromRegistry()
+    {
+        try
+        {
+            using var serviceKey = Registry.LocalMachine.OpenSubKey($@"SYSTEM\CurrentControlSet\Services\{AgentProtocol.ServiceName}");
+            return serviceKey?.GetValue("ImagePath") as string;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (System.Security.SecurityException)
+        {
+            return null;
+        }
+    }
+
+    private static string NormalizeServiceBinaryPath(string rawValue)
+    {
+        var value = Environment.ExpandEnvironmentVariables(rawValue.Trim());
+
+        if (value.StartsWith('"'))
+        {
+            var closingQuoteIndex = value.IndexOf('"', 1);
+
+            if (closingQuoteIndex > 1)
+            {
+                return value[1..closingQuoteIndex];
+            }
+        }
+
+        var executableMarkerIndex = value.IndexOf(".exe", StringComparison.OrdinalIgnoreCase);
+
+        return executableMarkerIndex >= 0
+            ? value[..(executableMarkerIndex + ".exe".Length)].Trim()
+            : value.Trim('"');
     }
 
     private static void CopyDirectory(string sourceDirectory, string destinationDirectory)

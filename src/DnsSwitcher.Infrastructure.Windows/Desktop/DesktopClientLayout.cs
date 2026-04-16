@@ -1,35 +1,12 @@
+using DnsSwitcher.Infrastructure.Windows.Configuration;
+
 namespace DnsSwitcher.Infrastructure.Windows.Desktop;
 
 public static class DesktopClientLayout
 {
     public static string GetApplicationRoot(string baseDirectory)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(baseDirectory);
-
-        var normalizedBaseDirectory = Path.GetFullPath(baseDirectory);
-        var directory = new DirectoryInfo(normalizedBaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-
-        if (directory.Name.StartsWith("net", StringComparison.OrdinalIgnoreCase))
-        {
-            var configurationDirectory = directory.Parent;
-            var binDirectory = configurationDirectory?.Parent;
-            var projectDirectory = binDirectory?.Parent;
-            var srcDirectory = projectDirectory?.Parent;
-
-            if (binDirectory?.Name.Equals("bin", StringComparison.OrdinalIgnoreCase) == true
-                && srcDirectory?.Name.Equals("src", StringComparison.OrdinalIgnoreCase) == true
-                && srcDirectory.Parent is not null)
-            {
-                return srcDirectory.Parent.FullName;
-            }
-        }
-
-        if (IsPublishedClientDirectory(directory) && directory.Parent is not null)
-        {
-            return directory.Parent.FullName;
-        }
-
-        return normalizedBaseDirectory;
+        return PortableRootResolver.ResolvePortableRoot(baseDirectory);
     }
 
     public static string? TryGetTrayExecutablePath(string baseDirectory)
@@ -42,12 +19,21 @@ public static class DesktopClientLayout
         return TryGetExecutablePath(baseDirectory, "DnsSwitcher.Ui", "ui");
     }
 
-    private static string? TryGetExecutablePath(string baseDirectory, string projectName, string publishedFolderName)
+    public static string? TryGetCliExecutablePath(string baseDirectory)
+    {
+        return TryGetExecutablePath(baseDirectory, "DnsSwitcher.Cli", "cli", targetFramework: "net10.0");
+    }
+
+    private static string? TryGetExecutablePath(
+        string baseDirectory,
+        string projectName,
+        string publishedFolderName,
+        string targetFramework = "net10.0-windows")
     {
         var normalizedBaseDirectory = Path.GetFullPath(baseDirectory);
         var applicationRoot = GetApplicationRoot(normalizedBaseDirectory);
         var configuration = TryGetBuildConfiguration(normalizedBaseDirectory);
-        var siblingProjectOutputPath = TryGetSiblingProjectOutputPath(applicationRoot, projectName, configuration);
+        var siblingProjectOutputPath = TryGetSiblingProjectOutputPath(applicationRoot, projectName, configuration, targetFramework);
 
         var candidates = new[]
         {
@@ -55,6 +41,7 @@ public static class DesktopClientLayout
             siblingProjectOutputPath,
             Path.Combine(applicationRoot, $"{projectName}.exe"),
             Path.Combine(applicationRoot, publishedFolderName, $"{projectName}.exe"),
+            Path.Combine(applicationRoot, "artifacts", "release", "v1.4.0", publishedFolderName, $"{projectName}.exe"),
             Path.Combine(applicationRoot, "artifacts", "release", "v1.3.0", publishedFolderName, $"{projectName}.exe"),
             Path.Combine(applicationRoot, "artifacts", "release", "v1.0", publishedFolderName, $"{projectName}.exe"),
         };
@@ -82,7 +69,11 @@ public static class DesktopClientLayout
             : null;
     }
 
-    private static string? TryGetSiblingProjectOutputPath(string applicationRoot, string projectName, string? configuration)
+    private static string? TryGetSiblingProjectOutputPath(
+        string applicationRoot,
+        string projectName,
+        string? configuration,
+        string targetFramework)
     {
         if (string.IsNullOrWhiteSpace(configuration))
         {
@@ -95,15 +86,7 @@ public static class DesktopClientLayout
             projectName,
             "bin",
             configuration,
-            "net10.0-windows",
+            targetFramework,
             $"{projectName}.exe");
-    }
-
-    private static bool IsPublishedClientDirectory(DirectoryInfo directory)
-    {
-        return directory.Name.Equals("agent", StringComparison.OrdinalIgnoreCase)
-            || directory.Name.Equals("cli", StringComparison.OrdinalIgnoreCase)
-            || directory.Name.Equals("tray", StringComparison.OrdinalIgnoreCase)
-            || directory.Name.Equals("ui", StringComparison.OrdinalIgnoreCase);
     }
 }

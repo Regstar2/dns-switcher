@@ -5,4 +5,5 @@ public sealed record DnsQueryProbeResult(
     string ServerAddress,
     TimeSpan Latency,
     int AnswerCount,
-    string Details);
+    string Details,
+    IReadOnlyList<string>? AnswerAddresses = null);

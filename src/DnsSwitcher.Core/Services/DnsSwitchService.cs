@@ -3,7 +3,7 @@ using DnsSwitcher.Core.Models;
 
 namespace DnsSwitcher.Core.Services;
 
-public sealed class DnsSwitchService(DnsProfileService profileService, IDnsManager dnsManager)
+public sealed class DnsSwitchService(DnsProfileService profileService, IDnsManager dnsManager) : IDnsProfileActivator
 {
     public Task ApplyTransientProfileAsync(
         DnsProfile profile,

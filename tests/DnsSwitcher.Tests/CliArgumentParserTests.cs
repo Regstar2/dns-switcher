@@ -90,4 +90,38 @@ public sealed class CliArgumentParserTests
         Assert.Equal(CliCommand.Benchmark, result.Invocation!.Command);
         Assert.Equal("Wi-Fi", result.Invocation.AdapterSelection);
     }
+
+    [Fact]
+    public void Parse_ParsesCurrentAliasAsStatusCommand()
+    {
+        var result = CliArgumentParser.Parse(["current"]);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Invocation);
+        Assert.Equal(CliCommand.Status, result.Invocation!.Command);
+    }
+
+    [Fact]
+    public void Parse_ParsesHealthCommandSurface_WithAdditionalArguments()
+    {
+        var result = CliArgumentParser.Parse(["health", "chain", "set", "cloudflare", "google"]);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Invocation);
+        Assert.Equal(CliCommand.Health, result.Invocation!.Command);
+        Assert.Equal("chain", result.Invocation.CommandArgument);
+        Assert.Equal(["chain", "set", "cloudflare", "google"], result.Invocation.Arguments);
+    }
+
+    [Fact]
+    public void Parse_ParsesSplitDnsCommandSurface_WithAdditionalArguments()
+    {
+        var result = CliArgumentParser.Parse(["split-dns", "add", "*.example.com", "cloudflare", "work traffic"]);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Invocation);
+        Assert.Equal(CliCommand.SplitDns, result.Invocation!.Command);
+        Assert.Equal("add", result.Invocation.CommandArgument);
+        Assert.Equal(["add", "*.example.com", "cloudflare", "work traffic"], result.Invocation.Arguments);
+    }
 }

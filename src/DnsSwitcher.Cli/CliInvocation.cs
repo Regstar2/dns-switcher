@@ -5,7 +5,10 @@ public sealed record CliInvocation(
     string? CommandArgument,
     string? AdapterSelection,
     string? ConfigPath,
-    string? SecondaryArgument = null)
+    string? SecondaryArgument = null,
+    IReadOnlyList<string>? AdditionalArguments = null)
 {
     public bool IsInteractive => Command is null;
+
+    public IReadOnlyList<string> Arguments => AdditionalArguments ?? [];
 }

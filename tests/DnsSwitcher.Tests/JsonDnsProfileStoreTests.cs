@@ -28,6 +28,24 @@ public sealed class JsonDnsProfileStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task EnsureCreatedAsync_CanRunConcurrentlyOnFirstRun()
+    {
+        var paths = new PortableAppPaths(rootPath);
+        var stores = Enumerable
+            .Range(0, 8)
+            .Select(_ => new JsonDnsProfileStore(paths, NullLogger<JsonDnsProfileStore>.Instance))
+            .ToArray();
+
+        await Task.WhenAll(stores.Select(store => store.EnsureCreatedAsync()));
+
+        Assert.True(File.Exists(paths.ProfilesFilePath));
+        Assert.Empty(Directory.GetFiles(paths.ConfigDirectory, "*.tmp"));
+
+        var configuration = await stores[0].LoadAsync();
+        Assert.Contains(configuration.Profiles, profile => profile.Id == "cloudflare");
+    }
+
+    [Fact]
     public async Task LoadAsync_ThrowsValidationException_ForInvalidProfilesFile()
     {
         var paths = new PortableAppPaths(rootPath);

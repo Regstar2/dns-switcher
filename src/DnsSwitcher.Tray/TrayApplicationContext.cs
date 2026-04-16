@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Reflection;
 using DnsSwitcher.Core.Exceptions;
 using DnsSwitcher.Core.Models;
@@ -34,6 +36,18 @@ public sealed class TrayApplicationContext : ApplicationContext
     private readonly ToolStripMenuItem testDnsMenuItem;
     private readonly ToolStripMenuItem testSitesMenuItem;
     private readonly ToolStripMenuItem benchmarkMenuItem;
+    private readonly ToolStripMenuItem healthCheckMenuItem;
+    private readonly ToolStripMenuItem healthEnableMenuItem;
+    private readonly ToolStripMenuItem healthDisableMenuItem;
+    private readonly ToolStripMenuItem splitDnsMenuItem;
+    private readonly ToolStripMenuItem splitDnsStatusMenuItem;
+    private readonly ToolStripMenuItem splitDnsApplyMenuItem;
+    private readonly ToolStripMenuItem splitDnsResetMenuItem;
+    private readonly ToolStripMenuItem agentMenuItem;
+    private readonly ToolStripMenuItem agentStatusMenuItem;
+    private readonly ToolStripMenuItem agentStartMenuItem;
+    private readonly ToolStripMenuItem agentStopMenuItem;
+    private readonly ToolStripMenuItem agentReinstallMenuItem;
     private readonly ToolStripMenuItem profilesMenuItem;
     private readonly ToolStripMenuItem settingsMenuItem;
     private readonly ToolStripMenuItem themeMenuItem;
@@ -103,6 +117,18 @@ public sealed class TrayApplicationContext : ApplicationContext
         testDnsMenuItem = new ToolStripMenuItem(localizer["TrayTestDns"]);
         testSitesMenuItem = new ToolStripMenuItem(localizer["TrayTestSites"]);
         benchmarkMenuItem = new ToolStripMenuItem(localizer["TrayBenchmarkProfiles"]);
+        healthCheckMenuItem = new ToolStripMenuItem(localizer["TrayHealthCheck"]);
+        healthEnableMenuItem = new ToolStripMenuItem(localizer["HealthEnableButton"]);
+        healthDisableMenuItem = new ToolStripMenuItem(localizer["HealthDisableButton"]);
+        splitDnsMenuItem = new ToolStripMenuItem(localizer["TraySplitDns"]);
+        splitDnsStatusMenuItem = new ToolStripMenuItem(localizer["TraySplitDnsStatus"]);
+        splitDnsApplyMenuItem = new ToolStripMenuItem(localizer["TraySplitDnsApply"]);
+        splitDnsResetMenuItem = new ToolStripMenuItem(localizer["TraySplitDnsReset"]);
+        agentMenuItem = new ToolStripMenuItem(localizer["AgentManagerButton"]);
+        agentStatusMenuItem = new ToolStripMenuItem(localizer["TrayAgentStatus"]);
+        agentStartMenuItem = new ToolStripMenuItem(localizer["TrayAgentStart"]);
+        agentStopMenuItem = new ToolStripMenuItem(localizer["TrayAgentStop"]);
+        agentReinstallMenuItem = new ToolStripMenuItem(localizer["TrayAgentReinstall"]);
         profilesMenuItem = new ToolStripMenuItem(localizer["TrayShowProfiles"]);
         settingsMenuItem = new ToolStripMenuItem(localizer["TraySettings"]);
         themeMenuItem = new ToolStripMenuItem(localizer["SettingsThemeHeader"]);
@@ -120,6 +146,16 @@ public sealed class TrayApplicationContext : ApplicationContext
         testDnsMenuItem.Click += async (_, _) => await ExecuteActionAsync(TestDnsAsync).ConfigureAwait(true);
         testSitesMenuItem.Click += async (_, _) => await ExecuteActionAsync(TestSitesAsync).ConfigureAwait(true);
         benchmarkMenuItem.Click += async (_, _) => await ExecuteActionAsync(BenchmarkAsync).ConfigureAwait(true);
+        healthCheckMenuItem.Click += async (_, _) => await ExecuteActionAsync(HealthCheckAsync).ConfigureAwait(true);
+        healthEnableMenuItem.Click += async (_, _) => await ExecuteActionAsync(() => SetHealthMonitorEnabledAsync(enabled: true)).ConfigureAwait(true);
+        healthDisableMenuItem.Click += async (_, _) => await ExecuteActionAsync(() => SetHealthMonitorEnabledAsync(enabled: false)).ConfigureAwait(true);
+        splitDnsStatusMenuItem.Click += async (_, _) => await ShowSplitDnsStatusAsync().ConfigureAwait(true);
+        splitDnsApplyMenuItem.Click += async (_, _) => await ExecuteActionAsync(ApplySplitDnsAsync).ConfigureAwait(true);
+        splitDnsResetMenuItem.Click += async (_, _) => await ExecuteActionAsync(ResetSplitDnsAsync).ConfigureAwait(true);
+        agentStatusMenuItem.Click += async (_, _) => await ShowAgentStatusAsync().ConfigureAwait(true);
+        agentStartMenuItem.Click += async (_, _) => await ExecuteActionAsync(() => RunElevatedServiceCommandAsync("start")).ConfigureAwait(true);
+        agentStopMenuItem.Click += async (_, _) => await ExecuteActionAsync(() => RunElevatedServiceCommandAsync("stop")).ConfigureAwait(true);
+        agentReinstallMenuItem.Click += async (_, _) => await ExecuteActionAsync(() => RunElevatedServiceCommandAsync("reinstall")).ConfigureAwait(true);
         systemThemeMenuItem.Click += async (_, _) => await UpdateThemePreferenceAsync(AppTheme.System).ConfigureAwait(true);
         lightThemeMenuItem.Click += async (_, _) => await UpdateThemePreferenceAsync(AppTheme.Light).ConfigureAwait(true);
         darkThemeMenuItem.Click += async (_, _) => await UpdateThemePreferenceAsync(AppTheme.Dark).ConfigureAwait(true);
@@ -136,6 +172,17 @@ public sealed class TrayApplicationContext : ApplicationContext
         testsMenuItem.DropDownItems.Add(testDnsMenuItem);
         testsMenuItem.DropDownItems.Add(testSitesMenuItem);
         testsMenuItem.DropDownItems.Add(benchmarkMenuItem);
+        testsMenuItem.DropDownItems.Add(healthCheckMenuItem);
+        testsMenuItem.DropDownItems.Add(new ToolStripSeparator());
+        testsMenuItem.DropDownItems.Add(healthEnableMenuItem);
+        testsMenuItem.DropDownItems.Add(healthDisableMenuItem);
+        splitDnsMenuItem.DropDownItems.Add(splitDnsStatusMenuItem);
+        splitDnsMenuItem.DropDownItems.Add(splitDnsApplyMenuItem);
+        splitDnsMenuItem.DropDownItems.Add(splitDnsResetMenuItem);
+        agentMenuItem.DropDownItems.Add(agentStatusMenuItem);
+        agentMenuItem.DropDownItems.Add(agentStartMenuItem);
+        agentMenuItem.DropDownItems.Add(agentStopMenuItem);
+        agentMenuItem.DropDownItems.Add(agentReinstallMenuItem);
 
         contextMenu = new ContextMenuStrip();
         contextMenu.Items.Add(openUiMenuItem);
@@ -147,6 +194,8 @@ public sealed class TrayApplicationContext : ApplicationContext
         contextMenu.Items.Add(disableDnsMenuItem);
         contextMenu.Items.Add(switchNextMenuItem);
         contextMenu.Items.Add(testsMenuItem);
+        contextMenu.Items.Add(splitDnsMenuItem);
+        contextMenu.Items.Add(agentMenuItem);
         contextMenu.Items.Add(profilesMenuItem);
         contextMenu.Items.Add(new ToolStripSeparator());
         contextMenu.Items.Add(settingsMenuItem);
@@ -445,6 +494,34 @@ public sealed class TrayApplicationContext : ApplicationContext
         notifyIcon.ShowBalloonTip(2500);
     }
 
+    private async Task HealthCheckAsync()
+    {
+        logger.LogInformation("Tray requested DNS health check.");
+        var result = await host.DnsHealthFailoverService.EvaluateAsync().ConfigureAwait(true);
+        var summary = $"Health: {result.Status}. {result.Details}";
+
+        if (!traySettings.NotificationsEnabled || result.SwitchedProfile || result.Status == DnsHealthStatus.Failed)
+        {
+            ShowInformation($"{localizer["DnsSwitcherTrayTitle"]} {localizer["HealthCheckTitle"]}", BuildHealthDetails(result));
+            return;
+        }
+
+        notifyIcon.BalloonTipTitle = localizer["DnsSwitcherTrayTitle"];
+        notifyIcon.BalloonTipText = summary;
+        notifyIcon.BalloonTipIcon = result.Status == DnsHealthStatus.Healthy
+            ? ToolTipIcon.Info
+            : ToolTipIcon.Warning;
+        notifyIcon.ShowBalloonTip(2500);
+    }
+
+    private async Task SetHealthMonitorEnabledAsync(bool enabled)
+    {
+        logger.LogInformation("Tray set DNS health monitor enabled={Enabled}.", enabled);
+        var settings = await host.DnsHealthFailoverService.GetSettingsAsync().ConfigureAwait(true);
+        await host.DnsHealthFailoverService.SaveSettingsAsync(settings with { Enabled = enabled }).ConfigureAwait(true);
+        ShowSuccess(enabled ? localizer["HealthEnabledStatus"] : localizer["HealthDisabledStatus"]);
+    }
+
     private async Task ToggleNotificationsAsync()
     {
         logger.LogInformation("Tray toggled notifications setting.");
@@ -471,6 +548,9 @@ public sealed class TrayApplicationContext : ApplicationContext
             localizer = new AppLocalizer(appPreferences.Language);
             var configuration = await host.ProfileService.GetConfigurationAsync().ConfigureAwait(true);
             var status = await host.DnsManager.GetStatusAsync().ConfigureAwait(true);
+            var healthSettings = await host.DnsHealthFailoverService.GetSettingsAsync().ConfigureAwait(true);
+            var healthState = await host.DnsHealthFailoverService.GetStateAsync().ConfigureAwait(true);
+            var splitDnsConfiguration = await host.SplitDnsRuleService.GetConfigurationAsync().ConfigureAwait(true);
 
             SyncPreferredProfile(configuration, status);
 
@@ -481,6 +561,8 @@ public sealed class TrayApplicationContext : ApplicationContext
                 $"{localizer["TrayModeLabel"]}: {status.Mode}",
                 $"{localizer["TrayMatchedProfileLabel"]}: {status.MatchedProfileId ?? localizer["NoneValue"]}",
                 $"{localizer["TraySelectedProfileLabel"]}: {preferredProfileId ?? localizer["NoneValue"]}",
+                $"{localizer["HealthMonitorLabel"]}: {(healthSettings.Enabled ? localizer["EnabledValue"] : localizer["DisabledValue"])} ({healthState.Status})",
+                $"{localizer["SplitDnsLabel"]}: {(splitDnsConfiguration.Enabled ? localizer["EnabledValue"] : localizer["DisabledValue"])} ({splitDnsConfiguration.Rules.Count} rule(s))",
                 $"{localizer["TrayIpv4Label"]}: {FormatServers(status.Ipv4.NameServers)}",
                 $"{localizer["TrayIpv6Label"]}: {FormatServers(status.Ipv6.NameServers)}",
             };
@@ -539,6 +621,95 @@ public sealed class TrayApplicationContext : ApplicationContext
         notifyIcon.ShowBalloonTip(2500);
     }
 
+    private async Task ShowSplitDnsStatusAsync()
+    {
+        try
+        {
+            var configuration = await host.SplitDnsRuleService.GetConfigurationAsync().ConfigureAwait(true);
+            ShowInformation($"{localizer["DnsSwitcherTrayTitle"]} {localizer["SplitDnsTitle"]}", BuildSplitDnsDetails(configuration));
+        }
+        catch (Exception exception)
+        {
+            ShowError(localizer["DnsSwitcherTrayTitle"], exception);
+        }
+    }
+
+    private async Task ShowAgentStatusAsync()
+    {
+        try
+        {
+            var info = await host.AgentServiceManager.GetInfoAsync().ConfigureAwait(true);
+            var agentAvailable = await host.AgentDnsSwitchService.IsAgentAvailableAsync().ConfigureAwait(true);
+            ShowInformation(
+                $"{localizer["DnsSwitcherTrayTitle"]} {localizer["AgentManagerButton"]}",
+                $"Service status: {info.Status}{Environment.NewLine}" +
+                $"Agent pipe available: {agentAvailable}{Environment.NewLine}" +
+                $"Service binary path: {info.ServiceBinaryPath ?? "<not installed>"}{Environment.NewLine}" +
+                $"Expected binary path: {info.ExpectedBinaryPath}{Environment.NewLine}" +
+                $"Path current: {info.PointsToExpectedPath}" +
+                $"{(info.IsStalePath ? $"{Environment.NewLine}Warning: service points to a stale path. Use Reinstall Agent." : string.Empty)}");
+        }
+        catch (Exception exception)
+        {
+            ShowError(localizer["DnsSwitcherTrayTitle"], exception);
+        }
+    }
+
+    private async Task RunElevatedServiceCommandAsync(string command)
+    {
+        var cliPath = DesktopClientLayout.TryGetCliExecutablePath(AppContext.BaseDirectory)
+            ?? throw new FileNotFoundException("DnsSwitcher.Cli.exe could not be found. Rebuild or reinstall the package.");
+        using var process = StartElevatedCli(cliPath, command);
+
+        if (process is null)
+        {
+            throw new InvalidOperationException("Failed to start elevated CLI process.");
+        }
+
+        await process.WaitForExitAsync().ConfigureAwait(true);
+
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"Service command '{command}' failed with exit code {process.ExitCode}.");
+        }
+
+        ShowSuccess($"Agent service command completed: {command}.");
+    }
+
+    private static Process? StartElevatedCli(string cliPath, string command)
+    {
+        try
+        {
+            return Process.Start(new ProcessStartInfo
+            {
+                FileName = cliPath,
+                Arguments = $"service {command}",
+                WorkingDirectory = Path.GetDirectoryName(cliPath) ?? AppContext.BaseDirectory,
+                UseShellExecute = true,
+                Verb = "runas",
+            });
+        }
+        catch (Win32Exception exception) when (exception.NativeErrorCode == 1223)
+        {
+            throw new InvalidOperationException("UAC prompt was cancelled by the user.", exception);
+        }
+    }
+
+    private async Task ApplySplitDnsAsync()
+    {
+        logger.LogInformation("Tray requested Split DNS apply.");
+        var configuration = await host.SplitDnsRuleService.GetConfigurationAsync().ConfigureAwait(true);
+        await host.AgentSplitDnsService.ApplyAsync(configuration).ConfigureAwait(true);
+        ShowSuccess(localizer["SplitDnsAppliedStatus"]);
+    }
+
+    private async Task ResetSplitDnsAsync()
+    {
+        logger.LogInformation("Tray requested Split DNS reset.");
+        await host.AgentSplitDnsService.ResetAsync().ConfigureAwait(true);
+        ShowSuccess(localizer["SplitDnsResetStatus"]);
+    }
+
     private void RebuildProfilesMenu(AppConfig configuration, DnsStatus status)
     {
         profilesMenuItem.DropDownItems.Clear();
@@ -593,6 +764,18 @@ public sealed class TrayApplicationContext : ApplicationContext
         testDnsMenuItem.Text = localizer["TrayTestDns"];
         testSitesMenuItem.Text = localizer["TrayTestSites"];
         benchmarkMenuItem.Text = localizer["TrayBenchmarkProfiles"];
+        healthCheckMenuItem.Text = localizer["TrayHealthCheck"];
+        healthEnableMenuItem.Text = localizer["HealthEnableButton"];
+        healthDisableMenuItem.Text = localizer["HealthDisableButton"];
+        splitDnsMenuItem.Text = localizer["TraySplitDns"];
+        splitDnsStatusMenuItem.Text = localizer["TraySplitDnsStatus"];
+        splitDnsApplyMenuItem.Text = localizer["TraySplitDnsApply"];
+        splitDnsResetMenuItem.Text = localizer["TraySplitDnsReset"];
+        agentMenuItem.Text = localizer["AgentManagerButton"];
+        agentStatusMenuItem.Text = localizer["TrayAgentStatus"];
+        agentStartMenuItem.Text = localizer["TrayAgentStart"];
+        agentStopMenuItem.Text = localizer["TrayAgentStop"];
+        agentReinstallMenuItem.Text = localizer["TrayAgentReinstall"];
         profilesMenuItem.Text = localizer["TrayShowProfiles"];
         settingsMenuItem.Text = localizer["TraySettings"];
         themeMenuItem.Text = localizer["SettingsThemeHeader"];
@@ -610,6 +793,18 @@ public sealed class TrayApplicationContext : ApplicationContext
         testDnsMenuItem.Enabled = !isActionInProgress;
         testSitesMenuItem.Enabled = !isActionInProgress;
         benchmarkMenuItem.Enabled = !isActionInProgress;
+        healthCheckMenuItem.Enabled = !isActionInProgress;
+        healthEnableMenuItem.Enabled = !isActionInProgress;
+        healthDisableMenuItem.Enabled = !isActionInProgress;
+        splitDnsMenuItem.Enabled = !isActionInProgress;
+        splitDnsStatusMenuItem.Enabled = !isActionInProgress;
+        splitDnsApplyMenuItem.Enabled = !isActionInProgress;
+        splitDnsResetMenuItem.Enabled = !isActionInProgress;
+        agentMenuItem.Enabled = !isActionInProgress;
+        agentStatusMenuItem.Enabled = !isActionInProgress;
+        agentStartMenuItem.Enabled = !isActionInProgress;
+        agentStopMenuItem.Enabled = !isActionInProgress;
+        agentReinstallMenuItem.Enabled = !isActionInProgress;
         profilesMenuItem.Enabled = !isActionInProgress && profileSelectionService.GetSwitchableProfiles(configuration).Count > 0;
         settingsMenuItem.Enabled = !isActionInProgress;
         themeMenuItem.Enabled = !isActionInProgress;
@@ -668,6 +863,18 @@ public sealed class TrayApplicationContext : ApplicationContext
         testDnsMenuItem.Enabled = false;
         testSitesMenuItem.Enabled = false;
         benchmarkMenuItem.Enabled = false;
+        healthCheckMenuItem.Enabled = false;
+        healthEnableMenuItem.Enabled = false;
+        healthDisableMenuItem.Enabled = false;
+        splitDnsMenuItem.Enabled = false;
+        splitDnsStatusMenuItem.Enabled = false;
+        splitDnsApplyMenuItem.Enabled = false;
+        splitDnsResetMenuItem.Enabled = false;
+        agentMenuItem.Enabled = false;
+        agentStatusMenuItem.Enabled = false;
+        agentStartMenuItem.Enabled = false;
+        agentStopMenuItem.Enabled = false;
+        agentReinstallMenuItem.Enabled = false;
         profilesMenuItem.Enabled = false;
         settingsMenuItem.Enabled = false;
     }
@@ -727,6 +934,49 @@ public sealed class TrayApplicationContext : ApplicationContext
     }
 
     private bool IsDarkThemeActive() => ThemeModeResolver.IsDarkTheme(appPreferences.Theme);
+
+    private static string BuildHealthDetails(DnsHealthEvaluationResult result)
+    {
+        return
+            $"Status: {result.Status}{Environment.NewLine}" +
+            $"Switched profile: {result.SwitchedProfile}{Environment.NewLine}" +
+            $"Active profile: {result.ActiveProfileId ?? "<none>"}{Environment.NewLine}" +
+            $"Target profile: {result.TargetProfileId ?? "<none>"}{Environment.NewLine}" +
+            $"Last action: {result.State.LastAction ?? "<none>"}{Environment.NewLine}" +
+            $"Last failure: {result.State.LastFailureReason ?? "<none>"}{Environment.NewLine}" +
+            $"Last checked UTC: {result.State.LastCheckedUtc?.ToString("O") ?? "<never>"}{Environment.NewLine}" +
+            $"Cooldown until UTC: {result.State.CooldownUntilUtc?.ToString("O") ?? "<none>"}{Environment.NewLine}" +
+            $"{Environment.NewLine}{result.Details}";
+    }
+
+    private static string BuildSplitDnsDetails(SplitDnsConfiguration configuration)
+    {
+        var lines = new List<string>
+        {
+            $"Enabled: {configuration.Enabled}",
+            $"Mode: {configuration.Mode}",
+            $"Default behavior: {configuration.DefaultBehavior}",
+            $"Rules: {configuration.Rules.Count}",
+            string.Empty,
+        };
+
+        foreach (var rule in configuration.Rules
+            .OrderByDescending(rule => rule.Priority)
+            .ThenBy(rule => rule.Namespace, StringComparer.OrdinalIgnoreCase))
+        {
+            lines.Add(
+                $"{rule.Id}: {rule.Namespace} -> {rule.ProfileId} | " +
+                $"enabled={rule.Enabled} priority={rule.Priority}" +
+                $"{(string.IsNullOrWhiteSpace(rule.Comment) ? string.Empty : $" | {rule.Comment}")}");
+        }
+
+        if (configuration.Rules.Count == 0)
+        {
+            lines.Add("No Split DNS rules configured. Use CLI or edit data\\config\\split-dns-rules.json.");
+        }
+
+        return string.Join(Environment.NewLine, lines);
+    }
 
     private string FormatServers(IReadOnlyList<string> servers)
     {

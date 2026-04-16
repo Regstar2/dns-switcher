@@ -60,7 +60,7 @@ public sealed class JsonTraySettingsStore(IAppPaths paths, ILogger<JsonTraySetti
 
         Directory.CreateDirectory(paths.ConfigDirectory);
 
-        var tempPath = $"{FilePath}.tmp";
+        var tempPath = AtomicFileWriter.CreateTempPath(FilePath);
         await using (var stream = File.Create(tempPath))
         {
             await JsonSerializer
@@ -68,30 +68,11 @@ public sealed class JsonTraySettingsStore(IAppPaths paths, ILogger<JsonTraySetti
                 .ConfigureAwait(false);
         }
 
-        try
-        {
-            File.Move(tempPath, FilePath, overwrite: true);
-            logger.LogInformation(
-                "Saved tray settings to {TraySettingsFilePath}. Notifications: {NotificationsEnabled}. Show adapter: {ShowAdapterName}",
-                FilePath,
-                settings.NotificationsEnabled,
-                settings.ShowAdapterName);
-        }
-        finally
-        {
-            if (File.Exists(tempPath))
-            {
-                try
-                {
-                    File.Delete(tempPath);
-                }
-                catch (IOException)
-                {
-                }
-                catch (UnauthorizedAccessException)
-                {
-                }
-            }
-        }
+        await AtomicFileWriter.MoveOverwritingWithRetryAsync(tempPath, FilePath, cancellationToken).ConfigureAwait(false);
+        logger.LogInformation(
+            "Saved tray settings to {TraySettingsFilePath}. Notifications: {NotificationsEnabled}. Show adapter: {ShowAdapterName}",
+            FilePath,
+            settings.NotificationsEnabled,
+            settings.ShowAdapterName);
     }
 }

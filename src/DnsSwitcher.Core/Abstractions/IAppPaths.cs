@@ -8,6 +8,14 @@ public interface IAppPaths
 
     string ProfilesFilePath { get; }
 
+    string DnsBenchmarkHistoryFilePath { get; }
+
+    string DnsHealthSettingsFilePath { get; }
+
+    string DnsHealthStateFilePath { get; }
+
+    string SplitDnsRulesFilePath { get; }
+
     string LogDirectory { get; }
 
     string LogFilePath { get; }

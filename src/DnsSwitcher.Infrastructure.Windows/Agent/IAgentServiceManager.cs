@@ -11,4 +11,6 @@ public interface IAgentServiceManager
     Task StopAsync(CancellationToken cancellationToken = default);
 
     Task<AgentServiceStatus> GetStatusAsync(CancellationToken cancellationToken = default);
+
+    Task<AgentServiceInfo> GetInfoAsync(CancellationToken cancellationToken = default);
 }

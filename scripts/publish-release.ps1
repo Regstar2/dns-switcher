@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "1.3.0",
+    [string]$Version = "1.4.0",
     [string]$Runtime = "win-x64",
     [switch]$SelfContained,
     [switch]$SkipTests
@@ -34,6 +34,9 @@ try {
     }
 
     New-Item -ItemType Directory -Path $packageDir | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $packageDir "data\config") | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $packageDir "data\logs") | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $packageDir "service\agent") | Out-Null
 
     foreach ($app in $apps) {
         $outputDir = Join-Path $packageDir $app.Name
@@ -60,12 +63,27 @@ try {
 
     Copy-Item "README.md" (Join-Path $packageDir "README.md")
     Copy-Item "CHANGELOG.md" (Join-Path $packageDir "CHANGELOG.md")
+    Copy-Item "scripts\portable-bat\*.bat" $packageDir
 
     $docsDir = Join-Path $packageDir "docs"
     New-Item -ItemType Directory -Path $docsDir | Out-Null
     Copy-Item "docs\config-layout.md" (Join-Path $docsDir "config-layout.md")
     Copy-Item "docs\profiles.example.json" (Join-Path $docsDir "profiles.example.json")
     Copy-Item "docs\profiles.schema.json" (Join-Path $docsDir "profiles.schema.json")
+
+    $releaseDocs = @(
+        "ARCHITECTURE_AUDIT.md",
+        "PORTABLE_RELEASE.md",
+        "SERVICE_INSTALL.md",
+        "INSTALLER_RELEASE.md",
+        "DNS_HEALTH_FAILOVER.md",
+        "SPLIT_DNS.md",
+        "STORE_READINESS.md"
+    )
+
+    foreach ($doc in $releaseDocs) {
+        Copy-Item $doc (Join-Path $docsDir $doc)
+    }
 
     Compress-Archive -Path $packageDir -DestinationPath $archivePath -Force
 

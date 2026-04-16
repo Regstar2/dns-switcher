@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.4.0] - 2026-04-16
+
+Public release preparation with portable and installer delivery tracks.
+
+### Added
+
+- Unified portable root resolver shared by CLI, UI, Tray, Agent, and service runtime copy
+- Root BAT scripts for portable agent install/reinstall/uninstall/start/stop/status with UAC elevation
+- Inno Setup installer track that reuses CLI service commands and grants write access to `data\`
+- Optional DNS health failover settings, state, CLI commands, UI/Tray status, and agent background monitor
+- Optional Split DNS rules with Windows NRPT apply/reset through Agent or admin fallback
+- CLI commands for `health` and `split-dns`
+- Desktop UI windows for Agent management, DNS Health Failover settings, and Split DNS rule editing
+- Tray Agent submenu for status/start/stop/reinstall
+- Release documentation for architecture audit, portable release, service install, installer release, health failover, Split DNS, and Store readiness
+- Tests for health threshold/cooldown/notify-only behavior and Split DNS rule validation/matching
+
+### Fixed
+
+- Release packages inside the repository now still resolve their own package root instead of the solution root
+- First-run config creation uses unique temporary files to avoid UI/Tray/CLI startup races
+- Service status reports the registered service executable path through SCM registry data and detects stale service paths
+- Installer build script passes named parameters correctly to the portable packaging script
+
+### Notes
+
+- DNS health failover is disabled by default.
+- Split DNS is Windows NRPT-based and can be bypassed by applications using their own DNS/DoH stack.
+- Microsoft Store is considered risky for installer-based submission and blocked for a pure MSIX track in the current architecture.
+
 ## [1.3.0] - 2026-04-12
 
 Release candidate for the current desktop/tray workflow.

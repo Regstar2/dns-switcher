@@ -23,6 +23,8 @@ The project also includes a privileged Windows agent so UI and tray can change D
 - DNS diagnostics by domain
 - Site accessibility diagnostics by URL
 - Multi-profile DNS benchmark with best-profile selection and history storage
+- Optional DNS health failover monitor
+- Optional Split DNS through Windows NRPT rules
 - Interactive console mode for users who prefer a console menu
 - Desktop UI for standard usage
 - Tray client for fast switching
@@ -91,7 +93,10 @@ data/
   config/
     app-preferences.json
     dns-benchmark-history.json
+    dns-health-settings.json
+    dns-health-state.json
     profiles.json
+    split-dns-rules.json
     tray-settings.json
     ui-settings.json
   logs/
@@ -114,13 +119,16 @@ Main commands:
 dns-switcher profiles
 dns-switcher adapters
 dns-switcher status
+dns-switcher current
 dns-switcher apply <profile-id>
 dns-switcher reset
 dns-switcher test
 dns-switcher test-sites
 dns-switcher benchmark
+dns-switcher health <status|enable|disable|check|chain|fallback|action|domains>
+dns-switcher split-dns <status|enable|disable|list|add|remove|update|enable-rule|disable-rule|test|apply|reset>
 dns-switcher validate-config
-dns-switcher service status
+dns-switcher service <install|reinstall|uninstall|start|stop|status>
 ```
 
 Global options:
@@ -147,6 +155,10 @@ dotnet run --project src/DnsSwitcher.Cli
 - DNS test
 - site test
 - profile benchmark
+- DNS health check and health monitor toggle
+- DNS Health Failover settings window with thresholds, cooldown, action mode, fallback profile, failover chain, test domains, and expected IPs
+- Split DNS rules editor with add/edit/delete/enable/disable/test/apply/reset
+- Agent manager window for install/reinstall/start/stop/uninstall/status
 - create/edit/delete profiles
 - import/export profiles
 - remember last selected adapter and profile
@@ -160,7 +172,7 @@ dotnet run --project src/DnsSwitcher.Cli
 
 ### Screenshots
 
-Screenshots are intentionally not included in `v1.3.0` yet.  
+Screenshots are intentionally not included in `v1.4.0` yet.
 UI and tray screenshots can be added later without changing the shipped functionality.
 
 ## Tray
@@ -174,6 +186,9 @@ UI and tray screenshots can be added later without changing the shipped function
 - profile list
 - DNS and site tests
 - profile benchmark
+- DNS health check and health monitor toggle
+- Split DNS status/apply/reset
+- Agent status/start/stop/reinstall submenu
 - persistent tray settings
 - open UI action
 - shared app language preference
@@ -190,6 +205,10 @@ Three diagnostics are built in:
   DNS -> TCP -> TLS -> HTTP probing
 - `benchmark`
   sequentially applies switchable DNS profiles, tests domains, compares latency, stores recent results, and restores the original DNS settings
+- `health`
+  optional background health checks with failover actions
+- `split-dns`
+  Windows NRPT-based per-namespace DNS routing
 
 These are kept separate on purpose so DNS issues, HTTP/connectivity issues, and profile comparison are not mixed into one unclear result.
 
@@ -243,15 +262,31 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-release.ps
 The release archive is written under:
 
 ```text
-artifacts/release/v1.3.0/
+artifacts/release/v1.4.0/
 ```
+
+Build installer:
+
+```powershell
+.\installer\build-installer.ps1 -Version 1.4.0 -Runtime win-x64
+```
+
+Release docs:
+
+- [`PORTABLE_RELEASE.md`](PORTABLE_RELEASE.md)
+- [`SERVICE_INSTALL.md`](SERVICE_INSTALL.md)
+- [`INSTALLER_RELEASE.md`](INSTALLER_RELEASE.md)
+- [`DNS_HEALTH_FAILOVER.md`](DNS_HEALTH_FAILOVER.md)
+- [`SPLIT_DNS.md`](SPLIT_DNS.md)
+- [`STORE_READINESS.md`](STORE_READINESS.md)
 
 ## Limitations
 
 - Windows-only
 - DNS changes still depend on Windows networking APIs and command-line tools
 - Agent/service installation requires administrator rights
-- Without screenshots, portfolio presentation is documentation-first in `v1.3.0`
+- Split DNS uses Windows NRPT and can be bypassed by apps using their own DNS/DoH stack
+- Without screenshots, portfolio presentation is documentation-first in `v1.4.0`
 - CLI is still not fully localized
 - Private DNS profiles should stay in local ignored config files and must not be committed
 

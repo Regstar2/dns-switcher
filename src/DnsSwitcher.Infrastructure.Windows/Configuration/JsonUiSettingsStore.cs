@@ -61,7 +61,7 @@ public sealed class JsonUiSettingsStore(IAppPaths paths, ILogger<JsonUiSettingsS
 
         Directory.CreateDirectory(paths.ConfigDirectory);
 
-        var tempPath = $"{FilePath}.tmp";
+        var tempPath = AtomicFileWriter.CreateTempPath(FilePath);
         await using (var stream = File.Create(tempPath))
         {
             await JsonSerializer
@@ -69,31 +69,12 @@ public sealed class JsonUiSettingsStore(IAppPaths paths, ILogger<JsonUiSettingsS
                 .ConfigureAwait(false);
         }
 
-        try
-        {
-            File.Move(tempPath, FilePath, overwrite: true);
-            logger.LogInformation(
-                "Saved UI settings to {UiSettingsFilePath}. Minimize to tray: {MinimizeToTray}. Last adapter: {LastAdapterId}. Last profile: {LastSelectedProfileId}",
-                FilePath,
-                settings.MinimizeToTray,
-                settings.LastAdapterId ?? "<auto>",
-                settings.LastSelectedProfileId ?? "<none>");
-        }
-        finally
-        {
-            if (File.Exists(tempPath))
-            {
-                try
-                {
-                    File.Delete(tempPath);
-                }
-                catch (IOException)
-                {
-                }
-                catch (UnauthorizedAccessException)
-                {
-                }
-            }
-        }
+        await AtomicFileWriter.MoveOverwritingWithRetryAsync(tempPath, FilePath, cancellationToken).ConfigureAwait(false);
+        logger.LogInformation(
+            "Saved UI settings to {UiSettingsFilePath}. Minimize to tray: {MinimizeToTray}. Last adapter: {LastAdapterId}. Last profile: {LastSelectedProfileId}",
+            FilePath,
+            settings.MinimizeToTray,
+            settings.LastAdapterId ?? "<auto>",
+            settings.LastSelectedProfileId ?? "<none>");
     }
 }

@@ -4,17 +4,22 @@ namespace DnsSwitcher.Infrastructure.Windows.Configuration;
 
 public sealed class PortableAppPaths : IAppPaths
 {
-    private const string SolutionFileName = "DnsSwitcher.sln";
     public const string DataDirectoryName = "data";
     public const string ConfigDirectoryName = "config";
     public const string LogsDirectoryName = "logs";
     public const string ProfilesFileName = "profiles.json";
     public const string DnsBenchmarkHistoryFileName = "dns-benchmark-history.json";
+    public const string DnsHealthSettingsFileName = "dns-health-settings.json";
+    public const string DnsHealthStateFileName = "dns-health-state.json";
+    public const string SplitDnsRulesFileName = "split-dns-rules.json";
     public const string LogFileName = "dns-switcher.log";
     private readonly string? migrationSourceAppDirectory;
 
     public PortableAppPaths(string appDirectory)
-        : this(appDirectory, Path.Combine(Path.GetFullPath(appDirectory), ConfigDirectoryName, ProfilesFileName))
+        : this(
+            appDirectory,
+            Path.Combine(Path.GetFullPath(appDirectory), ConfigDirectoryName, ProfilesFileName),
+            migrationSourceAppDirectory: null)
     {
     }
 
@@ -33,6 +38,9 @@ public sealed class PortableAppPaths : IAppPaths
         ConfigDirectory = Path.GetDirectoryName(ProfilesFilePath)
             ?? throw new InvalidOperationException("Config directory could not be determined.");
         DnsBenchmarkHistoryFilePath = Path.Combine(ConfigDirectory, DnsBenchmarkHistoryFileName);
+        DnsHealthSettingsFilePath = Path.Combine(ConfigDirectory, DnsHealthSettingsFileName);
+        DnsHealthStateFilePath = Path.Combine(ConfigDirectory, DnsHealthStateFileName);
+        SplitDnsRulesFilePath = Path.Combine(ConfigDirectory, SplitDnsRulesFileName);
         LogDirectory = Path.Combine(AppDirectory, LogsDirectoryName);
         LogFilePath = Path.Combine(LogDirectory, LogFileName);
         this.migrationSourceAppDirectory = string.IsNullOrWhiteSpace(migrationSourceAppDirectory)
@@ -48,6 +56,12 @@ public sealed class PortableAppPaths : IAppPaths
 
     public string DnsBenchmarkHistoryFilePath { get; }
 
+    public string DnsHealthSettingsFilePath { get; }
+
+    public string DnsHealthStateFilePath { get; }
+
+    public string SplitDnsRulesFilePath { get; }
+
     public string LogDirectory { get; }
 
     public string LogFilePath { get; }
@@ -55,15 +69,10 @@ public sealed class PortableAppPaths : IAppPaths
     public static PortableAppPaths CreateDefault(string? baseDirectoryOverride = null)
     {
         var baseDirectory = Path.GetFullPath(baseDirectoryOverride ?? AppContext.BaseDirectory);
-        var localDataDirectory = Path.Combine(baseDirectory, DataDirectoryName);
-        var solutionRoot = FindSolutionRoot(baseDirectory);
+        var portableRoot = PortableRootResolver.ResolvePortableRoot(baseDirectory);
+        var sharedDataDirectory = Path.Combine(portableRoot, DataDirectoryName);
+        var localDataDirectory = PortableRootResolver.ResolveLegacyLocalDataDirectory(baseDirectory);
 
-        if (solutionRoot is null)
-        {
-            return new PortableAppPaths(localDataDirectory);
-        }
-
-        var sharedDataDirectory = Path.Combine(solutionRoot, DataDirectoryName);
         return new PortableAppPaths(
             sharedDataDirectory,
             Path.Combine(sharedDataDirectory, ConfigDirectoryName, ProfilesFileName),
@@ -129,24 +138,5 @@ public sealed class PortableAppPaths : IAppPaths
 
             File.Copy(sourceFilePath, targetFilePath, overwrite: false);
         }
-    }
-
-    private static string? FindSolutionRoot(string baseDirectory)
-    {
-        var directory = new DirectoryInfo(baseDirectory);
-
-        while (directory is not null)
-        {
-            var candidatePath = Path.Combine(directory.FullName, SolutionFileName);
-
-            if (File.Exists(candidatePath))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        return null;
     }
 }

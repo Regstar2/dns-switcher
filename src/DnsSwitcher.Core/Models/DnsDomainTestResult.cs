@@ -7,4 +7,5 @@ public sealed record DnsDomainTestResult(
     int TotalAttempts,
     TimeSpan? AverageLatency,
     TimeSpan? BestLatency,
-    string Details);
+    string Details,
+    IReadOnlyList<string>? AnswerAddresses = null);

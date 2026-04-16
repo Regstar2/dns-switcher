@@ -126,6 +126,21 @@ internal sealed class DnsAgentWorker(
                         .ConfigureAwait(false);
                     return AgentResponse.Ok();
 
+                case AgentCommand.ApplySplitDns:
+                    if (request.SplitDnsConfiguration is null)
+                    {
+                        return AgentResponse.Fail(AgentErrorCode.InvalidRequest, "Split DNS configuration payload is required.");
+                    }
+
+                    var appConfig = await host.ProfileService.GetConfigurationAsync(cancellationToken).ConfigureAwait(false);
+                    await host.SplitDnsManager.ApplyAsync(request.SplitDnsConfiguration, appConfig, cancellationToken)
+                        .ConfigureAwait(false);
+                    return AgentResponse.Ok();
+
+                case AgentCommand.ResetSplitDns:
+                    await host.SplitDnsManager.ResetAsync(cancellationToken).ConfigureAwait(false);
+                    return AgentResponse.Ok();
+
                 default:
                     return AgentResponse.Fail(AgentErrorCode.InvalidRequest, $"Unsupported agent command '{request.Command}'.");
             }

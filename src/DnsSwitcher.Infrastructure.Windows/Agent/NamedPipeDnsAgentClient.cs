@@ -82,6 +82,37 @@ public sealed class NamedPipeDnsAgentClient(ILogger<NamedPipeDnsAgentClient> log
         ThrowIfFailed(response);
     }
 
+    public async Task ApplySplitDnsAsync(
+        SplitDnsConfiguration configuration,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        var response = await SendAsync(
+            new AgentRequest(
+                AgentProtocol.CurrentVersion,
+                AgentCommand.ApplySplitDns,
+                Profile: null,
+                AdapterSelection: null,
+                SplitDnsConfiguration: configuration),
+            cancellationToken).ConfigureAwait(false);
+
+        ThrowIfFailed(response);
+    }
+
+    public async Task ResetSplitDnsAsync(CancellationToken cancellationToken = default)
+    {
+        var response = await SendAsync(
+            new AgentRequest(
+                AgentProtocol.CurrentVersion,
+                AgentCommand.ResetSplitDns,
+                Profile: null,
+                AdapterSelection: null),
+            cancellationToken).ConfigureAwait(false);
+
+        ThrowIfFailed(response);
+    }
+
     private async Task<AgentResponse> SendAsync(AgentRequest request, CancellationToken cancellationToken)
     {
         try

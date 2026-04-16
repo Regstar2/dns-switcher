@@ -43,8 +43,16 @@ public sealed class JsonDnsBenchmarkHistoryStore(
         }
 
         paths.EnsureDirectories();
-        await using var stream = File.Create(paths.DnsBenchmarkHistoryFilePath);
-        await JsonSerializer.SerializeAsync(stream, entries, JsonOptions, cancellationToken).ConfigureAwait(false);
+        var tempPath = AtomicFileWriter.CreateTempPath(paths.DnsBenchmarkHistoryFilePath);
+
+        await using (var stream = File.Create(tempPath))
+        {
+            await JsonSerializer.SerializeAsync(stream, entries, JsonOptions, cancellationToken).ConfigureAwait(false);
+        }
+
+        await AtomicFileWriter
+            .MoveOverwritingWithRetryAsync(tempPath, paths.DnsBenchmarkHistoryFilePath, cancellationToken)
+            .ConfigureAwait(false);
 
         logger.LogInformation(
             "Saved DNS benchmark history entry. Total stored entries: {EntryCount}. Path: {HistoryPath}",

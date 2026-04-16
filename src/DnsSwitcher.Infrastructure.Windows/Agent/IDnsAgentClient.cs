@@ -14,4 +14,10 @@ public interface IDnsAgentClient
     Task ResetToDhcpAsync(
         string? adapterSelection = null,
         CancellationToken cancellationToken = default);
+
+    Task ApplySplitDnsAsync(
+        SplitDnsConfiguration configuration,
+        CancellationToken cancellationToken = default);
+
+    Task ResetSplitDnsAsync(CancellationToken cancellationToken = default);
 }

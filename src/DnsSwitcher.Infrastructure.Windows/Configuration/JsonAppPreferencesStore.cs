@@ -60,7 +60,7 @@ public sealed class JsonAppPreferencesStore(IAppPaths paths, ILogger<JsonAppPref
 
         Directory.CreateDirectory(paths.ConfigDirectory);
 
-        var tempPath = $"{FilePath}.tmp";
+        var tempPath = AtomicFileWriter.CreateTempPath(FilePath);
         await using (var stream = File.Create(tempPath))
         {
             await JsonSerializer
@@ -68,30 +68,11 @@ public sealed class JsonAppPreferencesStore(IAppPaths paths, ILogger<JsonAppPref
                 .ConfigureAwait(false);
         }
 
-        try
-        {
-            File.Move(tempPath, FilePath, overwrite: true);
-            logger.LogInformation(
-                "Saved app preferences to {AppPreferencesFilePath}. Language: {Language}. Theme: {Theme}",
-                FilePath,
-                preferences.Language,
-                preferences.Theme);
-        }
-        finally
-        {
-            if (File.Exists(tempPath))
-            {
-                try
-                {
-                    File.Delete(tempPath);
-                }
-                catch (IOException)
-                {
-                }
-                catch (UnauthorizedAccessException)
-                {
-                }
-            }
-        }
+        await AtomicFileWriter.MoveOverwritingWithRetryAsync(tempPath, FilePath, cancellationToken).ConfigureAwait(false);
+        logger.LogInformation(
+            "Saved app preferences to {AppPreferencesFilePath}. Language: {Language}. Theme: {Theme}",
+            FilePath,
+            preferences.Language,
+            preferences.Theme);
     }
 }
