@@ -1,5 +1,7 @@
 # DnsSwitcher
 
+[Русская версия](README.ru.md)
+
 Portable Windows utility for fast DNS profile switching with a shared core, CLI, desktop UI, tray client, and built-in diagnostics.
 
 ## Overview
