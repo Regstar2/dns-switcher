@@ -9,6 +9,12 @@ public partial class SettingsWindow : Window
 {
     private readonly AppLocalizer localizer;
 
+    public event EventHandler? AgentManagerRequested;
+
+    public event EventHandler? HealthSettingsRequested;
+
+    public event EventHandler? SplitDnsSettingsRequested;
+
     public SettingsWindow(
         AppLocalizer localizer,
         AppLanguage selectedLanguage,
@@ -55,6 +61,9 @@ public partial class SettingsWindow : Window
         ThemeLabelTextBlock.Text = localizer["ThemeLabel"];
         StartWithWindowsCheckBox.Content = localizer["StartWithWindowsCheckBox"];
         MinimizeToTrayCheckBox.Content = localizer["CloseToTrayCheckBox"];
+        AgentManagerButton.Content = localizer["AgentManagerSettingsButton"];
+        HealthSettingsButton.Content = localizer["HealthSettingsButton"];
+        SplitDnsSettingsButton.Content = localizer["SplitDnsButton"];
         UpdateThemePreview(isDarkTheme);
         SaveButton.Content = localizer["SaveButton"];
         CancelButton.Content = localizer["CancelButton"];
@@ -103,5 +112,20 @@ public partial class SettingsWindow : Window
     private void OnSaveClicked(object sender, RoutedEventArgs e)
     {
         DialogResult = true;
+    }
+
+    private void OnAgentManagerClicked(object sender, RoutedEventArgs e)
+    {
+        AgentManagerRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnHealthSettingsClicked(object sender, RoutedEventArgs e)
+    {
+        HealthSettingsRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnSplitDnsSettingsClicked(object sender, RoutedEventArgs e)
+    {
+        SplitDnsSettingsRequested?.Invoke(this, EventArgs.Empty);
     }
 }

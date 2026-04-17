@@ -48,6 +48,24 @@
         <CheckBox x:Name="MinimizeToTrayCheckBox"
                   Margin="0,6,0,0"
                   Content="Continue in tray on close" />
+        <Button x:Name="AgentManagerButton"
+                Margin="0,12,0,0"
+                HorizontalAlignment="Left"
+                MinWidth="180"
+                Click="OnAgentManagerClicked"
+                Content="Agent Manager" />
+        <Button x:Name="HealthSettingsButton"
+                Margin="0,8,0,0"
+                HorizontalAlignment="Left"
+                MinWidth="180"
+                Click="OnHealthSettingsClicked"
+                Content="DNS Health" />
+        <Button x:Name="SplitDnsSettingsButton"
+                Margin="0,8,0,0"
+                HorizontalAlignment="Left"
+                MinWidth="180"
+                Click="OnSplitDnsSettingsClicked"
+                Content="Split DNS" />
       </StackPanel>
     </GroupBox>
 

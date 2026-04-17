@@ -1,30 +1,35 @@
 using System.IO;
 using System.Windows;
 using DnsSwitcher.Core.Models;
+using DnsSwitcher.Infrastructure.Windows.Presentation;
 
 namespace DnsSwitcher.Ui;
 
 public partial class HealthFailoverSettingsWindow : Window
 {
     private static readonly char[] ValueSeparators = ['\r', '\n', ',', ';'];
+    private readonly AppLocalizer localizer;
     private readonly IReadOnlyList<DnsProfile> profiles;
     private readonly List<string> failoverChain;
 
     public HealthFailoverSettingsWindow(
+        AppLocalizer localizer,
         DnsHealthSettings settings,
         DnsHealthState state,
         IReadOnlyList<DnsProfile> profiles)
     {
         InitializeComponent();
         WindowThemeService.Attach(this);
+        this.localizer = localizer;
         this.profiles = profiles;
         failoverChain = settings.FailoverChain.ToList();
 
         var profileOptions = BuildProfileOptions(profiles).ToArray();
-        FallbackProfileComboBox.ItemsSource = new[] { new ProfileOption(null, "<none>") }.Concat(profileOptions).ToArray();
+        FallbackProfileComboBox.ItemsSource = new[] { new ProfileOption(null, localizer["NoneValue"]) }.Concat(profileOptions).ToArray();
         ChainProfileComboBox.ItemsSource = profileOptions;
         CheckModeComboBox.ItemsSource = BuildCheckModeOptions();
         ActionComboBox.ItemsSource = BuildActionOptions();
+        ApplyLocalization();
 
         EnabledCheckBox.IsChecked = settings.Enabled;
         IntervalTextBox.Text = settings.MonitorIntervalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -96,7 +101,7 @@ public partial class HealthFailoverSettingsWindow : Window
     {
         if (!TryValidate(out var error))
         {
-            MessageBox.Show(error, "DNS Health Failover", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(error, localizer["HealthFailoverWindowTitle"], MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -108,7 +113,7 @@ public partial class HealthFailoverSettingsWindow : Window
     {
         if (!TryValidate(out var error))
         {
-            MessageBox.Show(error, "DNS Health Failover", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(error, localizer["HealthFailoverWindowTitle"], MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -163,7 +168,7 @@ public partial class HealthFailoverSettingsWindow : Window
     private string ResolveProfileDisplayName(string profileId)
     {
         var profile = profiles.FirstOrDefault(profile => string.Equals(profile.Id, profileId, StringComparison.OrdinalIgnoreCase));
-        return profile is null ? $"{profileId} (missing)" : $"{profile.Name} ({profile.Id})";
+        return profile is null ? $"{profileId} ({localizer["MissingProfileValue"]})" : $"{profile.Name} ({profile.Id})";
     }
 
     private static IReadOnlyList<ProfileOption> BuildProfileOptions(IReadOnlyList<DnsProfile> profiles)
@@ -175,39 +180,39 @@ public partial class HealthFailoverSettingsWindow : Window
             .ToArray();
     }
 
-    private static IReadOnlyList<CheckModeOption> BuildCheckModeOptions()
+    private IReadOnlyList<CheckModeOption> BuildCheckModeOptions()
     {
         return
         [
-            new CheckModeOption(DnsHealthCheckMode.ResolveOnly, "Resolve only"),
-            new CheckModeOption(DnsHealthCheckMode.ResolveWithExpectedIp, "Resolve + expected IP"),
+            new CheckModeOption(DnsHealthCheckMode.ResolveOnly, localizer["HealthCheckModeResolveOnly"]),
+            new CheckModeOption(DnsHealthCheckMode.ResolveWithExpectedIp, localizer["HealthCheckModeExpectedIp"]),
         ];
     }
 
-    private static IReadOnlyList<ActionOption> BuildActionOptions()
+    private IReadOnlyList<ActionOption> BuildActionOptions()
     {
         return
         [
-            new ActionOption(DnsHealthFailureAction.NotifyOnly, "Notify only"),
-            new ActionOption(DnsHealthFailureAction.SwitchToNextProfile, "Switch to next profile"),
-            new ActionOption(DnsHealthFailureAction.SwitchToFallbackProfile, "Switch to fallback profile"),
+            new ActionOption(DnsHealthFailureAction.NotifyOnly, localizer["HealthActionNotifyOnly"]),
+            new ActionOption(DnsHealthFailureAction.SwitchToNextProfile, localizer["HealthActionSwitchNext"]),
+            new ActionOption(DnsHealthFailureAction.SwitchToFallbackProfile, localizer["HealthActionSwitchFallback"]),
         ];
     }
 
-    private static string BuildStateText(DnsHealthState state)
+    private string BuildStateText(DnsHealthState state)
     {
         return
-            $"Status: {state.Status}{Environment.NewLine}" +
-            $"Active profile: {state.ActiveProfileId ?? "<none>"}{Environment.NewLine}" +
-            $"Last failover profile: {state.LastFailoverProfileId ?? "<none>"}{Environment.NewLine}" +
-            $"Consecutive failures: {state.ConsecutiveFailures}{Environment.NewLine}" +
-            $"Consecutive successes: {state.ConsecutiveSuccesses}{Environment.NewLine}" +
-            $"Last checked UTC: {state.LastCheckedUtc?.ToString("O") ?? "<never>"}{Environment.NewLine}" +
-            $"Last successful UTC: {state.LastSuccessfulCheckUtc?.ToString("O") ?? "<never>"}{Environment.NewLine}" +
-            $"Last failure UTC: {state.LastFailureUtc?.ToString("O") ?? "<never>"}{Environment.NewLine}" +
-            $"Cooldown until UTC: {state.CooldownUntilUtc?.ToString("O") ?? "<none>"}{Environment.NewLine}" +
-            $"Last failure reason: {state.LastFailureReason ?? "<none>"}{Environment.NewLine}" +
-            $"Last action: {state.LastAction ?? "<none>"}";
+            $"{localizer["HealthStateStatusLine"]} {state.Status}{Environment.NewLine}" +
+            $"{localizer["HealthStateActiveProfileLine"]} {state.ActiveProfileId ?? localizer["NoneValue"]}{Environment.NewLine}" +
+            $"{localizer["HealthStateLastFailoverLine"]} {state.LastFailoverProfileId ?? localizer["NoneValue"]}{Environment.NewLine}" +
+            $"{localizer["HealthStateFailuresLine"]} {state.ConsecutiveFailures}{Environment.NewLine}" +
+            $"{localizer["HealthStateSuccessesLine"]} {state.ConsecutiveSuccesses}{Environment.NewLine}" +
+            $"{localizer["HealthStateLastCheckedLine"]} {state.LastCheckedUtc?.ToString("O") ?? localizer["NeverValue"]}{Environment.NewLine}" +
+            $"{localizer["HealthStateLastSuccessfulLine"]} {state.LastSuccessfulCheckUtc?.ToString("O") ?? localizer["NeverValue"]}{Environment.NewLine}" +
+            $"{localizer["HealthStateLastFailureLine"]} {state.LastFailureUtc?.ToString("O") ?? localizer["NeverValue"]}{Environment.NewLine}" +
+            $"{localizer["HealthStateCooldownLine"]} {state.CooldownUntilUtc?.ToString("O") ?? localizer["NoneValue"]}{Environment.NewLine}" +
+            $"{localizer["HealthStateFailureReasonLine"]} {state.LastFailureReason ?? localizer["NoneValue"]}{Environment.NewLine}" +
+            $"{localizer["HealthStateLastActionLine"]} {state.LastAction ?? localizer["NoneValue"]}";
     }
 
     private static string FormatExpectedAddresses(IReadOnlyDictionary<string, List<string>> expectedAddresses)
@@ -286,5 +291,34 @@ public partial class HealthFailoverSettingsWindow : Window
     private sealed record ChainItem(int Index, string ProfileId, string DisplayName)
     {
         public override string ToString() => $"{Index + 1}. {DisplayName}";
+    }
+
+    private void ApplyLocalization()
+    {
+        Title = localizer["HealthFailoverWindowTitle"];
+        MonitorGroupBox.Header = localizer["HealthMonitorGroupHeader"];
+        EnabledCheckBox.Content = localizer["HealthEnableMonitorCheckbox"];
+        IntervalLabelTextBlock.Text = localizer["HealthIntervalLabel"];
+        FailureThresholdLabelTextBlock.Text = localizer["HealthFailureThresholdLabel"];
+        RecoveryThresholdLabelTextBlock.Text = localizer["HealthRecoveryThresholdLabel"];
+        CooldownLabelTextBlock.Text = localizer["HealthCooldownLabel"];
+        CheckModeLabelTextBlock.Text = localizer["HealthCheckModeLabel"];
+        ActionOnFailureLabelTextBlock.Text = localizer["HealthActionOnFailureLabel"];
+        TestDomainsGroupBox.Header = localizer["HealthTestDomainsHeader"];
+        TestDomainsHintTextBlock.Text = localizer["HealthTestDomainsHint"];
+        ExpectedIpsGroupBox.Header = localizer["HealthExpectedIpsHeader"];
+        ExpectedIpsHintTextBlock.Text = localizer["HealthExpectedIpsHint"];
+        FailoverTargetGroupBox.Header = localizer["HealthFailoverTargetHeader"];
+        FallbackProfileLabelTextBlock.Text = localizer["HealthFallbackProfileLabel"];
+        FallbackHintTextBlock.Text = localizer["HealthFallbackHint"];
+        FailoverChainGroupBox.Header = localizer["HealthFailoverChainHeader"];
+        AddChainButton.Content = localizer["AddButton"];
+        MoveChainUpButton.Content = localizer["MoveUpButton"];
+        MoveChainDownButton.Content = localizer["MoveDownButton"];
+        RemoveChainButton.Content = localizer["RemoveButton"];
+        CurrentHealthStateGroupBox.Header = localizer["HealthCurrentStateHeader"];
+        RunCheckButton.Content = localizer["RunCheckButton"];
+        CancelButton.Content = localizer["CancelButton"];
+        SaveButton.Content = localizer["SaveButton"];
     }
 }
