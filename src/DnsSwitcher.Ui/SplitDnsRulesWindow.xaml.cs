@@ -10,15 +10,18 @@ namespace DnsSwitcher.Ui;
 public partial class SplitDnsRulesWindow : Window
 {
     private readonly WindowsDnsSwitcherHost host;
+    private readonly AppLocalizer localizer;
     private SplitDnsConfiguration configuration = SplitDnsConfiguration.Default;
     private IReadOnlyList<DnsProfile> staticProfiles = [];
     private bool suppressEnabledChanged;
 
-    public SplitDnsRulesWindow(WindowsDnsSwitcherHost host)
+    public SplitDnsRulesWindow(WindowsDnsSwitcherHost host, AppLocalizer localizer)
     {
         InitializeComponent();
         WindowThemeService.Attach(this);
         this.host = host;
+        this.localizer = localizer;
+        ApplyLocalization();
         Loaded += OnLoaded;
     }
 
@@ -54,13 +57,13 @@ public partial class SplitDnsRulesWindow : Window
     {
         if (RulesListBox.SelectedItem is not RuleItem item)
         {
-            SetStatus("Select a Split DNS rule to delete.");
+            SetStatus(localizer["SplitDnsSelectRuleDelete"]);
             return;
         }
 
         var result = MessageBox.Show(
-            $"Delete Split DNS rule '{item.Rule.Id}'?",
-            "Split DNS",
+            localizer.Format("SplitDnsDeleteRuleConfirmFormat", item.Rule.Id),
+            localizer["SplitDnsTitle"],
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning);
 
@@ -73,7 +76,7 @@ public partial class SplitDnsRulesWindow : Window
         {
             await host.SplitDnsRuleService.RemoveRuleAsync(item.Rule.Id).ConfigureAwait(true);
             await LoadAsync().ConfigureAwait(true);
-            SetStatus($"Rule '{item.Rule.Id}' deleted.");
+            SetStatus(localizer.Format("SplitDnsRuleDeletedFormat", item.Rule.Id));
         }).ConfigureAwait(true);
     }
 
@@ -81,7 +84,7 @@ public partial class SplitDnsRulesWindow : Window
     {
         if (RulesListBox.SelectedItem is not RuleItem item)
         {
-            SetStatus("Select a Split DNS rule to toggle.");
+            SetStatus(localizer["SplitDnsSelectRuleToggle"]);
             return;
         }
 
@@ -126,7 +129,7 @@ public partial class SplitDnsRulesWindow : Window
     {
         if (string.IsNullOrWhiteSpace(TestDomainTextBox.Text))
         {
-            SetStatus("Enter a domain to test.");
+            SetStatus(localizer["SplitDnsEnterDomainToTest"]);
             return;
         }
 
@@ -134,10 +137,10 @@ public partial class SplitDnsRulesWindow : Window
         {
             var match = await host.SplitDnsRuleService.TestMatchAsync(TestDomainTextBox.Text).ConfigureAwait(true);
             SetStatus(
-                $"Domain: {match.Domain}{Environment.NewLine}" +
-                $"Matched: {match.Matched}{Environment.NewLine}" +
-                $"Rule: {match.Rule?.Id ?? "<none>"}{Environment.NewLine}" +
-                $"Details: {match.Details}");
+                $"{localizer["SplitDnsDomainLine"]} {match.Domain}{Environment.NewLine}" +
+                $"{localizer["SplitDnsMatchedLine"]} {(match.Matched ? localizer["YesValue"] : localizer["NoValue"])}{Environment.NewLine}" +
+                $"{localizer["SplitDnsRuleLine"]} {match.Rule?.Id ?? localizer["NoneValue"]}{Environment.NewLine}" +
+                $"{localizer["SplitDnsDetailsLine"]} {match.Details}");
         }).ConfigureAwait(true);
     }
 
@@ -147,15 +150,15 @@ public partial class SplitDnsRulesWindow : Window
         {
             await SaveCurrentConfigurationAsync().ConfigureAwait(true);
             await host.AgentSplitDnsService.ApplyAsync(configuration).ConfigureAwait(true);
-            SetStatus("Split DNS NRPT rules applied.");
+            SetStatus(localizer["SplitDnsAppliedStatus"]);
         }).ConfigureAwait(true);
     }
 
     private async void OnResetRulesClicked(object sender, RoutedEventArgs e)
     {
         var result = MessageBox.Show(
-            "Remove all DnsSwitcher-owned Windows NRPT rules?",
-            "Split DNS",
+            localizer["SplitDnsResetRulesConfirm"],
+            localizer["SplitDnsTitle"],
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning);
 
@@ -167,7 +170,7 @@ public partial class SplitDnsRulesWindow : Window
         await RunAsync(async () =>
         {
             await host.AgentSplitDnsService.ResetAsync().ConfigureAwait(true);
-            SetStatus("DnsSwitcher-owned NRPT rules removed.");
+            SetStatus(localizer["SplitDnsResetStatus"]);
         }).ConfigureAwait(true);
     }
 
@@ -226,7 +229,7 @@ public partial class SplitDnsRulesWindow : Window
 
             await host.SplitDnsRuleService.SaveConfigurationAsync(configuration).ConfigureAwait(true);
             await LoadAsync(rule.Id).ConfigureAwait(true);
-            SetStatus($"Rule '{rule.Id}' saved.");
+            SetStatus(localizer.Format("SplitDnsRuleSavedFormat", rule.Id));
         }).ConfigureAwait(true);
     }
 
@@ -242,17 +245,17 @@ public partial class SplitDnsRulesWindow : Window
 
         if (string.IsNullOrWhiteSpace(namespaceValue))
         {
-            throw new InvalidDataException("Split DNS namespace/domain must not be empty.");
+            throw new InvalidDataException(localizer["SplitDnsNamespaceRequired"]);
         }
 
         if (TargetProfileComboBox.SelectedValue is not string profileId || string.IsNullOrWhiteSpace(profileId))
         {
-            throw new InvalidDataException("Select a target DNS profile.");
+            throw new InvalidDataException(localizer["SplitDnsTargetProfileRequired"]);
         }
 
         if (!int.TryParse(PriorityTextBox.Text, out var priority))
         {
-            throw new InvalidDataException("Priority must be a number.");
+            throw new InvalidDataException(localizer["SplitDnsPriorityNumberRequired"]);
         }
 
         var id = string.IsNullOrWhiteSpace(RuleIdTextBox.Text)
@@ -300,7 +303,11 @@ public partial class SplitDnsRulesWindow : Window
         var items = configuration.Rules
             .OrderByDescending(rule => rule.Priority)
             .ThenBy(rule => rule.Namespace, StringComparer.OrdinalIgnoreCase)
-            .Select(rule => new RuleItem(rule, ResolveProfileName(rule.ProfileId)))
+            .Select(rule => new RuleItem(
+                rule,
+                ResolveProfileName(rule.ProfileId),
+                rule.Enabled ? localizer["EnabledValue"] : localizer["DisabledValue"],
+                localizer["SplitDnsPriorityListText"]))
             .ToArray();
 
         RulesListBox.ItemsSource = items;
@@ -316,19 +323,19 @@ public partial class SplitDnsRulesWindow : Window
     {
         var profile = staticProfiles.FirstOrDefault(profile =>
             string.Equals(profile.Id, profileId, StringComparison.OrdinalIgnoreCase));
-        return profile?.Name ?? "missing profile";
+        return profile?.Name ?? localizer["MissingProfileValue"];
     }
 
     private string BuildConfigurationStatus()
     {
         var enabledCount = configuration.Rules.Count(rule => rule.Enabled);
         return
-            $"Split DNS enabled: {configuration.Enabled}{Environment.NewLine}" +
-            $"Mode: {configuration.Mode}{Environment.NewLine}" +
-            $"Default behavior: {configuration.DefaultBehavior}{Environment.NewLine}" +
-            $"Rules: {configuration.Rules.Count}{Environment.NewLine}" +
-            $"Enabled rules: {enabledCount}{Environment.NewLine}" +
-            $"Config file: {host.Paths.SplitDnsRulesFilePath}";
+            $"{localizer["SplitDnsEnabledLine"]} {(configuration.Enabled ? localizer["YesValue"] : localizer["NoValue"])}{Environment.NewLine}" +
+            $"{localizer["SplitDnsModeLine"]} {configuration.Mode}{Environment.NewLine}" +
+            $"{localizer["SplitDnsDefaultBehaviorLine"]} {configuration.DefaultBehavior}{Environment.NewLine}" +
+            $"{localizer["SplitDnsRulesLine"]} {configuration.Rules.Count}{Environment.NewLine}" +
+            $"{localizer["SplitDnsEnabledRulesLine"]} {enabledCount}{Environment.NewLine}" +
+            $"{localizer["SplitDnsConfigFileLine"]} {host.Paths.SplitDnsRulesFilePath}";
     }
 
     private void SetBusy(bool busy)
@@ -350,7 +357,7 @@ public partial class SplitDnsRulesWindow : Window
             SetStatus(FriendlyExceptionFormatter.ToUserMessage(exception));
             MessageBox.Show(
                 FriendlyExceptionFormatter.ToUserMessage(exception),
-                "Split DNS",
+                localizer["SplitDnsTitle"],
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
@@ -368,12 +375,38 @@ public partial class SplitDnsRulesWindow : Window
 
     private sealed record ProfileOption(string ProfileId, string DisplayName);
 
-    private sealed record RuleItem(SplitDnsRule Rule, string ProfileName)
+    private void ApplyLocalization()
+    {
+        Title = localizer["SplitDnsTitle"];
+        SplitDnsWarningTextBlock.Text = localizer["SplitDnsWarningText"];
+        SplitDnsEnabledCheckBox.Content = localizer["SplitDnsEnableConfiguration"];
+        RulesGroupBox.Header = localizer["SplitDnsRulesHeader"];
+        NewRuleButton.Content = localizer["NewButton"];
+        DeleteRuleButton.Content = localizer["DeleteProfileButton"];
+        RefreshButton.Content = localizer["ReloadButton"];
+        RuleEditorGroupBox.Header = localizer["SplitDnsRuleEditorHeader"];
+        RuleIdLabelTextBlock.Text = localizer["SplitDnsRuleIdLabel"];
+        NamespaceLabelTextBlock.Text = localizer["SplitDnsNamespaceLabel"];
+        TargetProfileLabelTextBlock.Text = localizer["SplitDnsTargetProfileLabel"];
+        PriorityLabelTextBlock.Text = localizer["SplitDnsPriorityLabel"];
+        RuleEnabledLabelTextBlock.Text = localizer["SplitDnsRuleEnabledLabel"];
+        CommentLabelTextBlock.Text = localizer["SplitDnsCommentLabel"];
+        SaveRuleButton.Content = localizer["SplitDnsSaveRuleButton"];
+        ToggleRuleButton.Content = localizer["SplitDnsToggleRuleButton"];
+        TestStatusGroupBox.Header = localizer["SplitDnsTestStatusHeader"];
+        TestRuleButton.Content = localizer["TestButton"];
+        ApplyRulesButton.Content = localizer["SplitDnsApplyRulesButton"];
+        ResetRulesButton.Content = localizer["SplitDnsResetRulesButton"];
+        CloseButton.Content = localizer["CloseButton"];
+        NamespaceTextBox.ToolTip = localizer["SplitDnsNamespaceExamplesTooltip"];
+        TestDomainTextBox.ToolTip = localizer["SplitDnsTestDomainTooltip"];
+    }
+
+    private sealed record RuleItem(SplitDnsRule Rule, string ProfileName, string EnabledText, string PriorityText)
     {
         public override string ToString()
         {
-            var enabledText = Rule.Enabled ? "enabled" : "disabled";
-            return $"{Rule.Namespace} -> {ProfileName} ({Rule.ProfileId}) | {enabledText} | priority {Rule.Priority}";
+            return $"{Rule.Namespace} -> {ProfileName} ({Rule.ProfileId}) | {EnabledText} | {PriorityText} {Rule.Priority}";
         }
     }
 }

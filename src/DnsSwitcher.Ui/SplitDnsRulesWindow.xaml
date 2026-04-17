@@ -18,7 +18,8 @@
     <Border Padding="10"
             Background="{DynamicResource InfoStatusBrush}"
             CornerRadius="8">
-      <TextBlock TextWrapping="Wrap"
+      <TextBlock x:Name="SplitDnsWarningTextBlock"
+                 TextWrapping="Wrap"
                  Text="Split DNS uses Windows NRPT rules. Apply/reset requires DnsSwitcher Agent or administrator rights. Apps with their own DNS/DoH stack can bypass Windows NRPT." />
     </Border>
 
@@ -30,7 +31,7 @@
         <ColumnDefinition Width="1.1*" />
       </Grid.ColumnDefinitions>
 
-      <GroupBox Header="Rules">
+      <GroupBox x:Name="RulesGroupBox" Header="Rules">
         <Grid Margin="12">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -51,14 +52,15 @@
           <WrapPanel Grid.Row="2"
                      Margin="0,10,0,0"
                      HorizontalAlignment="Right">
-            <Button Width="90" Margin="0,0,8,0" Click="OnNewRuleClicked" Content="New" />
-            <Button Width="90" Margin="0,0,8,0" Click="OnDeleteRuleClicked" Style="{StaticResource DangerActionButtonStyle}" Content="Delete" />
-            <Button Width="90" Click="OnRefreshClicked" Content="Refresh" />
+            <Button x:Name="NewRuleButton" Width="90" Margin="0,0,8,0" Click="OnNewRuleClicked" Content="New" />
+            <Button x:Name="DeleteRuleButton" Width="90" Margin="0,0,8,0" Click="OnDeleteRuleClicked" Style="{StaticResource DangerActionButtonStyle}" Content="Delete" />
+            <Button x:Name="RefreshButton" Width="90" Click="OnRefreshClicked" Content="Refresh" />
           </WrapPanel>
         </Grid>
       </GroupBox>
 
       <GroupBox Grid.Column="2"
+                x:Name="RuleEditorGroupBox"
                 Header="Rule Editor">
         <Grid Margin="12">
           <Grid.ColumnDefinitions>
@@ -77,13 +79,13 @@
             <RowDefinition Height="*" />
           </Grid.RowDefinitions>
 
-          <TextBlock Grid.Row="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Rule ID:" />
+          <TextBlock x:Name="RuleIdLabelTextBlock" Grid.Row="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Rule ID:" />
           <TextBox x:Name="RuleIdTextBox" Grid.Row="0" Grid.Column="2" Margin="0,0,0,8" />
 
-          <TextBlock Grid.Row="1" VerticalAlignment="Center" FontWeight="SemiBold" Text="Namespace:" />
+          <TextBlock x:Name="NamespaceLabelTextBlock" Grid.Row="1" VerticalAlignment="Center" FontWeight="SemiBold" Text="Namespace:" />
           <TextBox x:Name="NamespaceTextBox" Grid.Row="1" Grid.Column="2" Margin="0,0,0,8" ToolTip="Examples: *.example.com, .example.com, internal.corp.local" />
 
-          <TextBlock Grid.Row="2" VerticalAlignment="Center" FontWeight="SemiBold" Text="Target profile:" />
+          <TextBlock x:Name="TargetProfileLabelTextBlock" Grid.Row="2" VerticalAlignment="Center" FontWeight="SemiBold" Text="Target profile:" />
           <ComboBox x:Name="TargetProfileComboBox"
                     Grid.Row="2"
                     Grid.Column="2"
@@ -91,13 +93,13 @@
                     DisplayMemberPath="DisplayName"
                     SelectedValuePath="ProfileId" />
 
-          <TextBlock Grid.Row="3" VerticalAlignment="Center" FontWeight="SemiBold" Text="Priority:" />
+          <TextBlock x:Name="PriorityLabelTextBlock" Grid.Row="3" VerticalAlignment="Center" FontWeight="SemiBold" Text="Priority:" />
           <TextBox x:Name="PriorityTextBox" Grid.Row="3" Grid.Column="2" Margin="0,0,0,8" />
 
-          <TextBlock Grid.Row="4" VerticalAlignment="Center" FontWeight="SemiBold" Text="Enabled:" />
+          <TextBlock x:Name="RuleEnabledLabelTextBlock" Grid.Row="4" VerticalAlignment="Center" FontWeight="SemiBold" Text="Enabled:" />
           <CheckBox x:Name="RuleEnabledCheckBox" Grid.Row="4" Grid.Column="2" Margin="0,0,0,8" />
 
-          <TextBlock Grid.Row="5" VerticalAlignment="Top" FontWeight="SemiBold" Text="Comment:" />
+          <TextBlock x:Name="CommentLabelTextBlock" Grid.Row="5" VerticalAlignment="Top" FontWeight="SemiBold" Text="Comment:" />
           <TextBox x:Name="CommentTextBox"
                    Grid.Row="5"
                    Grid.Column="2"
@@ -110,12 +112,13 @@
                      Grid.ColumnSpan="3"
                      Margin="0,4,0,12"
                      HorizontalAlignment="Right">
-            <Button Width="120" Margin="0,0,8,0" Click="OnSaveRuleClicked" Content="Save Rule" />
-            <Button Width="120" Click="OnToggleRuleClicked" Content="Toggle Rule" />
+            <Button x:Name="SaveRuleButton" Width="120" Margin="0,0,8,0" Click="OnSaveRuleClicked" Content="Save Rule" />
+            <Button x:Name="ToggleRuleButton" Width="120" Click="OnToggleRuleClicked" Content="Toggle Rule" />
           </WrapPanel>
 
           <GroupBox Grid.Row="7"
                     Grid.ColumnSpan="3"
+                    x:Name="TestStatusGroupBox"
                     Header="Test / Status">
             <Grid Margin="12">
               <Grid.RowDefinitions>
@@ -130,7 +133,8 @@
               <TextBox x:Name="TestDomainTextBox"
                        Margin="0,0,8,8"
                        ToolTip="Domain to test against current rules" />
-              <Button Grid.Column="1"
+              <Button x:Name="TestRuleButton"
+                      Grid.Column="1"
                       Width="96"
                       Margin="0,0,0,8"
                       Click="OnTestRuleClicked"
@@ -154,9 +158,9 @@
     <StackPanel Grid.Row="2"
                 Orientation="Horizontal"
                 HorizontalAlignment="Right">
-      <Button Width="120" Margin="0,0,8,0" Click="OnApplyRulesClicked" Content="Apply Rules" />
-      <Button Width="120" Margin="0,0,8,0" Style="{StaticResource DangerActionButtonStyle}" Click="OnResetRulesClicked" Content="Reset Rules" />
-      <Button Width="96" IsCancel="True" Click="OnCloseClicked" Content="Close" />
+      <Button x:Name="ApplyRulesButton" Width="120" Margin="0,0,8,0" Click="OnApplyRulesClicked" Content="Apply Rules" />
+      <Button x:Name="ResetRulesButton" Width="120" Margin="0,0,8,0" Style="{StaticResource DangerActionButtonStyle}" Click="OnResetRulesClicked" Content="Reset Rules" />
+      <Button x:Name="CloseButton" Width="96" IsCancel="True" Click="OnCloseClicked" Content="Close" />
     </StackPanel>
   </Grid>
 </Window>

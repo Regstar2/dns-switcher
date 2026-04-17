@@ -23,6 +23,41 @@ $apps = @(
     @{ Name = "agent"; Project = "src\DnsSwitcher.Agent.Windows\DnsSwitcher.Agent.Windows.csproj" }
 )
 
+function Get-NormalizedFullPath([string]$Path) {
+    return [System.IO.Path]::GetFullPath($Path).TrimEnd('\')
+}
+
+function Assert-ReleasePathIsNotUsedByService([string]$Path) {
+    $service = Get-CimInstance Win32_Service -Filter "Name='DnsSwitcherAgent'" -ErrorAction SilentlyContinue
+    if ($null -eq $service -or [string]::IsNullOrWhiteSpace($service.PathName)) {
+        return
+    }
+
+    $serviceExecutable = $service.PathName.Trim('"')
+    $serviceDirectory = Split-Path -Parent $serviceExecutable
+    if ([string]::IsNullOrWhiteSpace($serviceDirectory)) {
+        return
+    }
+
+    $normalizedServiceDirectory = Get-NormalizedFullPath $serviceDirectory
+    $normalizedReleaseRoot = Get-NormalizedFullPath $Path
+    $serviceUsesReleaseRoot = $normalizedServiceDirectory.StartsWith($normalizedReleaseRoot, [System.StringComparison]::OrdinalIgnoreCase)
+
+    if ($serviceUsesReleaseRoot -and $service.State -eq "Running") {
+        Write-Host "Cannot rebuild release '$normalizedReleaseRoot' because DnsSwitcherAgent is currently running from this directory:" -ForegroundColor Yellow
+        Write-Host $serviceExecutable
+        Write-Host ""
+        Write-Host "Stop the agent from an elevated PowerShell, then rerun this script:"
+        Write-Host "  .\artifacts\release\v$Version\$packageName\cli\DnsSwitcher.Cli.exe service stop"
+        Write-Host ""
+        Write-Host "Alternative:"
+        Write-Host "  .\artifacts\release\v$Version\$packageName\Stop Agent.bat"
+        Write-Host ""
+        Write-Host "This guard prevents partially deleting a portable release that is currently used as the Windows Service runtime."
+        exit 1
+    }
+}
+
 Push-Location $repoRoot
 try {
     if (-not $SkipTests) {
@@ -30,6 +65,7 @@ try {
     }
 
     if (Test-Path $releaseRoot) {
+        Assert-ReleasePathIsNotUsedByService $releaseRoot
         Remove-Item $releaseRoot -Recurse -Force
     }
 

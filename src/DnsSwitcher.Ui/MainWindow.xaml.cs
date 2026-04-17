@@ -87,6 +87,7 @@ public partial class MainWindow : Window
             await RefreshUiAsync(localizer["UiLoadedStatus"]).ConfigureAwait(true);
             UpdateResponsiveLayout();
             isInitialized = true;
+            await ShowAgentManagerOnFirstLaunchAsync().ConfigureAwait(true);
         }
         catch (Exception exception)
         {
@@ -391,6 +392,18 @@ public partial class MainWindow : Window
             {
                 Owner = this,
             };
+            settingsWindow.AgentManagerRequested += async (_, _) =>
+            {
+                await OpenAgentManagerAsync(settingsWindow).ConfigureAwait(true);
+            };
+            settingsWindow.HealthSettingsRequested += async (_, _) =>
+            {
+                await OpenHealthSettingsAsync(settingsWindow).ConfigureAwait(true);
+            };
+            settingsWindow.SplitDnsSettingsRequested += async (_, _) =>
+            {
+                await OpenSplitDnsRulesAsync(settingsWindow).ConfigureAwait(true);
+            };
 
             if (settingsWindow.ShowDialog() != true)
             {
@@ -405,13 +418,13 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void OnOpenAgentManagerClicked(object sender, RoutedEventArgs e)
+    private async Task OpenAgentManagerAsync(Window owner)
     {
         try
         {
             var window = new AgentManagerWindow(App.Host, localizer)
             {
-                Owner = this,
+                Owner = owner,
             };
             window.ShowDialog();
             await RefreshUiAsync(showBusyMessage: false, showErrorDialog: false, preserveOperationStatus: true, disableControls: false).ConfigureAwait(true);
@@ -422,7 +435,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void OnOpenHealthSettingsClicked(object sender, RoutedEventArgs e)
+    private async Task OpenHealthSettingsAsync(Window owner)
     {
         if (isBusy)
         {
@@ -434,9 +447,9 @@ public partial class MainWindow : Window
             var settings = await App.Host.DnsHealthFailoverService.GetSettingsAsync().ConfigureAwait(true);
             var state = await App.Host.DnsHealthFailoverService.GetStateAsync().ConfigureAwait(true);
             var configuration = await App.Host.ProfileService.GetConfigurationAsync().ConfigureAwait(true);
-            var window = new HealthFailoverSettingsWindow(settings, state, configuration.Profiles)
+            var window = new HealthFailoverSettingsWindow(localizer, settings, state, configuration.Profiles)
             {
-                Owner = this,
+                Owner = owner,
             };
 
             if (window.ShowDialog() != true)
@@ -463,7 +476,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void OnOpenSplitDnsRulesClicked(object sender, RoutedEventArgs e)
+    private async Task OpenSplitDnsRulesAsync(Window owner)
     {
         if (isBusy)
         {
@@ -472,9 +485,9 @@ public partial class MainWindow : Window
 
         try
         {
-            var window = new SplitDnsRulesWindow(App.Host)
+            var window = new SplitDnsRulesWindow(App.Host, localizer)
             {
-                Owner = this,
+                Owner = owner,
             };
             window.ShowDialog();
             await RefreshUiAsync(showBusyMessage: false, showErrorDialog: false, preserveOperationStatus: true, disableControls: false).ConfigureAwait(true);
@@ -745,9 +758,6 @@ public partial class MainWindow : Window
         ApplyButton.IsEnabled = !isBusy && hasProfileSelection;
         ResetButton.IsEnabled = !isBusy && hasAdapterOptions;
         ReloadButton.IsEnabled = !isBusy;
-        AgentButton.IsEnabled = !isBusy;
-        HealthSettingsButton.IsEnabled = !isBusy;
-        SplitDnsButton.IsEnabled = !isBusy;
         SettingsButton.IsEnabled = !isBusy;
         OpenConfigButton.IsEnabled = !isBusy;
         OpenLogsButton.IsEnabled = !isBusy;
@@ -1000,6 +1010,17 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task ShowAgentManagerOnFirstLaunchAsync()
+    {
+        if (uiSettings.AgentManagerShownOnFirstLaunch)
+        {
+            return;
+        }
+
+        await PersistUiSettingsAsync(uiSettings with { AgentManagerShownOnFirstLaunch = true }).ConfigureAwait(true);
+        await OpenAgentManagerAsync(this).ConfigureAwait(true);
+    }
+
     private void ApplyLocalization()
     {
         Title = localizer["AppTitle"];
@@ -1027,9 +1048,6 @@ public partial class MainWindow : Window
         EditProfileButton.Content = localizer["EditProfileButton"];
         DeleteProfileButton.Content = localizer["DeleteProfileButton"];
         ReloadButton.Content = localizer["ReloadButton"];
-        AgentButton.Content = localizer["AgentManagerButton"];
-        HealthSettingsButton.Content = localizer["HealthSettingsButton"];
-        SplitDnsButton.Content = localizer["SplitDnsButton"];
         SettingsButton.Content = localizer["SettingsButton"];
         OpenConfigButton.Content = localizer["OpenConfigButton"];
         OpenLogsButton.Content = localizer["OpenLogsButton"];
@@ -1299,28 +1317,28 @@ public partial class MainWindow : Window
             localizer["SplitDnsResetStatus"]).ConfigureAwait(true);
     }
 
-    private static string BuildHealthDetails(DnsHealthEvaluationResult result)
+    private string BuildHealthDetails(DnsHealthEvaluationResult result)
     {
         return
-            $"Status: {result.Status}{Environment.NewLine}" +
-            $"Switched profile: {result.SwitchedProfile}{Environment.NewLine}" +
-            $"Active profile: {result.ActiveProfileId ?? "<none>"}{Environment.NewLine}" +
-            $"Target profile: {result.TargetProfileId ?? "<none>"}{Environment.NewLine}" +
-            $"Last action: {result.State.LastAction ?? "<none>"}{Environment.NewLine}" +
-            $"Last failure: {result.State.LastFailureReason ?? "<none>"}{Environment.NewLine}" +
-            $"Last checked UTC: {result.State.LastCheckedUtc?.ToString("O") ?? "<never>"}{Environment.NewLine}" +
-            $"Cooldown until UTC: {result.State.CooldownUntilUtc?.ToString("O") ?? "<none>"}{Environment.NewLine}" +
+            $"{localizer["HealthStateStatusLine"]} {result.Status}{Environment.NewLine}" +
+            $"{localizer["HealthResultSwitchedProfileLine"]} {(result.SwitchedProfile ? localizer["YesValue"] : localizer["NoValue"])}{Environment.NewLine}" +
+            $"{localizer["HealthStateActiveProfileLine"]} {result.ActiveProfileId ?? localizer["NoneValue"]}{Environment.NewLine}" +
+            $"{localizer["HealthResultTargetProfileLine"]} {result.TargetProfileId ?? localizer["NoneValue"]}{Environment.NewLine}" +
+            $"{localizer["HealthStateLastActionLine"]} {result.State.LastAction ?? localizer["NoneValue"]}{Environment.NewLine}" +
+            $"{localizer["HealthStateFailureReasonLine"]} {result.State.LastFailureReason ?? localizer["NoneValue"]}{Environment.NewLine}" +
+            $"{localizer["HealthStateLastCheckedLine"]} {result.State.LastCheckedUtc?.ToString("O") ?? localizer["NeverValue"]}{Environment.NewLine}" +
+            $"{localizer["HealthStateCooldownLine"]} {result.State.CooldownUntilUtc?.ToString("O") ?? localizer["NoneValue"]}{Environment.NewLine}" +
             $"{Environment.NewLine}{result.Details}";
     }
 
-    private static string BuildSplitDnsDetails(SplitDnsConfiguration configuration)
+    private string BuildSplitDnsDetails(SplitDnsConfiguration configuration)
     {
         var lines = new List<string>
         {
-            $"Enabled: {configuration.Enabled}",
-            $"Mode: {configuration.Mode}",
-            $"Default behavior: {configuration.DefaultBehavior}",
-            $"Rules: {configuration.Rules.Count}",
+            $"{localizer["SplitDnsEnabledLine"]} {(configuration.Enabled ? localizer["YesValue"] : localizer["NoValue"])}",
+            $"{localizer["SplitDnsModeLine"]} {configuration.Mode}",
+            $"{localizer["SplitDnsDefaultBehaviorLine"]} {configuration.DefaultBehavior}",
+            $"{localizer["SplitDnsRulesLine"]} {configuration.Rules.Count}",
             string.Empty,
         };
 
@@ -1336,7 +1354,7 @@ public partial class MainWindow : Window
 
         if (configuration.Rules.Count == 0)
         {
-            lines.Add("No Split DNS rules configured. Use CLI or edit data\\config\\split-dns-rules.json.");
+            lines.Add(localizer["SplitDnsNoRulesConfigured"]);
         }
 
         return string.Join(Environment.NewLine, lines);

@@ -22,8 +22,8 @@ OutputDir=..\artifacts\installer\v{#AppVersion}
 OutputBaseFilename=DnsSwitcher-{#AppVersion}-{#Runtime}-setup
 Compression=lzma2
 SolidCompression=yes
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
 UninstallDisplayIcon={app}\ui\DnsSwitcher.Ui.exe
 SetupLogging=yes
@@ -46,5 +46,5 @@ Filename: "{app}\cli\DnsSwitcher.Cli.exe"; Parameters: "service reinstall"; Work
 Filename: "{app}\tray\DnsSwitcher.Tray.exe"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent; Description: "Start DnsSwitcher Tray"
 
 [UninstallRun]
-Filename: "{app}\cli\DnsSwitcher.Cli.exe"; Parameters: "service stop"; WorkingDir: "{app}"; Flags: runhidden waituntilterminated
-Filename: "{app}\cli\DnsSwitcher.Cli.exe"; Parameters: "service uninstall"; WorkingDir: "{app}"; Flags: runhidden waituntilterminated
+Filename: "{app}\cli\DnsSwitcher.Cli.exe"; Parameters: "service stop"; WorkingDir: "{app}"; Flags: runhidden waituntilterminated; RunOnceId: "StopDnsSwitcherAgent"
+Filename: "{app}\cli\DnsSwitcher.Cli.exe"; Parameters: "service uninstall"; WorkingDir: "{app}"; Flags: runhidden waituntilterminated; RunOnceId: "UninstallDnsSwitcherAgent"

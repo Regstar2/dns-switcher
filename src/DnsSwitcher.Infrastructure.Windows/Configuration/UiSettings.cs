@@ -8,5 +8,7 @@ public sealed record UiSettings
 
     public string? LastSelectedProfileId { get; init; }
 
+    public bool AgentManagerShownOnFirstLaunch { get; init; }
+
     public static UiSettings Default { get; } = new();
 }
