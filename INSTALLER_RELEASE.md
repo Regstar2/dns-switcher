@@ -30,6 +30,7 @@ artifacts\installer\v1.4.0\DnsSwitcher-1.4.0-win-x64-setup.exe
 The installer:
 - copies the same portable package layout into `{autopf}\DnsSwitcher`
 - creates Start Menu shortcuts for UI, Tray, and CLI
+- creates a Desktop shortcut for UI
 - creates `data\`, `data\config\`, `data\logs\`
 - grants normal users modify permission to `data\`
 - runs `cli\DnsSwitcher.Cli.exe service reinstall`

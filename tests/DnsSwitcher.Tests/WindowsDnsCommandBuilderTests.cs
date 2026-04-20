@@ -28,7 +28,25 @@ public sealed class WindowsDnsCommandBuilderTests
     }
 
     [Fact]
-    public void BuildApplyCommands_Throws_WhenProfileRequiresUnsupportedStack()
+    public void BuildApplyCommands_SkipsUnsupportedStack_WhenAnotherApplicableStackExists()
+    {
+        var profile = new DnsProfile
+        {
+            Id = "dual-stack",
+            Name = "Dual stack",
+            Mode = ProfileMode.Static,
+            Ipv4 = ["8.8.8.8"],
+            Ipv6 = ["2606:4700:4700::1111"],
+        };
+
+        var commands = WindowsDnsCommandBuilder.BuildApplyCommands("7", "Ethernet", NetworkStackSupport.Ipv4, profile);
+
+        Assert.Single(commands);
+        Assert.Equal("interface ipv4 set dnsservers name=\"7\" source=static address=8.8.8.8 validate=no", commands[0].Arguments);
+    }
+
+    [Fact]
+    public void BuildApplyCommands_Throws_WhenNoProfileStackIsEnabledOnAdapter()
     {
         var profile = new DnsProfile
         {
@@ -41,7 +59,7 @@ public sealed class WindowsDnsCommandBuilderTests
         var exception = Assert.Throws<DnsOperationFailedException>(() =>
             WindowsDnsCommandBuilder.BuildApplyCommands("7", "Ethernet", NetworkStackSupport.Ipv4, profile));
 
-        Assert.Contains("does not support IPv6", exception.Message);
+        Assert.Contains("does not have any enabled IP stack required by profile 'ipv6-only'", exception.Message);
     }
 
     [Fact]

@@ -55,6 +55,7 @@ Portable release contains:
 - `Start Agent.bat`
 - `Stop Agent.bat`
 - `Agent Status.bat`
+- `Create Shortcuts.bat`
 - `_RunAsAdmin.bat`
 
 All scripts:
@@ -64,6 +65,8 @@ All scripts:
 - do not hardcode an install path
 - handle paths with spaces by quoting `%~dp0`
 - keep the service registered against `service\agent\`, not `agent\`
+
+`Create Shortcuts.bat` does not require administrator rights. It creates a Desktop shortcut for the UI and Start Menu shortcuts for UI, Tray, and CLI for the current Windows user.
 
 ## Running
 
@@ -90,6 +93,7 @@ Typical first run:
 ```text
 Install Agent.bat
 Start Agent.bat
+Create Shortcuts.bat
 ui\DnsSwitcher.Ui.exe
 ```
 
