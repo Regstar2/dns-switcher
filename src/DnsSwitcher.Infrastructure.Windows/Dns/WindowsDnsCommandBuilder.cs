@@ -17,24 +17,32 @@ internal static class WindowsDnsCommandBuilder
         ArgumentNullException.ThrowIfNull(profile);
 
         var commands = new List<WindowsProcessCommand>();
+        var supportsIpv4 = supportedStacks.HasFlag(NetworkStackSupport.Ipv4);
+        var supportsIpv6 = supportedStacks.HasFlag(NetworkStackSupport.Ipv6);
+        var hasProfileServers = profile.Ipv4.Count > 0 || profile.Ipv6.Count > 0;
+        var hasApplicableProfileServers =
+            profile.Ipv4.Count > 0 && supportsIpv4
+            || profile.Ipv6.Count > 0 && supportsIpv6;
+
+        if (profile.Mode == ProfileMode.Static && hasProfileServers && !hasApplicableProfileServers)
+        {
+            throw new DnsOperationFailedException(
+                $"Network adapter '{adapterDisplayName}' does not have any enabled IP stack required by profile '{profile.Id}'.");
+        }
 
         AddFamilyCommands(
             commands,
             interfaceTarget,
-            adapterDisplayName,
             "ipv4",
-            "IPv4",
-            supportedStacks.HasFlag(NetworkStackSupport.Ipv4),
+            supportsIpv4,
             profile,
             profile.Ipv4);
 
         AddFamilyCommands(
             commands,
             interfaceTarget,
-            adapterDisplayName,
             "ipv6",
-            "IPv6",
-            supportedStacks.HasFlag(NetworkStackSupport.Ipv6),
+            supportsIpv6,
             profile,
             profile.Ipv6);
 
@@ -63,21 +71,13 @@ internal static class WindowsDnsCommandBuilder
     private static void AddFamilyCommands(
         ICollection<WindowsProcessCommand> commands,
         string interfaceTarget,
-        string adapterDisplayName,
         string familyToken,
-        string familyDisplayName,
         bool isSupported,
         DnsProfile profile,
         IReadOnlyList<string> servers)
     {
         if (!isSupported)
         {
-            if (servers.Count > 0)
-            {
-                throw new DnsOperationFailedException(
-                    $"Network adapter '{adapterDisplayName}' does not support {familyDisplayName}, but profile '{profile.Id}' requires it.");
-            }
-
             return;
         }
 

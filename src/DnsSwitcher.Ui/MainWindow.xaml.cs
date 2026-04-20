@@ -8,6 +8,7 @@ using DnsSwitcher.Core.Models;
 using DnsSwitcher.Infrastructure.Windows.Agent;
 using DnsSwitcher.Infrastructure.Windows.Configuration;
 using DnsSwitcher.Infrastructure.Windows.Desktop;
+using DnsSwitcher.Infrastructure.Windows.Dns;
 using DnsSwitcher.Infrastructure.Windows.Presentation;
 using DnsSwitcher.Infrastructure.Windows.Startup;
 using DnsSwitcher.Ui.UiModels;
@@ -140,14 +141,20 @@ public partial class MainWindow : Window
 
         logger.LogInformation("UI requested apply profile {ProfileId}.", profileItem.Id);
 
+        var adapterSelection = GetSelectedAdapterValue();
+        var warningMessages = await BuildApplyWarningMessagesAsync(profileItem.Profile, adapterSelection).ConfigureAwait(true);
+        var successMessage = AppendMessages(
+            localizer.Format("AppliedProfileFormat", profileItem.Name),
+            warningMessages);
+
         await RunOperationAsync(
             async () =>
             {
                 await App.Host.AgentDnsSwitchService
-                    .ApplyProfileAsync(profileItem.Id, GetSelectedAdapterValue())
+                    .ApplyProfileAsync(profileItem.Id, adapterSelection)
                     .ConfigureAwait(true);
             },
-            localizer.Format("AppliedProfileFormat", profileItem.Name)).ConfigureAwait(true);
+            successMessage).ConfigureAwait(true);
     }
 
     private async void OnTestCurrentDnsClicked(object sender, RoutedEventArgs e)
@@ -942,6 +949,42 @@ public partial class MainWindow : Window
     private string? GetSelectedProfileId()
     {
         return (ProfilesListBox.SelectedItem as ProfileListItem)?.Id;
+    }
+
+    private async Task<IReadOnlyList<string>> BuildApplyWarningMessagesAsync(DnsProfile profile, string? adapterSelection)
+    {
+        var adapter = await App.Host.NetworkAdapterService.GetSelectedAdapterAsync(adapterSelection).ConfigureAwait(true);
+        if (adapter is null)
+        {
+            return [];
+        }
+
+        return DnsApplyWarningBuilder.Build(profile, adapter)
+            .Select(FormatApplyWarning)
+            .ToArray();
+    }
+
+    private string FormatApplyWarning(DnsApplyWarning warning)
+    {
+        return warning.Kind switch
+        {
+            DnsApplyWarningKind.UnsupportedIpv4Skipped => localizer.Format(
+                "ApplyWarningIpv4SkippedFormat",
+                warning.AdapterName,
+                warning.ProfileName),
+            DnsApplyWarningKind.UnsupportedIpv6Skipped => localizer.Format(
+                "ApplyWarningIpv6SkippedFormat",
+                warning.AdapterName,
+                warning.ProfileName),
+            _ => localizer["ApplyWarningGeneric"],
+        };
+    }
+
+    private static string AppendMessages(string mainMessage, IReadOnlyList<string> messages)
+    {
+        return messages.Count == 0
+            ? mainMessage
+            : string.Join(Environment.NewLine, new[] { mainMessage }.Concat(messages));
     }
 
     private async Task PersistSelectionStateAsync()

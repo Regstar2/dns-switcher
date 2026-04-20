@@ -40,6 +40,7 @@ Name: "{app}\data\logs"; Permissions: users-modify
 Name: "{autoprograms}\DnsSwitcher"; Filename: "{app}\ui\DnsSwitcher.Ui.exe"; WorkingDir: "{app}"
 Name: "{autoprograms}\DnsSwitcher Tray"; Filename: "{app}\tray\DnsSwitcher.Tray.exe"; WorkingDir: "{app}"
 Name: "{autoprograms}\DnsSwitcher CLI"; Filename: "{app}\cli\DnsSwitcher.Cli.exe"; WorkingDir: "{app}\cli"
+Name: "{autodesktop}\DnsSwitcher"; Filename: "{app}\ui\DnsSwitcher.Ui.exe"; WorkingDir: "{app}"
 
 [Run]
 Filename: "{app}\cli\DnsSwitcher.Cli.exe"; Parameters: "service reinstall"; WorkingDir: "{app}"; Flags: runhidden waituntilterminated; StatusMsg: "Installing DnsSwitcher Agent service..."

@@ -192,6 +192,16 @@ public sealed class WindowsDnsManager(
         EnsureAdministrator();
 
         var interfaceTarget = GetInterfaceTarget(targetAdapter);
+        var warnings = DnsApplyWarningBuilder.Build(profile, targetAdapter);
+        foreach (var warning in warnings)
+        {
+            logger.LogWarning(
+                "DNS profile {ProfileId} contains servers for a stack disabled on adapter {AdapterName}. Skipped: {WarningKind}.",
+                profile.Id,
+                targetAdapter.Name,
+                warning.Kind);
+        }
+
         var commands = WindowsDnsCommandBuilder.BuildApplyCommands(
             interfaceTarget,
             targetAdapter.Name,

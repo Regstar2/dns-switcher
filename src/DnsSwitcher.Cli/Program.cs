@@ -5,6 +5,7 @@ using DnsSwitcher.Core.Models;
 using DnsSwitcher.Core.Services;
 using DnsSwitcher.Infrastructure.Windows;
 using DnsSwitcher.Infrastructure.Windows.Agent;
+using DnsSwitcher.Infrastructure.Windows.Dns;
 using DnsSwitcher.Infrastructure.Windows.Presentation;
 using Microsoft.Extensions.Logging;
 
@@ -666,9 +667,40 @@ static async Task<int> ApplyProfileAsync(WindowsDnsSwitcherHost host, string? pr
         return CliExitCodes.InvalidArguments;
     }
 
+    var profile = await host.ProfileService.GetRequiredProfileAsync(profileId).ConfigureAwait(false);
+    var warnings = await BuildApplyWarningsAsync(host, profile, adapterSelection).ConfigureAwait(false);
+
     await host.AgentDnsSwitchService.ApplyProfileAsync(profileId, adapterSelection).ConfigureAwait(false);
     Console.WriteLine($"Applied DNS profile '{profileId}' to adapter '{adapterSelection ?? "<auto>"}'.");
+    foreach (var warning in warnings)
+    {
+        Console.WriteLine($"Warning: {FormatApplyWarning(warning)}");
+    }
+
     return CliExitCodes.Success;
+}
+
+static async Task<IReadOnlyList<DnsApplyWarning>> BuildApplyWarningsAsync(
+    WindowsDnsSwitcherHost host,
+    DnsProfile profile,
+    string? adapterSelection)
+{
+    var adapter = await host.NetworkAdapterService.GetSelectedAdapterAsync(adapterSelection).ConfigureAwait(false);
+    return adapter is null
+        ? []
+        : DnsApplyWarningBuilder.Build(profile, adapter);
+}
+
+static string FormatApplyWarning(DnsApplyWarning warning)
+{
+    return warning.Kind switch
+    {
+        DnsApplyWarningKind.UnsupportedIpv4Skipped =>
+            $"Adapter '{warning.AdapterName}' has IPv4 disabled or unsupported. IPv4 DNS servers from profile '{warning.ProfileName}' were skipped.",
+        DnsApplyWarningKind.UnsupportedIpv6Skipped =>
+            $"Adapter '{warning.AdapterName}' has IPv6 disabled or unsupported. IPv6 DNS servers from profile '{warning.ProfileName}' were skipped; IPv4 DNS was applied when available.",
+        _ => "Some DNS servers from the profile were skipped because the adapter does not support that IP stack.",
+    };
 }
 
 static async Task<int> ResetToDhcpAsync(WindowsDnsSwitcherHost host, string? adapterSelection)

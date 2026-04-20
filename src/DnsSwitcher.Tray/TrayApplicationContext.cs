@@ -7,6 +7,7 @@ using DnsSwitcher.Core.Services;
 using DnsSwitcher.Infrastructure.Windows;
 using DnsSwitcher.Infrastructure.Windows.Configuration;
 using DnsSwitcher.Infrastructure.Windows.Desktop;
+using DnsSwitcher.Infrastructure.Windows.Dns;
 using DnsSwitcher.Infrastructure.Windows.Presentation;
 using DnsSwitcher.Infrastructure.Windows.Tray;
 using Microsoft.Extensions.Logging;
@@ -426,10 +427,11 @@ public sealed class TrayApplicationContext : ApplicationContext
         var profile = profileSelectionService.GetProfileToEnable(configuration, status, preferredProfileId)
             ?? throw new DnsOperationFailedException(localizer["TrayNoStaticProfiles"]);
 
+        var warnings = await BuildApplyWarningsAsync(profile).ConfigureAwait(true);
         await host.AgentDnsSwitchService.ApplyProfileAsync(profile.Id).ConfigureAwait(true);
 
         preferredProfileId = profile.Id;
-        ShowSuccess(localizer.Format("TrayDnsEnabledFormat", profile.Name));
+        ShowApplySuccess(localizer.Format("TrayDnsEnabledFormat", profile.Name), warnings);
     }
 
     private async Task DisableDnsAsync()
@@ -455,20 +457,23 @@ public sealed class TrayApplicationContext : ApplicationContext
         var profile = profileSelectionService.GetNextProfile(configuration, status, preferredProfileId)
             ?? throw new DnsOperationFailedException(localizer["TrayNoStaticProfiles"]);
 
+        var warnings = await BuildApplyWarningsAsync(profile).ConfigureAwait(true);
         await host.AgentDnsSwitchService.ApplyProfileAsync(profile.Id).ConfigureAwait(true);
 
         preferredProfileId = profile.Id;
-        ShowSuccess(localizer.Format("TrayDnsSwitchedFormat", profile.Name));
+        ShowApplySuccess(localizer.Format("TrayDnsSwitchedFormat", profile.Name), warnings);
     }
 
     private async Task ApplyProfileAsync(string profileId)
     {
         logger.LogInformation("Tray requested apply profile {ProfileId}.", profileId);
+        var profile = await host.ProfileService.GetRequiredProfileAsync(profileId).ConfigureAwait(true);
+        var warnings = await BuildApplyWarningsAsync(profile).ConfigureAwait(true);
+
         await host.AgentDnsSwitchService.ApplyProfileAsync(profileId).ConfigureAwait(true);
         preferredProfileId = profileId;
 
-        var profile = await host.ProfileService.GetRequiredProfileAsync(profileId).ConfigureAwait(true);
-        ShowSuccess(localizer.Format("TrayDnsSwitchedFormat", profile.Name));
+        ShowApplySuccess(localizer.Format("TrayDnsSwitchedFormat", profile.Name), warnings);
     }
 
     private async Task TestDnsAsync()
@@ -1049,6 +1054,51 @@ public sealed class TrayApplicationContext : ApplicationContext
             logger.LogWarning(exception, "Tray settings could not be loaded. Default tray settings will be used.");
             return TraySettings.Default;
         }
+    }
+
+    private async Task<IReadOnlyList<DnsApplyWarning>> BuildApplyWarningsAsync(DnsProfile profile)
+    {
+        var adapter = await host.NetworkAdapterService.GetSelectedAdapterAsync(null).ConfigureAwait(true);
+        return adapter is null
+            ? []
+            : DnsApplyWarningBuilder.Build(profile, adapter);
+    }
+
+    private void ShowApplySuccess(string message, IReadOnlyList<DnsApplyWarning> warnings)
+    {
+        if (warnings.Count == 0)
+        {
+            ShowSuccess(message);
+            return;
+        }
+
+        var fullMessage = string.Join(
+            Environment.NewLine,
+            new[] { message }.Concat(warnings.Select(FormatApplyWarning)));
+
+        if (!traySettings.NotificationsEnabled)
+        {
+            ShowInformation(localizer["DnsSwitcherTrayTitle"], fullMessage);
+            return;
+        }
+
+        ShowSuccess(fullMessage);
+    }
+
+    private string FormatApplyWarning(DnsApplyWarning warning)
+    {
+        return warning.Kind switch
+        {
+            DnsApplyWarningKind.UnsupportedIpv4Skipped => localizer.Format(
+                "ApplyWarningIpv4SkippedFormat",
+                warning.AdapterName,
+                warning.ProfileName),
+            DnsApplyWarningKind.UnsupportedIpv6Skipped => localizer.Format(
+                "ApplyWarningIpv6SkippedFormat",
+                warning.AdapterName,
+                warning.ProfileName),
+            _ => localizer["ApplyWarningGeneric"],
+        };
     }
 
     private void ShowSuccess(string message)
