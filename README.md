@@ -246,6 +246,12 @@ Full example: [`docs/profiles.example.json`](docs/profiles.example.json)
 
 ## Build
 
+Environment setup (Windows, PowerShell):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev-setup.ps1
+```
+
 Build and test:
 
 ```powershell

@@ -98,7 +98,9 @@ internal sealed class DnsAgentWorker(
         catch (Exception exception)
         {
             logger.LogError(exception, "Unexpected agent failure while handling a request.");
-            response = AgentResponse.Fail(AgentErrorCode.InternalError, exception.Message);
+            response = AgentResponse.Fail(
+                AgentErrorCode.InternalError,
+                "Unexpected internal agent error. Check service logs for details.");
         }
 
         await WriteResponseAsync(writer, response, cancellationToken).ConfigureAwait(false);
