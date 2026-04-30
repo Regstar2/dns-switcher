@@ -3,6 +3,8 @@ using System.Text;
 using System.Text.Json;
 using DnsSwitcher.Contracts;
 using DnsSwitcher.Core.Exceptions;
+using DnsSwitcher.Core.Models;
+using DnsSwitcher.Core.Services;
 using DnsSwitcher.Infrastructure.Windows;
 using DnsSwitcher.Infrastructure.Windows.Agent;
 using Microsoft.Extensions.Hosting;
@@ -117,6 +119,12 @@ internal sealed class DnsAgentWorker(
                         return AgentResponse.Fail(AgentErrorCode.InvalidRequest, "Profile payload is required.");
                     }
 
+                    var profileValidationError = ValidateProfile(request.Profile);
+                    if (profileValidationError is not null)
+                    {
+                        return AgentResponse.Fail(AgentErrorCode.InvalidRequest, profileValidationError);
+                    }
+
                     await host.DnsManager.ApplyProfileAsync(request.Profile, request.AdapterSelection, cancellationToken)
                         .ConfigureAwait(false);
                     return AgentResponse.Ok();
@@ -165,6 +173,19 @@ internal sealed class DnsAgentWorker(
         {
             return AgentResponse.Fail(AgentErrorCode.DnsOperationFailed, exception.Message);
         }
+    }
+
+    private static string? ValidateProfile(DnsProfile profile)
+    {
+        var validationConfig = new AppConfig
+        {
+            Version = AppConfig.CurrentVersion,
+            ActiveProfileId = null,
+            Profiles = [profile],
+        };
+
+        var firstError = AppConfigValidator.Validate(validationConfig).FirstOrDefault();
+        return firstError?.Message;
     }
 
     private static async Task WriteResponseAsync(

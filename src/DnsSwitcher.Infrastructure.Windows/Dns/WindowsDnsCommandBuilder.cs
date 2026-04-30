@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Net;
+using System.Net.Sockets;
 using DnsSwitcher.Core.Exceptions;
 using DnsSwitcher.Core.Models;
 
@@ -34,6 +36,7 @@ internal static class WindowsDnsCommandBuilder
             commands,
             interfaceTarget,
             "ipv4",
+            AddressFamily.InterNetwork,
             supportsIpv4,
             profile,
             profile.Ipv4);
@@ -42,6 +45,7 @@ internal static class WindowsDnsCommandBuilder
             commands,
             interfaceTarget,
             "ipv6",
+            AddressFamily.InterNetworkV6,
             supportsIpv6,
             profile,
             profile.Ipv6);
@@ -72,6 +76,7 @@ internal static class WindowsDnsCommandBuilder
         ICollection<WindowsProcessCommand> commands,
         string interfaceTarget,
         string familyToken,
+        AddressFamily expectedAddressFamily,
         bool isSupported,
         DnsProfile profile,
         IReadOnlyList<string> servers)
@@ -87,12 +92,28 @@ internal static class WindowsDnsCommandBuilder
             return;
         }
 
-        commands.Add(BuildSetPrimaryFamilyCommand(interfaceTarget, familyToken, servers[0]));
+        commands.Add(BuildSetPrimaryFamilyCommand(interfaceTarget, familyToken, ValidateServerAddress(servers[0], expectedAddressFamily, profile)));
 
         for (var index = 1; index < servers.Count; index++)
         {
-            commands.Add(BuildAddFamilyCommand(interfaceTarget, familyToken, servers[index], index + 1));
+            commands.Add(BuildAddFamilyCommand(
+                interfaceTarget,
+                familyToken,
+                ValidateServerAddress(servers[index], expectedAddressFamily, profile),
+                index + 1));
         }
+    }
+
+    private static string ValidateServerAddress(string address, AddressFamily expectedAddressFamily, DnsProfile profile)
+    {
+        if (IPAddress.TryParse(address, out var parsed) && parsed.AddressFamily == expectedAddressFamily)
+        {
+            return address;
+        }
+
+        var familyName = expectedAddressFamily == AddressFamily.InterNetwork ? "IPv4" : "IPv6";
+        throw new DnsOperationFailedException(
+            $"DNS profile '{profile.Id}' contains invalid {familyName} DNS address '{address}'.");
     }
 
     private static WindowsProcessCommand BuildResetFamilyCommand(string interfaceTarget, string familyToken)

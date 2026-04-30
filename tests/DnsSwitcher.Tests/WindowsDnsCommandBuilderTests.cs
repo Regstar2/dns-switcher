@@ -70,4 +70,38 @@ public sealed class WindowsDnsCommandBuilderTests
         Assert.Single(commands);
         Assert.Equal("interface ipv4 set dnsservers name=\"Ethernet\" source=dhcp", commands[0].Arguments);
     }
+
+    [Fact]
+    public void BuildApplyCommands_Throws_WhenIpv4AddressIsInvalid()
+    {
+        var profile = new DnsProfile
+        {
+            Id = "bad-ipv4",
+            Name = "Bad IPv4",
+            Mode = ProfileMode.Static,
+            Ipv4 = ["8.8.8.8 && whoami"],
+        };
+
+        var exception = Assert.Throws<DnsOperationFailedException>(() =>
+            WindowsDnsCommandBuilder.BuildApplyCommands("12", "Wi-Fi", NetworkStackSupport.Ipv4, profile));
+
+        Assert.Contains("invalid IPv4 DNS address", exception.Message);
+    }
+
+    [Fact]
+    public void BuildApplyCommands_Throws_WhenIpv6AddressIsInvalid()
+    {
+        var profile = new DnsProfile
+        {
+            Id = "bad-ipv6",
+            Name = "Bad IPv6",
+            Mode = ProfileMode.Static,
+            Ipv6 = ["2606:4700:4700::1111\" test"],
+        };
+
+        var exception = Assert.Throws<DnsOperationFailedException>(() =>
+            WindowsDnsCommandBuilder.BuildApplyCommands("12", "Wi-Fi", NetworkStackSupport.Ipv6, profile));
+
+        Assert.Contains("invalid IPv6 DNS address", exception.Message);
+    }
 }
