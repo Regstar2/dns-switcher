@@ -8,9 +8,22 @@ using Microsoft.Extensions.Logging;
 
 namespace DnsSwitcher.Infrastructure.Windows.Agent;
 
-public sealed class NamedPipeDnsAgentClient(ILogger<NamedPipeDnsAgentClient> logger) : IDnsAgentClient
+public sealed class NamedPipeDnsAgentClient : IDnsAgentClient
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly ILogger<NamedPipeDnsAgentClient> logger;
+    private readonly string pipeName;
+    private readonly TimeSpan operationTimeout;
+
+    public NamedPipeDnsAgentClient(
+        ILogger<NamedPipeDnsAgentClient> logger,
+        string? pipeName = null,
+        TimeSpan? operationTimeout = null)
+    {
+        this.logger = logger;
+        this.pipeName = string.IsNullOrWhiteSpace(pipeName) ? AgentProtocol.PipeName : pipeName;
+        this.operationTimeout = operationTimeout ?? TimeSpan.FromSeconds(2);
+    }
 
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default)
     {
@@ -119,12 +132,12 @@ public sealed class NamedPipeDnsAgentClient(ILogger<NamedPipeDnsAgentClient> log
         {
             using var client = new NamedPipeClientStream(
                 ".",
-                AgentProtocol.PipeName,
+                pipeName,
                 PipeDirection.InOut,
                 PipeOptions.Asynchronous);
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCts.CancelAfter(TimeSpan.FromSeconds(2));
+            timeoutCts.CancelAfter(operationTimeout);
 
             await client.ConnectAsync(timeoutCts.Token).ConfigureAwait(false);
 

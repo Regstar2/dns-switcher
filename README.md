@@ -287,6 +287,7 @@ Release docs:
 - [`DNS_HEALTH_FAILOVER.md`](DNS_HEALTH_FAILOVER.md)
 - [`SPLIT_DNS.md`](SPLIT_DNS.md)
 - [`STORE_READINESS.md`](STORE_READINESS.md)
+- [`docs/ipc-integration-tests.md`](docs/ipc-integration-tests.md)
 
 ## Limitations
 

@@ -33,6 +33,23 @@ function Add-UserPathEntry([string]$PathEntry)
     [Environment]::SetEnvironmentVariable("Path", $updated, "User")
 }
 
+function Clear-InvalidLibEnvironment()
+{
+    $currentProcessLib = $env:LIB
+    if (-not [string]::IsNullOrWhiteSpace($currentProcessLib) -and $currentProcessLib -match "masm32")
+    {
+        Write-Step "Clearing process LIB variable (legacy masm32 path)"
+        Remove-Item Env:LIB -ErrorAction SilentlyContinue
+    }
+
+    $userLib = [Environment]::GetEnvironmentVariable("LIB", "User")
+    if (-not [string]::IsNullOrWhiteSpace($userLib) -and $userLib -match "masm32")
+    {
+        Write-Step "Removing user LIB variable with legacy masm32 path"
+        [Environment]::SetEnvironmentVariable("LIB", $null, "User")
+    }
+}
+
 Write-Step "Checking .NET SDKs"
 $dotnetOnPath = Get-Command dotnet -ErrorAction SilentlyContinue
 $hasRequestedSdk = $false
@@ -66,6 +83,8 @@ if (-not (Test-Path $dotnetExe))
     throw "dotnet.exe was not found at '$dotnetExe'."
 }
 
+Clear-InvalidLibEnvironment
+
 Write-Step "Restoring solution"
 & $dotnetExe restore "$PSScriptRoot\..\DnsSwitcher.sln"
 
@@ -73,7 +92,7 @@ Write-Step "Building solution (Release)"
 & $dotnetExe build "$PSScriptRoot\..\DnsSwitcher.sln" -c Release --no-restore
 
 Write-Step "Running tests"
-& $dotnetExe test "$PSScriptRoot\..\tests\DnsSwitcher.Tests\DnsSwitcher.Tests.csproj" -c Release --no-build
+& $dotnetExe test "$PSScriptRoot\..\DnsSwitcher.sln" -c Release --no-build
 
 Write-Host ""
 Write-Host "Development environment is ready." -ForegroundColor Green
