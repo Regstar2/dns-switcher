@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.4.1] - 2026-04-30
+
+Release metadata and packaging version update for portable and installer artifacts.
+
+### Changed
+
+- Bumped assembly and informational version metadata to `1.4.1`
+- Updated portable release script defaults and release documentation paths to `v1.4.1`
+- Updated installer build defaults and output naming to `1.4.1`
+- Added `v1.4.1` candidate path for desktop sibling executable discovery
+
 ## [1.4.0] - 2026-04-16
 
 Public release preparation with portable and installer delivery tracks.

@@ -41,6 +41,7 @@ public static class DesktopClientLayout
             siblingProjectOutputPath,
             Path.Combine(applicationRoot, $"{projectName}.exe"),
             Path.Combine(applicationRoot, publishedFolderName, $"{projectName}.exe"),
+            Path.Combine(applicationRoot, "artifacts", "release", "v1.4.1", publishedFolderName, $"{projectName}.exe"),
             Path.Combine(applicationRoot, "artifacts", "release", "v1.4.0", publishedFolderName, $"{projectName}.exe"),
             Path.Combine(applicationRoot, "artifacts", "release", "v1.3.0", publishedFolderName, $"{projectName}.exe"),
             Path.Combine(applicationRoot, "artifacts", "release", "v1.0", publishedFolderName, $"{projectName}.exe"),

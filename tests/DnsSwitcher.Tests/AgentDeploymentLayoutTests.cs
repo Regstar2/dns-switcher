@@ -38,7 +38,7 @@ public sealed class AgentDeploymentLayoutTests
     public void GetApplicationRoot_ReturnsPackageRoot_WhenPublishedPackageIsInsideRepository()
     {
         var tempRoot = Path.Combine(Path.GetTempPath(), "DnsSwitcherTests", Guid.NewGuid().ToString("N"));
-        var packageRoot = Path.Combine(tempRoot, "artifacts", "release", "v1.4.0", "DnsSwitcher-1.4.0-win-x64");
+        var packageRoot = Path.Combine(tempRoot, "artifacts", "release", "v1.4.1", "DnsSwitcher-1.4.1-win-x64");
         var cliDirectory = Path.Combine(packageRoot, "cli");
 
         try

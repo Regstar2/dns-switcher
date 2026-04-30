@@ -174,7 +174,7 @@ dotnet run --project src/DnsSwitcher.Cli
 
 ### Screenshots
 
-Screenshots are intentionally not included in `v1.4.0` yet.
+Screenshots are intentionally not included in `v1.4.1` yet.
 UI and tray screenshots can be added later without changing the shipped functionality.
 
 ## Tray
@@ -270,13 +270,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-release.ps
 The release archive is written under:
 
 ```text
-artifacts/release/v1.4.0/
+artifacts/release/v1.4.1/
 ```
 
 Build installer:
 
 ```powershell
-.\installer\build-installer.ps1 -Version 1.4.0 -Runtime win-x64
+.\installer\build-installer.ps1 -Version 1.4.1 -Runtime win-x64
 ```
 
 Release docs:
@@ -295,7 +295,7 @@ Release docs:
 - DNS changes still depend on Windows networking APIs and command-line tools
 - Agent/service installation requires administrator rights
 - Split DNS uses Windows NRPT and can be bypassed by apps using their own DNS/DoH stack
-- Without screenshots, portfolio presentation is documentation-first in `v1.4.0`
+- Without screenshots, portfolio presentation is documentation-first in `v1.4.1`
 - CLI is still not fully localized
 - Private DNS profiles should stay in local ignored config files and must not be committed
 

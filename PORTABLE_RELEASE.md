@@ -102,13 +102,13 @@ After install, the UI Agent window and Tray Agent submenu can manage the service
 ## Building portable release
 
 ```powershell
-.\scripts\publish-release.ps1 -Version 1.4.0 -Runtime win-x64
+.\scripts\publish-release.ps1 -Version 1.4.1 -Runtime win-x64
 ```
 
 Output:
 
 ```text
-artifacts\release\v1.4.0\DnsSwitcher-1.4.0-win-x64.zip
+artifacts\release\v1.4.1\DnsSwitcher-1.4.1-win-x64.zip
 ```
 
 ## Updating portable release

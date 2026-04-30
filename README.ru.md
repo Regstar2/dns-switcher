@@ -174,7 +174,7 @@ dotnet run --project src/DnsSwitcher.Cli
 
 ### Скриншоты
 
-Скриншоты намеренно не включены в `v1.4.0`.
+Скриншоты намеренно не включены в `v1.4.1`.
 Их можно добавить позже без изменения поставляемой функциональности.
 
 ## Tray
@@ -264,13 +264,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-release.ps
 Архив будет создан в:
 
 ```text
-artifacts/release/v1.4.0/
+artifacts/release/v1.4.1/
 ```
 
 Собрать installer:
 
 ```powershell
-.\installer\build-installer.ps1 -Version 1.4.0 -Runtime win-x64
+.\installer\build-installer.ps1 -Version 1.4.1 -Runtime win-x64
 ```
 
 Release-документация:
@@ -288,7 +288,7 @@ Release-документация:
 - Изменение DNS зависит от Windows networking APIs и системных command-line tools
 - Установка агента требует прав администратора
 - Split DNS использует Windows NRPT и может обходиться приложениями с собственным DNS/DoH стеком
-- В `v1.4.0` скриншоты пока не добавлены
+- В `v1.4.1` скриншоты пока не добавлены
 - CLI пока не полностью локализован
 - Частные DNS-профили должны оставаться в локальных ignored config-файлах и не должны попадать в коммиты
 

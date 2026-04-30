@@ -1,6 +1,6 @@
 # Release Checklist
 
-## v1.4.0
+## v1.4.1
 
 1. Verify working tree does not contain private config:
 
@@ -20,31 +20,31 @@ dotnet test tests\DnsSwitcher.Tests\DnsSwitcher.Tests.csproj -c Release /p:UseSh
 3. Create release package:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1 -Version 1.4.0 -Runtime win-x64
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1 -Version 1.4.1 -Runtime win-x64
 ```
 
 4. Optional installer build:
 
 ```powershell
-.\installer\build-installer.ps1 -Version 1.4.0 -Runtime win-x64
+.\installer\build-installer.ps1 -Version 1.4.1 -Runtime win-x64
 ```
 
 5. Check release output:
 
 ```text
-artifacts/release/v1.4.0/DnsSwitcher-1.4.0-win-x64.zip
-artifacts/installer/v1.4.0/DnsSwitcher-1.4.0-win-x64-setup.exe
+artifacts/release/v1.4.1/DnsSwitcher-1.4.1-win-x64.zip
+artifacts/installer/v1.4.1/DnsSwitcher-1.4.1-win-x64-setup.exe
 ```
 
 6. Tag after the release commit:
 
 ```powershell
-git tag v1.4.0
+git tag v1.4.1
 git push
-git push origin v1.4.0
+git push origin v1.4.1
 ```
 
-7. Attach the zip from `artifacts/release/v1.4.0/` to the GitHub release.
+7. Attach the zip from `artifacts/release/v1.4.1/` to the GitHub release.
 
 ## Notes
 

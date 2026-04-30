@@ -16,13 +16,13 @@ WiX is still a valid future option if MSI/MSIX enterprise packaging becomes impo
 Install Inno Setup 6, then run:
 
 ```powershell
-.\installer\build-installer.ps1 -Version 1.4.0 -Runtime win-x64
+.\installer\build-installer.ps1 -Version 1.4.1 -Runtime win-x64
 ```
 
 Output:
 
 ```text
-artifacts\installer\v1.4.0\DnsSwitcher-1.4.0-win-x64-setup.exe
+artifacts\installer\v1.4.1\DnsSwitcher-1.4.1-win-x64-setup.exe
 ```
 
 ## Install behavior
