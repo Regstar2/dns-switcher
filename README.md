@@ -7,7 +7,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows-0078D4?logo=windows&logoColor=white)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
 ![Version](https://img.shields.io/badge/version-1.4.1-blue)
-![License](https://img.shields.io/badge/license-All%20rights%20reserved-lightgrey)
+[![License: MIT](https://img.shields.io/badge/license-MIT-2EA44F)](LICENSE.md)
 
 **Русский** · [English](README_EN.md)
 
@@ -240,4 +240,4 @@ dotnet test DnsSwitcher.sln -c Release
 
 ## Лицензия
 
-В репозитории не опубликована открытая лицензия. До явного выбора лицензии код не предоставляется для копирования, изменения или распространения. См. [`LICENSE.md`](LICENSE.md).
+Проект распространяется по лицензии MIT. См. [`LICENSE.md`](LICENSE.md).
