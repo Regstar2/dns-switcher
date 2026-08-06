@@ -4,6 +4,11 @@
 
 A portable Windows application for switching DNS profiles through a desktop UI, system tray, or CLI, with one shared core for every client.
 
+![Platform](https://img.shields.io/badge/platform-Windows-0078D4?logo=windows&logoColor=white)
+![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
+![Version](https://img.shields.io/badge/version-1.4.1-blue)
+![License](https://img.shields.io/badge/license-All%20rights%20reserved-lightgrey)
+
 [Русский](README.md) · **English**
 
 [Quick start](#quick-start) · [Documentation](#documentation) · [Releases](../../releases)
