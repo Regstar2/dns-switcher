@@ -7,7 +7,7 @@ A portable Windows application for switching DNS profiles through a desktop UI, 
 ![Platform](https://img.shields.io/badge/platform-Windows-0078D4?logo=windows&logoColor=white)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
 ![Version](https://img.shields.io/badge/version-1.4.1-blue)
-![License](https://img.shields.io/badge/license-All%20rights%20reserved-lightgrey)
+[![License: MIT](https://img.shields.io/badge/license-MIT-2EA44F)](LICENSE.md)
 
 [Русский](README.md) · **English**
 
@@ -240,4 +240,4 @@ The solution contains unit tests and a separate IPC integration test project. Ma
 
 ## License
 
-No open-source license is currently published. Until a license is explicitly selected, the code is not granted for copying, modification, or redistribution. See [`LICENSE.md`](LICENSE.md).
+The project is distributed under the MIT License. See [`LICENSE.md`](LICENSE.md).

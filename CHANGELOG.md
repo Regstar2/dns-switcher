@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Adopted the MIT License for the repository source and documentation.
+- Revised the Russian and English `v1.4.1` release notes to the current release standard without modifying the historical tag.
+
 ## [1.4.1] - 2026-04-30
 
 Release metadata and packaging version update for portable and installer artifacts.
@@ -49,7 +56,7 @@ Release candidate for the current desktop/tray workflow.
 
 - UI profile management: create, edit, delete, import, and export DNS profiles
 - Editable per-profile DNS test domains and site test URLs
-- DNS benchmark flow across switchable profiles with latency comparison, best-profile selection, history storage, and restore of original DNS settings
+- DNS benchmark flow across switchable DNS profiles with latency comparison, best-profile selection, history storage, and restore of original DNS settings
 - UI settings for language, theme, autostart, and continue-in-tray behavior
 - Automatic system language detection with Russian and English UI resources
 - Automatic system theme detection with manual light/dark/system selection
