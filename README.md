@@ -4,6 +4,11 @@
 
 Портативное приложение для Windows, которое переключает DNS-профили через desktop UI, системный трей или CLI и использует общее ядро для всех клиентов.
 
+![Platform](https://img.shields.io/badge/platform-Windows-0078D4?logo=windows&logoColor=white)
+![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
+![Version](https://img.shields.io/badge/version-1.4.1-blue)
+![License](https://img.shields.io/badge/license-All%20rights%20reserved-lightgrey)
+
 **Русский** · [English](README_EN.md)
 
 [Быстрый старт](#быстрый-старт) · [Документация](#документация) · [Релизы](../../releases)
