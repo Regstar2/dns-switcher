@@ -1,94 +1,91 @@
+<div align="center">
+
 # DnsSwitcher
 
-[Русская версия](README.ru.md)
+Портативное приложение для Windows, которое переключает DNS-профили через desktop UI, системный трей или CLI и использует общее ядро для всех клиентов.
 
-Portable Windows utility for fast DNS profile switching with a shared core, CLI, desktop UI, tray client, and built-in diagnostics.
+**Русский** · [English](README_EN.md)
 
-## Overview
+[Быстрый старт](#быстрый-старт) · [Документация](#документация) · [Релизы](../../releases)
 
-`DnsSwitcher` is a Windows-first project for managing DNS profiles without scattering logic across multiple apps.  
-One shared core drives three clients:
+</div>
 
-- `DnsSwitcher.Cli` for commands and automation
-- `DnsSwitcher.Ui` for regular desktop usage
-- `DnsSwitcher.Tray` for instant switching from the system tray
+## О проекте
 
-The project also includes a privileged Windows agent so UI and tray can change DNS without requiring elevation on every action.
+`DnsSwitcher` предназначен для пользователей Windows, которым нужно быстро применять сохранённые DNS-профили, возвращаться к автоматическим настройкам и диагностировать проблемы с DNS или доступностью сайтов.
 
-## Features
+CLI, WPF-приложение и tray-клиент используют общие модели и сервисы. Привилегированные операции могут выполняться через Windows-службу `DnsSwitcher.Agent.Windows`, чтобы не запрашивать повышение прав при каждом переключении.
 
-- Portable data layout stored next to the app
-- DNS profile storage in `profiles.json`
-- Fast apply/reset workflow
-- Current DNS status detection
-- Default network adapter selection
-- DNS diagnostics by domain
-- Site accessibility diagnostics by URL
-- Multi-profile DNS benchmark with best-profile selection and history storage
-- Optional DNS health failover monitor
-- Optional Split DNS through Windows NRPT rules
-- Interactive console mode for users who prefer a console menu
-- Desktop UI for standard usage
-- Tray client for fast switching
-- Automatic language selection from the system with manual override
-- Automatic light/dark UI theme from the system with manual override
-- UI profile create/edit/delete plus import/export
-- Agent/service model for privileged DNS operations
-- File logging and graceful error handling
+## Статус проекта
 
-## Architecture
+Текущая версия исходного кода — `1.4.1`. Реализованы основные сценарии переключения DNS, диагностики, управления профилями, DNS Health Failover и Split DNS. Проект поддерживает только Windows и использует `.NET 10`.
 
-```text
-DnsSwitcher.Core
-  Models, validation, services, selection logic, DNS/site test orchestration
+Сборка и тесты не запускались в рамках изменения документации; ниже приведены команды, зафиксированные в репозитории.
 
-DnsSwitcher.Infrastructure.Windows
-  Windows DNS management, adapter discovery, config storage, logging, IPC client
+## Возможности
 
-DnsSwitcher.Agent.Windows
-  Privileged Windows Service / agent over Named Pipes
+- применение статических DNS-профилей и возврат к DHCP;
+- CLI, интерактивный консольный режим, WPF UI и tray-клиент;
+- создание, редактирование, удаление, импорт и экспорт профилей;
+- определение текущего DNS и выбор сетевого адаптера;
+- DNS-, site- и benchmark-диагностика;
+- опциональный DNS Health Failover;
+- опциональный Split DNS через Windows NRPT;
+- Windows-служба и Named Pipes для привилегированных операций;
+- переносимое хранение конфигурации и логов рядом с приложением;
+- русский и английский интерфейс, системная светлая или тёмная тема.
 
-DnsSwitcher.Cli
-  Command-line and interactive console client
+## Быстрый старт
 
-DnsSwitcher.Ui
-  WPF desktop client
+Требуется Windows и установленный `.NET 10 SDK`.
 
-DnsSwitcher.Tray
-  WinForms tray client
-
-DnsSwitcher.Tests
-  Unit tests for config, validation, adapter selection, matching, and diagnostics
+```powershell
+git clone https://github.com/Regstar2/DnsSwitcher.git
+cd DnsSwitcher
+dotnet restore DnsSwitcher.sln
+dotnet run --project src/DnsSwitcher.Ui -c Release
 ```
 
-### Runtime flow
+Для изменения DNS без установленного агента запустите приложение с правами администратора. Установку и управление агентом можно выполнить из UI, tray или CLI.
 
-- `CLI`, `UI`, and `Tray` use the same shared core.
-- Privileged DNS changes go through `DnsSwitcher.Agent.Windows` when available.
-- If the agent is unavailable, direct fallback is possible only from an elevated process.
-- Config and logs are portable and live under the app directory.
+## Требования
 
-## Stack
+- Windows 10/11 или совместимая Windows-среда;
+- `.NET 10 SDK` для сборки из исходников;
+- права администратора для установки службы и прямого изменения системных DNS-настроек;
+- Inno Setup 6 — только для сборки установщика.
 
-- C# / .NET 10
-- WPF for desktop UI
-- WinForms `NotifyIcon` for tray
-- Windows Service hosting for the agent
-- Named Pipes for IPC
-- xUnit for unit tests
+## Установка
 
-## Projects
+Доступны два сценария поставки:
 
-- `src/DnsSwitcher.Core`
-- `src/DnsSwitcher.Infrastructure.Windows`
-- `src/DnsSwitcher.Contracts`
-- `src/DnsSwitcher.Agent.Windows`
-- `src/DnsSwitcher.Cli`
-- `src/DnsSwitcher.Ui`
-- `src/DnsSwitcher.Tray`
-- `tests/DnsSwitcher.Tests`
+- portable-пакет, который хранит данные внутри собственной папки;
+- установщик Inno Setup с регистрацией приложения и поддержкой службы.
 
-## Portable layout
+Подробности: [`PORTABLE_RELEASE.md`](PORTABLE_RELEASE.md), [`INSTALLER_RELEASE.md`](INSTALLER_RELEASE.md) и [`SERVICE_INSTALL.md`](SERVICE_INSTALL.md).
+
+## Использование
+
+Основной сценарий:
+
+1. Создайте или импортируйте DNS-профиль.
+2. Выберите сетевой адаптер.
+3. Примените профиль через UI, tray или CLI.
+4. Используйте `status`, DNS test или site test для проверки.
+5. Выполните `reset`, чтобы вернуть автоматический DNS.
+
+Профили с приватными адресами и внутренними доменами следует хранить только в локальных файлах конфигурации.
+
+## Режимы работы
+
+- **UI** — управление профилями, диагностикой, агентом, DNS Health Failover и Split DNS.
+- **Tray** — быстрое переключение и основные действия без открытия главного окна.
+- **CLI** — команды для ручного использования и автоматизации.
+- **Agent** — Windows-служба, выполняющая привилегированные операции через Named Pipes.
+
+## Конфигурация
+
+Данные хранятся в каталоге `data/` рядом с приложением:
 
 ```text
 data/
@@ -105,211 +102,137 @@ data/
     dns-switcher.log
 ```
 
-During development, clients started from this repository share the solution-level `data/config/profiles.json` path when available.
+Пример профилей: [`docs/profiles.example.json`](docs/profiles.example.json).
 
-## CLI
+## Команды
 
-Run help:
+Показать справку:
 
 ```powershell
 dotnet run --project src/DnsSwitcher.Cli -- help
 ```
 
-Main commands:
+Основные команды:
 
-```powershell
-dns-switcher profiles
-dns-switcher adapters
-dns-switcher status
-dns-switcher current
-dns-switcher apply <profile-id>
-dns-switcher reset
-dns-switcher test
-dns-switcher test-sites
-dns-switcher benchmark
-dns-switcher health <status|enable|disable|check|chain|fallback|action|domains>
-dns-switcher split-dns <status|enable|disable|list|add|remove|update|enable-rule|disable-rule|test|apply|reset>
-dns-switcher validate-config
-dns-switcher service <install|reinstall|uninstall|start|stop|status>
+```text
+profiles
+adapters
+status
+current
+apply <profile-id>
+reset
+test
+test-sites
+benchmark
+health <status|enable|disable|check|chain|fallback|action|domains>
+split-dns <status|enable|disable|list|add|remove|update|enable-rule|disable-rule|test|apply|reset>
+validate-config
+service <install|reinstall|uninstall|start|stop|status>
 ```
 
-Global options:
+Глобальные параметры: `--adapter <id|name>` и `--config <path>`.
 
-```powershell
---adapter <id|name>
---config <path>
+## Архитектура
+
+```text
+CLI / WPF UI / Tray
+        │
+        ▼
+DnsSwitcher.Core
+        │
+        ├── DnsSwitcher.Infrastructure.Windows
+        └── DnsSwitcher.Contracts ── Named Pipes ── DnsSwitcher.Agent.Windows
 ```
 
-Interactive console mode:
+Domain-логика и сценарии диагностики находятся в `DnsSwitcher.Core`; Windows-специфичная работа с адаптерами, DNS, файлами и IPC вынесена в инфраструктурный проект. Подробнее: [`docs/architecture/README.md`](docs/architecture/README.md).
 
-```powershell
-dotnet run --project src/DnsSwitcher.Cli
-```
+## Безопасность
 
-## UI
+Изменение системных DNS-настроек является привилегированной операцией. Агент принимает запросы через локальный Named Pipe, а входные данные профилей валидируются до выполнения системных команд.
 
-`DnsSwitcher.Ui` provides:
+Не добавляйте в репозиторий приватные DNS-профили, секреты, внутренние домены и локальные конфигурации. Каталог `data/` исключён из Git.
 
-- profile list
-- adapter selection
-- current DNS status block
-- apply/reset actions
-- DNS test
-- site test
-- profile benchmark
-- DNS health check and health monitor toggle
-- DNS Health Failover settings window with thresholds, cooldown, action mode, fallback profile, failover chain, test domains, and expected IPs
-- Split DNS rules editor with add/edit/delete/enable/disable/test/apply/reset
-- Agent manager window for install/reinstall/start/stop/uninstall/status
-- create/edit/delete profiles
-- import/export profiles
-- remember last selected adapter and profile
-- optional continue-in-tray behavior on window close
-- open config/log folders
-- optional Windows autostart for the tray client
-- automatic language/theme from the system
-- manual language selection
-- manual theme selection
-- background refresh for config and external state changes
+## Приватность
 
-### Screenshots
+Проект хранит конфигурацию, историю benchmark и логи локально. В репозитории не заявлены телеметрия или централизованный сбор пользовательских данных. Диагностические проверки обращаются к доменам и URL, заданным в профилях или конфигурации пользователя.
 
-Screenshots are intentionally not included in `v1.4.1` yet.
-UI and tray screenshots can be added later without changing the shipped functionality.
+## Диагностика
 
-## Tray
+- `test` проверяет DNS-резолвинг доменов;
+- `test-sites` последовательно проверяет DNS, TCP, TLS и HTTP;
+- `benchmark` сравнивает профили и восстанавливает исходные DNS-настройки;
+- `health` выполняет фоновые проверки и опциональные failover-действия;
+- `split-dns test` проверяет сопоставление домена с правилом NRPT.
 
-`DnsSwitcher.Tray` provides:
+Логи находятся в `data/logs/dns-switcher.log`. Интеграционные проверки IPC описаны в [`docs/ipc-integration-tests.md`](docs/ipc-integration-tests.md).
 
-- current state in tooltip/menu
-- enable DNS
-- disable DNS
-- switch next profile
-- profile list
-- DNS and site tests
-- profile benchmark
-- DNS health check and health monitor toggle
-- Split DNS status/apply/reset
-- Agent status/start/stop/reinstall submenu
-- persistent tray settings
-- open UI action
-- shared app language preference
-- shared app theme preference
+## Обновление
 
-## Diagnostics
+Для portable-версии распакуйте новую сборку в отдельную папку и перенесите каталог `data/` после резервного копирования. Для установленной версии используйте новый установщик той же архитектуры. Перед обновлением службы остановите агент или выполните переустановку через штатную команду.
 
-Three diagnostics are built in:
+## Резервное копирование и миграция
 
-- `test`
-  DNS resolution check using `testDomains`
-- `test-sites`
-  Site accessibility check using `testUrls` with staged:
-  DNS -> TCP -> TLS -> HTTP probing
-- `benchmark`
-  sequentially applies switchable DNS profiles, tests domains, compares latency, stores recent results, and restores the original DNS settings
-- `health`
-  optional background health checks with failover actions
-- `split-dns`
-  Windows NRPT-based per-namespace DNS routing
+Для переноса настроек сохраните каталог `data/config/`. Не переносите старые исполняемые файлы поверх новой версии без проверки структуры пакета.
 
-These are kept separate on purpose so DNS issues, HTTP/connectivity issues, and profile comparison are not mixed into one unclear result.
+## Разработка
 
-## Example config
-
-Full example: [`docs/profiles.example.json`](docs/profiles.example.json)
-
-```json
-{
-  "version": 1,
-  "activeProfileId": null,
-  "profiles": [
-    {
-      "id": "cloudflare",
-      "name": "Cloudflare",
-      "mode": "static",
-      "ipv4": ["1.1.1.1", "1.0.0.1"],
-      "ipv6": ["2606:4700:4700::1111", "2606:4700:4700::1001"],
-      "tags": ["public", "general"],
-      "testDomains": ["cloudflare.com", "openai.com"],
-      "testUrls": ["https://cloudflare.com/", "https://openai.com/"]
-    },
-    {
-      "id": "dhcp",
-      "name": "Automatic DNS",
-      "mode": "dhcp",
-      "ipv4": [],
-      "ipv6": []
-    }
-  ]
-}
-```
-
-## Build
-
-Environment setup (Windows, PowerShell):
+Подготовка Windows-среды:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev-setup.ps1
 ```
 
-Build and test:
+Решение разделено на `src/` и `tests/`; общие настройки сборки и версия находятся в `Directory.Build.props`.
+
+## Сборка
 
 ```powershell
+dotnet restore DnsSwitcher.sln
 dotnet build DnsSwitcher.sln -c Release
-dotnet test tests\DnsSwitcher.Tests\DnsSwitcher.Tests.csproj -c Release
 ```
 
-### Release Build
-
-Create a framework-dependent Windows release package:
+Portable-пакет:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1 -Version 1.4.1 -Runtime win-x64
 ```
 
-The release archive is written under:
-
-```text
-artifacts/release/v1.4.1/
-```
-
-Build installer:
+Установщик:
 
 ```powershell
 .\installer\build-installer.ps1 -Version 1.4.1 -Runtime win-x64
 ```
 
-Release docs:
+## Тестирование
 
-- [`PORTABLE_RELEASE.md`](PORTABLE_RELEASE.md)
-- [`SERVICE_INSTALL.md`](SERVICE_INSTALL.md)
-- [`INSTALLER_RELEASE.md`](INSTALLER_RELEASE.md)
-- [`DNS_HEALTH_FAILOVER.md`](DNS_HEALTH_FAILOVER.md)
-- [`SPLIT_DNS.md`](SPLIT_DNS.md)
-- [`STORE_READINESS.md`](STORE_READINESS.md)
-- [`docs/ipc-integration-tests.md`](docs/ipc-integration-tests.md)
+```powershell
+dotnet test DnsSwitcher.sln -c Release
+```
 
-## Limitations
+Решение содержит unit-тесты и отдельный проект интеграционных тестов IPC. Ручные проверки и ограничения среды следует фиксировать в [`docs/testing/`](docs/testing/README.md).
 
-- Windows-only
-- DNS changes still depend on Windows networking APIs and command-line tools
-- Agent/service installation requires administrator rights
-- Split DNS uses Windows NRPT and can be bypassed by apps using their own DNS/DoH stack
-- Without screenshots, portfolio presentation is documentation-first in `v1.4.1`
-- CLI is still not fully localized
-- Private DNS profiles should stay in local ignored config files and must not be committed
+## Документация
 
-## Portfolio notes
+- [Индекс документации](docs/README.md)
+- [Архитектура](docs/architecture/README.md)
+- [Release notes](docs/releases/README.md)
+- [Changelog](CHANGELOG.md)
+- [Portable release](PORTABLE_RELEASE.md)
+- [Установка службы](SERVICE_INSTALL.md)
+- [Установщик](INSTALLER_RELEASE.md)
+- [DNS Health Failover](DNS_HEALTH_FAILOVER.md)
+- [Split DNS](SPLIT_DNS.md)
+- [Готовность к Microsoft Store](STORE_READINESS.md)
 
-This project demonstrates:
+## Ограничения
 
-- layered architecture with a shared core
-- separation of domain logic from platform-specific infrastructure
-- multiple clients over one core
-- Windows service + IPC integration
-- validation, diagnostics, and error handling
-- iterative delivery from MVPs to a release-ready structure
+- поддерживается только Windows;
+- установка агента и прямое изменение DNS требуют прав администратора;
+- Split DNS основан на Windows NRPT и может обходиться приложениями с собственным DNS/DoH;
+- CLI локализован не полностью;
+- актуальные скриншоты интерфейса пока не опубликованы;
+- совместимость с неподтверждёнными версиями Windows и архитектурами не заявляется.
 
-## Changelog
+## Лицензия
 
-See [`CHANGELOG.md`](CHANGELOG.md).
+В репозитории не опубликована открытая лицензия. До явного выбора лицензии код не предоставляется для копирования, изменения или распространения. См. [`LICENSE.md`](LICENSE.md).
