@@ -10,6 +10,13 @@ public sealed class TransientStatusTextBlock : TextBlock
     private static readonly TimeSpan DismissDelay = TimeSpan.FromSeconds(5);
     private readonly DispatcherTimer dismissTimer;
 
+    static TransientStatusTextBlock()
+    {
+        TextProperty.OverrideMetadata(
+            typeof(TransientStatusTextBlock),
+            new FrameworkPropertyMetadata(string.Empty, OnTextPropertyChanged));
+    }
+
     public TransientStatusTextBlock()
     {
         dismissTimer = new DispatcherTimer { Interval = DismissDelay };
@@ -18,16 +25,16 @@ public sealed class TransientStatusTextBlock : TextBlock
         Unloaded += OnUnloaded;
     }
 
-    protected override void OnPropertyChanged(DependencyPropertyChangedEventArgs e)
+    private static void OnTextPropertyChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs e)
     {
-        base.OnPropertyChanged(e);
-
-        if (e.Property == TextProperty && IsLoaded)
+        if (dependencyObject is not TransientStatusTextBlock textBlock || !textBlock.IsLoaded)
         {
-            Dispatcher.BeginInvoke(
-                DispatcherPriority.Loaded,
-                new Action(RefreshNotificationState));
+            return;
         }
+
+        textBlock.Dispatcher.BeginInvoke(
+            DispatcherPriority.Loaded,
+            new Action(textBlock.RefreshNotificationState));
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
