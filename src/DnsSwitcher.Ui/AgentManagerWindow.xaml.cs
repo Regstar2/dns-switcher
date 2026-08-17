@@ -122,6 +122,20 @@ public partial class AgentManagerWindow : Window
         {
             var info = await host.AgentServiceManager.GetInfoAsync().ConfigureAwait(true);
             var agentAvailable = await host.AgentDnsSwitchService.IsAgentAvailableAsync().ConfigureAwait(true);
+            var isInstalled = !string.IsNullOrWhiteSpace(info.ServiceBinaryPath);
+            var isRunning = string.Equals(info.Status.ToString(), "Running", StringComparison.OrdinalIgnoreCase);
+
+            ServiceStatusValueTextBlock.Text = info.Status.ToString();
+            AgentConnectionValueTextBlock.Text = agentAvailable ? localizer["YesValue"] : localizer["NoValue"];
+            ServiceStatusValueTextBlock.Foreground = FindResource(isRunning ? "SuccessBrush" : "SecondaryTextBrush") as System.Windows.Media.Brush;
+            AgentConnectionValueTextBlock.Foreground = FindResource(agentAvailable ? "SuccessBrush" : "WarningBrush") as System.Windows.Media.Brush;
+
+            InstallButton.Visibility = isInstalled ? Visibility.Collapsed : Visibility.Visible;
+            ReinstallButton.Visibility = isInstalled ? Visibility.Visible : Visibility.Collapsed;
+            StartButton.Visibility = isInstalled && !isRunning ? Visibility.Visible : Visibility.Collapsed;
+            StopButton.Visibility = isRunning ? Visibility.Visible : Visibility.Collapsed;
+            UninstallButton.Visibility = isInstalled ? Visibility.Visible : Visibility.Collapsed;
+
             StatusTextBox.Text =
                 $"{localizer["AgentServiceStatusLine"]} {info.Status}{Environment.NewLine}" +
                 $"{localizer["AgentPipeAvailableLine"]} {(agentAvailable ? localizer["YesValue"] : localizer["NoValue"])}{Environment.NewLine}" +
@@ -138,6 +152,8 @@ public partial class AgentManagerWindow : Window
         }
         catch (Exception exception)
         {
+            ServiceStatusValueTextBlock.Text = localizer["UnknownValue"];
+            AgentConnectionValueTextBlock.Text = localizer["NoValue"];
             StatusTextBox.Text = FriendlyExceptionFormatter.ToUserMessage(exception);
         }
         finally
@@ -178,6 +194,9 @@ public partial class AgentManagerWindow : Window
     {
         Title = localizer["AgentWindowTitle"];
         HintTextBlock.Text = localizer["AgentWindowHint"];
+        ServiceStatusLabelTextBlock.Text = localizer["AgentServiceStatusLine"];
+        AgentConnectionLabelTextBlock.Text = localizer["AgentPipeAvailableLine"];
+        TechnicalHeaderTextBlock.Text = localizer["MoreButton"];
         InstallButton.Content = localizer["AgentInstallButton"];
         ReinstallButton.Content = localizer["AgentReinstallButton"];
         StartButton.Content = localizer["AgentStartButton"];

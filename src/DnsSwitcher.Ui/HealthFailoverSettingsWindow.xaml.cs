@@ -42,6 +42,7 @@ public partial class HealthFailoverSettingsWindow : Window
         TestDomainsTextBox.Text = string.Join(Environment.NewLine, settings.TestDomains);
         ExpectedAddressesTextBox.Text = FormatExpectedAddresses(settings.ExpectedAddresses);
         StateTextBox.Text = BuildStateText(state);
+        UpdateStateSummary(state);
         RefreshChainList();
     }
 
@@ -199,6 +200,14 @@ public partial class HealthFailoverSettingsWindow : Window
         ];
     }
 
+    private void UpdateStateSummary(DnsHealthState state)
+    {
+        StateStatusValueTextBlock.Text = state.Status.ToString();
+        StateActiveProfileValueTextBlock.Text = state.ActiveProfileId ?? localizer["NoneValue"];
+        StateFailuresValueTextBlock.Text = state.ConsecutiveFailures.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        StateLastCheckValueTextBlock.Text = state.LastCheckedUtc?.ToLocalTime().ToString("g") ?? localizer["NeverValue"];
+    }
+
     private string BuildStateText(DnsHealthState state)
     {
         return
@@ -317,6 +326,11 @@ public partial class HealthFailoverSettingsWindow : Window
         MoveChainDownButton.Content = localizer["MoveDownButton"];
         RemoveChainButton.Content = localizer["RemoveButton"];
         CurrentHealthStateGroupBox.Header = localizer["HealthCurrentStateHeader"];
+        StateStatusLabelTextBlock.Text = localizer["HealthStateStatusLine"];
+        StateActiveProfileLabelTextBlock.Text = localizer["HealthStateActiveProfileLine"];
+        StateFailuresLabelTextBlock.Text = localizer["HealthStateFailuresLine"];
+        StateLastCheckLabelTextBlock.Text = localizer["HealthStateLastCheckedLine"];
+        StateDetailsHeaderTextBlock.Text = localizer["MoreButton"];
         RunCheckButton.Content = localizer["RunCheckButton"];
         CancelButton.Content = localizer["CancelButton"];
         SaveButton.Content = localizer["SaveButton"];

@@ -5,32 +5,47 @@
         WindowStartupLocation="CenterOwner"
         SizeToContent="Manual"
         ResizeMode="CanResize"
-        MinWidth="480"
-        MinHeight="300">
-  <Grid Margin="12">
+        MinWidth="520"
+        MinHeight="340"
+        Background="{DynamicResource WindowBackgroundBrush}">
+  <Grid Margin="16">
     <Grid.RowDefinitions>
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
-    <TextBox x:Name="ContentTextBox"
-             Grid.Row="0"
-             IsReadOnly="True"
-             FontFamily="Consolas"
-             FontSize="12"
-             TextWrapping="NoWrap"
-             VerticalScrollBarVisibility="Auto"
-             HorizontalScrollBarVisibility="Auto" />
+    <Border Style="{StaticResource CardStyle}" Padding="0">
+      <TextBox x:Name="ContentTextBox"
+               IsReadOnly="True"
+               BorderThickness="0"
+               Background="Transparent"
+               Style="{StaticResource MonospaceTextBoxStyle}" />
+    </Border>
 
-    <StackPanel Grid.Row="1"
-                Margin="0,12,0,0"
-                Orientation="Horizontal"
-                HorizontalAlignment="Right">
-      <Button Width="84"
+    <Grid Grid.Row="1" Margin="0,12,0,0">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+      <Button x:Name="CopyButton"
+              Grid.Column="0"
+              Margin="0,0,6,0"
+              Style="{StaticResource IconButtonStyle}"
+              Click="OnCopyClicked"
+              Content="&#xE8C8;"
+              ToolTip="Ctrl+C"
+              AutomationProperties.Name="Copy" />
+      <Button x:Name="SelectAllButton"
+              Grid.Column="1"
+              Style="{StaticResource IconButtonStyle}"
+              Click="OnSelectAllClicked"
+              Content="&#xE8B3;"
+              ToolTip="Ctrl+A"
+              AutomationProperties.Name="Select all" />
+      <Button x:Name="CloseButton"
+              Grid.Column="3"
+              Width="96"
               IsDefault="True"
               IsCancel="True"
               Click="OnOkClicked"
               Content="OK" />
-    </StackPanel>
+    </Grid>
   </Grid>
 </Window>

@@ -1,5 +1,8 @@
+using System.Net;
+using System.Net.Sockets;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using DnsSwitcher.Core.Models;
 using DnsSwitcher.Infrastructure.Windows.Presentation;
 using DnsSwitcher.Ui.UiModels;
@@ -32,7 +35,12 @@ public partial class ProfileEditorWindow : Window
         }
 
         ApplyLocalization(profile is not null);
+        NameTextBox.TextChanged += OnInputChanged;
+        IdTextBox.TextChanged += OnInputChanged;
+        Ipv4TextBox.TextChanged += OnInputChanged;
+        Ipv6TextBox.TextChanged += OnInputChanged;
         UpdateModeState();
+        ValidateInputs();
     }
 
     public DnsProfile EditedProfile => new()
@@ -68,6 +76,11 @@ public partial class ProfileEditorWindow : Window
         HintTextBlock.Text = localizer["ProfileEditorHintLineSeparated"];
         SaveButton.Content = localizer["SaveButton"];
         CancelButton.Content = localizer["CancelButton"];
+
+        System.Windows.Automation.AutomationProperties.SetName(NameTextBox, NameLabelTextBlock.Text);
+        System.Windows.Automation.AutomationProperties.SetName(IdTextBox, IdLabelTextBlock.Text);
+        System.Windows.Automation.AutomationProperties.SetName(Ipv4TextBox, Ipv4LabelTextBlock.Text);
+        System.Windows.Automation.AutomationProperties.SetName(Ipv6TextBox, Ipv6LabelTextBlock.Text);
     }
 
     private static IReadOnlyList<ProfileModeOption> BuildModeOptions(AppLocalizer localizer)
@@ -82,6 +95,12 @@ public partial class ProfileEditorWindow : Window
     private void OnModeSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         UpdateModeState();
+        ValidateInputs();
+    }
+
+    private void OnInputChanged(object sender, TextChangedEventArgs e)
+    {
+        ValidateInputs();
     }
 
     private void UpdateModeState()
@@ -91,8 +110,47 @@ public partial class ProfileEditorWindow : Window
         Ipv6TextBox.IsEnabled = isStaticMode;
     }
 
+    private void ValidateInputs()
+    {
+        var nameValid = !string.IsNullOrWhiteSpace(NameTextBox.Text);
+        var idValid = !string.IsNullOrWhiteSpace(IdTextBox.Text);
+        var ipv4Valid = SelectedMode == ProfileMode.Dhcp || ValidateAddressList(Ipv4TextBox.Text, AddressFamily.InterNetwork);
+        var ipv6Valid = SelectedMode == ProfileMode.Dhcp || ValidateAddressList(Ipv6TextBox.Text, AddressFamily.InterNetworkV6);
+
+        SetValidationState(NameTextBox, nameValid, NameLabelTextBlock.Text);
+        SetValidationState(IdTextBox, idValid, IdLabelTextBlock.Text);
+        SetValidationState(Ipv4TextBox, ipv4Valid, Ipv4LabelTextBlock.Text);
+        SetValidationState(Ipv6TextBox, ipv6Valid, Ipv6LabelTextBlock.Text);
+        SaveButton.IsEnabled = nameValid && idValid && ipv4Valid && ipv6Valid;
+    }
+
+    private void SetValidationState(TextBox textBox, bool isValid, string label)
+    {
+        textBox.BorderBrush = (Brush)FindResource(isValid ? "BorderBrush" : "DangerBrush");
+        textBox.ToolTip = isValid ? null : label;
+    }
+
+    private static bool ValidateAddressList(string? rawText, AddressFamily expectedFamily)
+    {
+        foreach (var value in SplitValues(rawText))
+        {
+            if (!IPAddress.TryParse(value, out var address) || address.AddressFamily != expectedFamily)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private void OnSaveClicked(object sender, RoutedEventArgs e)
     {
+        ValidateInputs();
+        if (!SaveButton.IsEnabled)
+        {
+            return;
+        }
+
         DialogResult = true;
     }
 

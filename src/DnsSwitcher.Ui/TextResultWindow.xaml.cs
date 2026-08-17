@@ -26,8 +26,8 @@ public partial class TextResultWindow : Window
         Loaded -= OnLoaded;
 
         var workArea = SystemParameters.WorkArea;
-        Width = Math.Min(720, Math.Max(workArea.Width - 48, 480));
-        Height = Math.Min(520, Math.Max(workArea.Height - 48, 300));
+        Width = Math.Min(760, Math.Max(workArea.Width - 48, 520));
+        Height = Math.Min(560, Math.Max(workArea.Height - 48, 340));
 
         if (Owner is null)
         {
@@ -37,6 +37,17 @@ public partial class TextResultWindow : Window
 
         ContentTextBox.Select(0, 0);
         ContentTextBox.Focus();
+    }
+
+    private void OnCopyClicked(object sender, RoutedEventArgs e)
+    {
+        Clipboard.SetText(ContentTextBox.Text ?? string.Empty);
+    }
+
+    private void OnSelectAllClicked(object sender, RoutedEventArgs e)
+    {
+        ContentTextBox.Focus();
+        ContentTextBox.SelectAll();
     }
 
     private void OnOkClicked(object sender, RoutedEventArgs e)
