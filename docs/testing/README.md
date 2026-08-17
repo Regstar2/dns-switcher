@@ -1,18 +1,18 @@
 # Тестирование
 
-Автоматическая проверка решения:
+Автоматические проверки, предусмотренные репозиторием:
 
 ```powershell
+dotnet restore DnsSwitcher.sln
+dotnet build DnsSwitcher.sln -c Release
 dotnet test DnsSwitcher.sln -c Release
 ```
 
-Решение содержит unit-тесты и IPC integration tests. Проверки, которые требуют Windows, прав администратора, установленной службы или изменения реального DNS, должны сопровождаться описанием среды и ручным сценарием.
+Решение содержит:
 
-Перед релизом отдельно проверяются:
+- `DnsSwitcher.Tests` — unit tests;
+- `DnsSwitcher.IntegrationTests` — Windows-specific Named Pipe integration tests.
 
-- сборка solution в `Release`;
-- unit- и integration tests;
-- portable package layout;
-- установка, запуск и удаление агента;
-- применение и сброс DNS;
-- отсутствие приватных конфигураций в diff и артефактах.
+Ручные Windows/system scenarios описаны в [`manual-test-plan.md`](manual-test-plan.md). Проверки, которые требуют реального DNS, прав администратора, Windows Service, NRPT, portable package или installer, нельзя отмечать выполненными по одному факту успешных unit tests.
+
+Дополнительное описание IPC integration tests: [`../ipc-integration-tests.md`](../ipc-integration-tests.md).

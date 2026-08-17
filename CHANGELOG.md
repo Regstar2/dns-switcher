@@ -1,11 +1,13 @@
 # Changelog
 
-## [Unreleased]
+## Unreleased
 
 ### Changed
 
 - Adopted the MIT License for the repository source and documentation.
 - Revised the Russian and English `v1.4.1` release notes to the current release standard without modifying the historical tag.
+- Aligned the bilingual README files with the current documentation standard, including language-switch order and factual badges.
+- Added factual product, architecture, version, and manual-testing documentation for the existing project.
 
 ### Fixed
 
