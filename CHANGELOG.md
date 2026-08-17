@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Redesigned the WPF desktop interface around shared theme resources, compact profile navigation, clearer current/selected DNS state, progressive disclosure for technical details, and consistent light/dark styling across dialogs.
 - Adopted the MIT License for the repository source and documentation.
 - Revised the Russian and English `v1.4.1` release notes to the current release standard without modifying the historical tag.
 - Aligned the bilingual README files with the current documentation standard, including language-switch order and factual badges.

@@ -35,6 +35,7 @@
 | MT-12 | DNS Health Failover | Не выполнено |
 | MT-13 | Portable package | Не выполнено |
 | MT-14 | Installer package | Не выполнено |
+| MT-15 | UI theme, localization, keyboard и DPI | Не выполнено |
 
 ## MT-01 — WPF UI
 
@@ -168,6 +169,19 @@
 
 Ожидаемо: installer корректно устанавливает и удаляет приложение и service runtime. Для current `main` отдельно проверить self-contained запуск без предустановленного .NET Desktop Runtime.
 
+## MT-15 — UI theme, localization, keyboard и DPI
+
+1. Проверить MainWindow, Profile Editor, Settings, Agent Manager, DNS Health Failover, Split DNS и diagnostic result window в режимах Light, Dark и System.
+2. Для System theme изменить тему Windows при запущенном приложении и проверить обновление открытых окон.
+3. Последовательно проверить Russian и English: новые labels/actions не должны смешивать языки в одном режиме.
+4. Пройти основные controls клавишей `Tab`; проверить видимый keyboard focus, `Enter` на primary dialog actions и `Esc` на Cancel/Close.
+5. Проверить MainWindow при минимальном размере и обычном resize; длинные profile names/DNS values не должны выводить controls за границы.
+6. На Windows проверить DPI 125%, 150%, 175% и 200% минимум для MainWindow и Profile Editor.
+7. Проверить различимость current profile и selected profile до Apply и корректное обновление после успешного Apply.
+8. Проверить busy-state для Apply, diagnostics, Agent operations, Health check и Split DNS apply/reset: повторный конфликтующий запуск должен быть недоступен.
+
+Ожидаемо: темы не дают светлых системных controls внутри Dark UI, текст и focus остаются читаемыми, layout не клипуется, а состояние не передаётся только цветом.
+
 ## Автоматические проверки рядом с ручным планом
 
 Перед release candidate на Windows:
@@ -178,4 +192,4 @@ dotnet build DnsSwitcher.sln -c Release
 dotnet test DnsSwitcher.sln -c Release
 ```
 
-Автоматический test pass не заменяет MT-05, MT-06, MT-09, MT-11, MT-13 и MT-14.
+Автоматический test pass не заменяет MT-05, MT-06, MT-09, MT-11, MT-13, MT-14 и MT-15.
