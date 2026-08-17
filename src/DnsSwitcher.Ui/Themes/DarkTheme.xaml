@@ -1,34 +1,46 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#FF1B1D21" />
-  <SolidColorBrush x:Key="SurfaceBrush" Color="#FF25282D" />
-  <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#FF2B2F35" />
-  <SolidColorBrush x:Key="SurfaceMutedBrush" Color="#FF202328" />
-  <SolidColorBrush x:Key="PrimaryTextBrush" Color="#FFF3F4F6" />
-  <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FFB7BDC6" />
-  <SolidColorBrush x:Key="BorderBrush" Color="#FF3E444D" />
-  <SolidColorBrush x:Key="HoverBrush" Color="#FF333841" />
-  <SolidColorBrush x:Key="PressedBrush" Color="#FF3A4048" />
-  <SolidColorBrush x:Key="SelectionBrush" Color="#FF414851" />
-  <SolidColorBrush x:Key="AccentSurfaceBrush" Color="#FF353A42" />
-  <SolidColorBrush x:Key="AccentTextBrush" Color="#FFF3F4F6" />
-  <SolidColorBrush x:Key="PrimaryActionBrush" Color="#FF46515D" />
-  <SolidColorBrush x:Key="PrimaryActionHoverBrush" Color="#FF52606E" />
-  <SolidColorBrush x:Key="PrimaryActionPressedBrush" Color="#FF5D6D7D" />
-  <SolidColorBrush x:Key="PrimaryActionTextBrush" Color="#FFF7F9FB" />
-  <SolidColorBrush x:Key="DangerActionBorderBrush" Color="#FF9C5A5A" />
-  <SolidColorBrush x:Key="DangerActionForegroundBrush" Color="#FFF2B3B3" />
-  <SolidColorBrush x:Key="DangerActionHoverBrush" Color="#FF3D2A2A" />
-  <SolidColorBrush x:Key="DangerActionPressedBrush" Color="#FF4A3030" />
-  <SolidColorBrush x:Key="InfoStatusBrush" Color="#FF2B2F35" />
-  <SolidColorBrush x:Key="ErrorStatusBrush" Color="#FF4A2323" />
-  <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFF2B3B3" />
-  <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#FF2B2F35" />
-  <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="#FF2B2F35" />
-  <SolidColorBrush x:Key="{x:Static SystemColors.WindowTextBrushKey}" Color="#FFF3F4F6" />
-  <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="#FFF3F4F6" />
-  <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#FF414851" />
-  <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#FFF3F4F6" />
-  <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#FF353A42" />
-  <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#FFF3F4F6" />
+  <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#FF181A1F" />
+  <SolidColorBrush x:Key="SurfaceBrush" Color="#FF202329" />
+  <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#FF282C33" />
+  <SolidColorBrush x:Key="SurfaceMutedBrush" Color="#FF1D2025" />
+  <SolidColorBrush x:Key="MutedSurfaceBrush" Color="#FF2B3038" />
+  <SolidColorBrush x:Key="SelectedSurfaceBrush" Color="#FF293747" />
+  <SolidColorBrush x:Key="PrimaryTextBrush" Color="#FFF5F6F8" />
+  <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FFB6BDC8" />
+  <SolidColorBrush x:Key="DisabledTextBrush" Color="#FF777E88" />
+  <SolidColorBrush x:Key="BorderBrush" Color="#FF353A43" />
+  <SolidColorBrush x:Key="HoverBorderBrush" Color="#FF555D69" />
+  <SolidColorBrush x:Key="HoverBrush" Color="#FF30353D" />
+  <SolidColorBrush x:Key="PressedBrush" Color="#FF39404A" />
+  <SolidColorBrush x:Key="SelectionBrush" Color="#FF36516C" />
+  <SolidColorBrush x:Key="FocusBrush" Color="#FF75B7F0" />
+  <SolidColorBrush x:Key="AccentBrush" Color="#FF60A9E6" />
+  <SolidColorBrush x:Key="AccentSurfaceBrush" Color="#FF243A50" />
+  <SolidColorBrush x:Key="AccentTextBrush" Color="#FFBFE0FA" />
+  <SolidColorBrush x:Key="SuccessBrush" Color="#FF62C286" />
+  <SolidColorBrush x:Key="WarningBrush" Color="#FFE4B85A" />
+  <SolidColorBrush x:Key="DangerBrush" Color="#FFE27A7A" />
+  <SolidColorBrush x:Key="InformationBrush" Color="#FF75B7F0" />
+  <SolidColorBrush x:Key="InformationSurfaceBrush" Color="#FF21303F" />
+  <SolidColorBrush x:Key="InformationBorderBrush" Color="#FF38546E" />
+  <SolidColorBrush x:Key="PrimaryActionBrush" Color="#FF0F6CBD" />
+  <SolidColorBrush x:Key="PrimaryActionHoverBrush" Color="#FF1676C8" />
+  <SolidColorBrush x:Key="PrimaryActionPressedBrush" Color="#FF0C5FA8" />
+  <SolidColorBrush x:Key="PrimaryActionTextBrush" Color="#FFFFFFFF" />
+  <SolidColorBrush x:Key="DangerActionBorderBrush" Color="#FF9D5357" />
+  <SolidColorBrush x:Key="DangerActionForegroundBrush" Color="#FFF0A7AA" />
+  <SolidColorBrush x:Key="DangerActionHoverBrush" Color="#FF3C282D" />
+  <SolidColorBrush x:Key="DangerActionPressedBrush" Color="#FF4B2D33" />
+  <SolidColorBrush x:Key="InfoStatusBrush" Color="#FF22303D" />
+  <SolidColorBrush x:Key="ErrorStatusBrush" Color="#FF46282D" />
+  <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFF2B2B5" />
+  <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#FF282C33" />
+  <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="#FF282C33" />
+  <SolidColorBrush x:Key="{x:Static SystemColors.WindowTextBrushKey}" Color="#FFF5F6F8" />
+  <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="#FFF5F6F8" />
+  <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#FF36516C" />
+  <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#FFFFFFFF" />
+  <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#FF2B3948" />
+  <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#FFF5F6F8" />
 </ResourceDictionary>
