@@ -23,7 +23,12 @@
     </Border>
 
     <Grid Grid.Row="1" Margin="0,12,0,0">
-      <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
       <Button x:Name="CopyButton"
               Grid.Column="0"
               Margin="0,0,6,0"
@@ -31,14 +36,14 @@
               Click="OnCopyClicked"
               Content="&#xE8C8;"
               ToolTip="Ctrl+C"
-              AutomationProperties.Name="Copy" />
+              AutomationProperties.Name="Ctrl+C" />
       <Button x:Name="SelectAllButton"
               Grid.Column="1"
               Style="{StaticResource IconButtonStyle}"
               Click="OnSelectAllClicked"
               Content="&#xE8B3;"
               ToolTip="Ctrl+A"
-              AutomationProperties.Name="Select all" />
+              AutomationProperties.Name="Ctrl+A" />
       <Button x:Name="CloseButton"
               Grid.Column="3"
               Width="96"

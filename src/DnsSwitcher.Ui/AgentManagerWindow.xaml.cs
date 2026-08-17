@@ -125,7 +125,9 @@ public partial class AgentManagerWindow : Window
             var isInstalled = !string.IsNullOrWhiteSpace(info.ServiceBinaryPath);
             var isRunning = string.Equals(info.Status.ToString(), "Running", StringComparison.OrdinalIgnoreCase);
 
-            ServiceStatusValueTextBlock.Text = info.Status.ToString();
+            ServiceStatusValueTextBlock.Text = isRunning
+                ? localizer["EnabledValue"]
+                : localizer["DisabledValue"];
             AgentConnectionValueTextBlock.Text = agentAvailable ? localizer["YesValue"] : localizer["NoValue"];
             ServiceStatusValueTextBlock.Foreground = FindResource(isRunning ? "SuccessBrush" : "SecondaryTextBrush") as System.Windows.Media.Brush;
             AgentConnectionValueTextBlock.Foreground = FindResource(agentAvailable ? "SuccessBrush" : "WarningBrush") as System.Windows.Media.Brush;

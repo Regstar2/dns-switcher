@@ -114,8 +114,10 @@ public partial class ProfileEditorWindow : Window
     {
         var nameValid = !string.IsNullOrWhiteSpace(NameTextBox.Text);
         var idValid = !string.IsNullOrWhiteSpace(IdTextBox.Text);
-        var ipv4Valid = SelectedMode == ProfileMode.Dhcp || ValidateAddressList(Ipv4TextBox.Text, AddressFamily.InterNetwork);
-        var ipv6Valid = SelectedMode == ProfileMode.Dhcp || ValidateAddressList(Ipv6TextBox.Text, AddressFamily.InterNetworkV6);
+        var ipv4Valid = SelectedMode == ProfileMode.Dhcp
+            || ValidateAddressList(Ipv4TextBox.Text, AddressFamily.InterNetwork);
+        var ipv6Valid = SelectedMode == ProfileMode.Dhcp
+            || ValidateAddressList(Ipv6TextBox.Text, AddressFamily.InterNetworkV6);
 
         SetValidationState(NameTextBox, nameValid, NameLabelTextBlock.Text);
         SetValidationState(IdTextBox, idValid, IdLabelTextBlock.Text);
@@ -132,15 +134,15 @@ public partial class ProfileEditorWindow : Window
 
     private static bool ValidateAddressList(string? rawText, AddressFamily expectedFamily)
     {
-        foreach (var value in SplitValues(rawText))
+        var values = SplitRawValues(rawText);
+        if (values.Count != values.Distinct(StringComparer.OrdinalIgnoreCase).Count())
         {
-            if (!IPAddress.TryParse(value, out var address) || address.AddressFamily != expectedFamily)
-            {
-                return false;
-            }
+            return false;
         }
 
-        return true;
+        return values.All(value =>
+            IPAddress.TryParse(value, out var address)
+            && address.AddressFamily == expectedFamily);
     }
 
     private void OnSaveClicked(object sender, RoutedEventArgs e)
@@ -154,15 +156,21 @@ public partial class ProfileEditorWindow : Window
         DialogResult = true;
     }
 
-    private static List<string> SplitValues(string? rawText)
+    private static List<string> SplitRawValues(string? rawText)
     {
         return string.IsNullOrWhiteSpace(rawText)
             ? []
             : rawText
                 .Split(ValueSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Where(value => !string.IsNullOrWhiteSpace(value))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+    }
+
+    private static List<string> SplitValues(string? rawText)
+    {
+        return SplitRawValues(rawText)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private static string? NullIfWhiteSpace(string? value)
