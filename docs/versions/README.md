@@ -1,5 +1,7 @@
 # Версии
 
+Основной индекс: [`versions-index.md`](versions-index.md).
+
 Фактическая история изменений находится в [`../../CHANGELOG.md`](../../CHANGELOG.md), а полные двуязычные release notes — в [`../releases/`](../releases/README.md).
 
-Для новой версии рекомендуется фиксировать scope, критерии готовности, обязательные проверки и известные ограничения до начала реализации.
+Исторические version documents не создаются, если их scope и критерии нельзя восстановить достоверно по tags, changelog, release notes или Git history.
