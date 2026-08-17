@@ -98,7 +98,7 @@ try {
     }
 
     Copy-Item "README.md" (Join-Path $packageDir "README.md")
-    Copy-Item "README.ru.md" (Join-Path $packageDir "README.ru.md")
+    Copy-Item "README_EN.md" (Join-Path $packageDir "README_EN.md")
     Copy-Item "CHANGELOG.md" (Join-Path $packageDir "CHANGELOG.md")
     Copy-Item "scripts\portable-bat\*.bat" $packageDir
 
