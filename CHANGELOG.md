@@ -7,6 +7,10 @@
 - Adopted the MIT License for the repository source and documentation.
 - Revised the Russian and English `v1.4.1` release notes to the current release standard without modifying the historical tag.
 
+### Fixed
+
+- Installer builds are now self-contained by default, so UI, Tray, CLI, and Agent no longer require a separately installed .NET Desktop Runtime on target Windows machines.
+
 ## [1.4.1] - 2026-04-30
 
 Release metadata and packaging version update for portable and installer artifacts.

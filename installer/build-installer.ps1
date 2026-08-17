@@ -1,6 +1,7 @@
 param(
     [string]$Version = "1.4.1",
     [string]$Runtime = "win-x64",
+    # Retained for compatibility with existing build commands. Installer builds are always self-contained.
     [switch]$SelfContained,
     [switch]$SkipTests
 )
@@ -55,10 +56,11 @@ try {
     $publishArgs = @{
         Version = $Version
         Runtime = $Runtime
+        SelfContained = $true
     }
 
     if ($SelfContained) {
-        $publishArgs.SelfContained = $true
+        Write-Verbose "-SelfContained is retained for compatibility; installer builds are self-contained by default."
     }
 
     if ($SkipTests) {

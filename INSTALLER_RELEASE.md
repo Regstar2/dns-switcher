@@ -19,6 +19,10 @@ Install Inno Setup 6, then run:
 .\installer\build-installer.ps1 -Version 1.4.1 -Runtime win-x64
 ```
 
+Installer builds are self-contained by default. The packaged UI, Tray, CLI, and Agent include the required .NET runtime, so the target Windows machine does not need a separately installed .NET Desktop Runtime.
+
+The `-SelfContained` switch is retained only for compatibility with older build commands and is no longer required for installer builds. The standalone portable release script remains framework-dependent unless `-SelfContained` is passed explicitly.
+
 Output:
 
 ```text
@@ -82,5 +86,7 @@ Run the newer installer. It calls `service reinstall`, so the agent runtime copy
 `service install`, `service stop`, and `service uninstall` are idempotent enough for repeated install/uninstall attempts. If the service exists but points to an old path, the UI Agent window and `service status` show that warning and `service reinstall` repairs it.
 
 ## Manual validation
+
+Validate the generated installer on a clean Windows machine or VM without a preinstalled .NET Desktop Runtime. UI, Tray, CLI, and Agent should start without prompting the user to download .NET.
 
 If Inno Setup is not available on the build machine, the installer script is still ready but the `.exe` cannot be produced there. Install Inno Setup 6 or provide `ISCC.exe` in `PATH`, then run the build command above.
