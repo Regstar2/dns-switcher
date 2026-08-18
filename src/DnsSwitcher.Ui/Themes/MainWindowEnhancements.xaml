@@ -47,6 +47,24 @@
     </Setter>
   </Style>
 
+  <Style x:Key="MainWindowPrimaryButtonStyle"
+         TargetType="{x:Type Button}"
+         BasedOn="{StaticResource MainWindowSoftButtonStyle}">
+    <Setter Property="Background" Value="{DynamicResource AccentSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SelectionBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style x:Key="MainWindowDangerButtonStyle"
+         TargetType="{x:Type Button}"
+         BasedOn="{StaticResource MainWindowSoftButtonStyle}">
+    <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource DangerActionBorderBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource DangerActionForegroundBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
   <Style x:Key="MainWindowContextMenuStyle"
          TargetType="{x:Type ContextMenu}">
     <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
