@@ -3,64 +3,57 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="DNS Health Failover"
         Width="1160"
-        Height="800"
-        MinWidth="900"
-        MinHeight="650"
+        Height="780"
+        MinWidth="960"
+        MinHeight="700"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource WindowBackgroundBrush}">
   <Window.Resources>
-    <Style x:Key="HealthCardStyle"
-           TargetType="{x:Type Border}">
+    <Style x:Key="HealthCardStyle" TargetType="{x:Type Border}">
       <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="10" />
-      <Setter Property="Padding" Value="16" />
+      <Setter Property="CornerRadius" Value="9" />
+      <Setter Property="Padding" Value="12" />
     </Style>
 
-    <Style x:Key="HealthSectionHeaderStyle"
-           TargetType="{x:Type TextBlock}">
-      <Setter Property="FontSize" Value="16" />
+    <Style x:Key="HealthSectionHeaderStyle" TargetType="{x:Type TextBlock}">
+      <Setter Property="FontSize" Value="15" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
-    <Style x:Key="HealthDescriptionStyle"
-           TargetType="{x:Type TextBlock}">
-      <Setter Property="FontSize" Value="11" />
+    <Style x:Key="HealthDescriptionStyle" TargetType="{x:Type TextBlock}">
+      <Setter Property="FontSize" Value="10" />
       <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
       <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
 
-    <Style x:Key="HealthFieldLabelStyle"
-           TargetType="{x:Type TextBlock}">
-      <Setter Property="Margin" Value="0,0,0,6" />
-      <Setter Property="FontSize" Value="11" />
+    <Style x:Key="HealthFieldLabelStyle" TargetType="{x:Type TextBlock}">
+      <Setter Property="Margin" Value="0,0,0,4" />
+      <Setter Property="FontSize" Value="10" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
       <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
 
-    <Style x:Key="HealthToggleStyle"
-           TargetType="{x:Type CheckBox}">
-      <Setter Property="Width" Value="46" />
-      <Setter Property="Height" Value="26" />
+    <Style x:Key="HealthToggleStyle" TargetType="{x:Type CheckBox}">
+      <Setter Property="Width" Value="44" />
+      <Setter Property="Height" Value="24" />
       <Setter Property="HorizontalAlignment" Value="Right" />
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="Cursor" Value="Hand" />
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="{x:Type CheckBox}">
-            <Grid Width="46"
-                  Height="26"
-                  SnapsToDevicePixels="True">
+            <Grid Width="44" Height="24" SnapsToDevicePixels="True">
               <Border x:Name="Track"
                       Background="{DynamicResource SurfaceMutedBrush}"
                       BorderBrush="{DynamicResource BorderBrush}"
                       BorderThickness="1"
-                      CornerRadius="13" />
+                      CornerRadius="12" />
               <Ellipse x:Name="Thumb"
-                       Width="20"
-                       Height="20"
+                       Width="18"
+                       Height="18"
                        Margin="3,0,0,0"
                        HorizontalAlignment="Left"
                        VerticalAlignment="Center"
@@ -68,34 +61,17 @@
             </Grid>
             <ControlTemplate.Triggers>
               <Trigger Property="IsChecked" Value="True">
-                <Setter TargetName="Track"
-                        Property="Background"
-                        Value="{DynamicResource PrimaryActionBrush}" />
-                <Setter TargetName="Track"
-                        Property="BorderBrush"
-                        Value="{DynamicResource PrimaryActionBrush}" />
-                <Setter TargetName="Thumb"
-                        Property="HorizontalAlignment"
-                        Value="Right" />
-                <Setter TargetName="Thumb"
-                        Property="Margin"
-                        Value="0,0,3,0" />
-              </Trigger>
-              <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Track"
-                        Property="BorderBrush"
-                        Value="{DynamicResource HoverBrush}" />
+                <Setter TargetName="Track" Property="Background" Value="{DynamicResource PrimaryActionBrush}" />
+                <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource PrimaryActionBrush}" />
+                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right" />
+                <Setter TargetName="Thumb" Property="Margin" Value="0,0,3,0" />
               </Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True">
-                <Setter TargetName="Track"
-                        Property="BorderBrush"
-                        Value="{DynamicResource SelectionBrush}" />
-                <Setter TargetName="Track"
-                        Property="BorderThickness"
-                        Value="2" />
+                <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource SelectionBrush}" />
+                <Setter TargetName="Track" Property="BorderThickness" Value="2" />
               </Trigger>
               <Trigger Property="IsEnabled" Value="False">
-                <Setter Property="Opacity" Value="0.7" />
+                <Setter Property="Opacity" Value="0.65" />
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -103,14 +79,13 @@
       </Setter>
     </Style>
 
-    <Style x:Key="HealthMetricCardStyle"
-           TargetType="{x:Type Border}">
+    <Style x:Key="HealthMetricCardStyle" TargetType="{x:Type Border}">
       <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="7" />
-      <Setter Property="Padding" Value="10" />
-      <Setter Property="Margin" Value="0,0,8,8" />
+      <Setter Property="Padding" Value="8" />
+      <Setter Property="Margin" Value="0,0,6,6" />
     </Style>
 
     <Style x:Key="HealthListItemStyle"
@@ -131,44 +106,40 @@
     <ScrollViewer Grid.Row="0"
                   VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled">
-      <StackPanel Margin="20,20,20,18">
-        <StackPanel Margin="2,0,2,16">
+      <StackPanel Margin="14,12,14,10">
+        <StackPanel Margin="2,0,2,10">
           <TextBlock x:Name="PageHeaderTextBlock"
-                     FontSize="24"
+                     FontSize="21"
                      FontWeight="SemiBold"
                      Text="DNS monitoring and failover" />
           <TextBlock x:Name="PageSubtitleTextBlock"
-                     Margin="0,5,0,0"
+                     Margin="0,3,0,0"
+                     FontSize="10"
                      Foreground="{DynamicResource SecondaryTextBrush}"
                      TextWrapping="Wrap"
                      Text="Check DNS availability and automatically switch profiles." />
         </StackPanel>
 
         <Border Style="{StaticResource HealthCardStyle}">
-          <Grid MinHeight="58">
+          <Grid MinHeight="46">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="24" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-
-            <StackPanel Grid.Column="0"
-                        VerticalAlignment="Center">
+            <StackPanel VerticalAlignment="Center">
               <TextBlock x:Name="MonitorTitleTextBlock"
                          Style="{StaticResource HealthSectionHeaderStyle}"
                          Text="Monitor" />
               <TextBlock x:Name="MonitorDescriptionTextBlock"
-                         Margin="0,5,0,0"
+                         Margin="0,3,16,0"
                          Style="{StaticResource HealthDescriptionStyle}"
                          Text="The agent checks DNS regularly and performs the selected action when checks fail." />
             </StackPanel>
-
-            <StackPanel Grid.Column="2"
-                        Orientation="Horizontal"
-                        VerticalAlignment="Center">
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
               <TextBlock x:Name="MonitorStateTextBlock"
-                         Margin="0,0,10,0"
+                         Margin="0,0,9,0"
                          VerticalAlignment="Center"
+                         FontSize="10"
                          Foreground="{DynamicResource SecondaryTextBrush}"
                          Text="Disabled" />
               <CheckBox x:Name="EnabledCheckBox"
@@ -179,496 +150,364 @@
           </Grid>
         </Border>
 
-        <Grid Margin="0,12,0,0">
+        <Grid Margin="0,8,0,0">
           <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="5*" />
-            <ColumnDefinition Width="12" />
             <ColumnDefinition Width="3*" />
+            <ColumnDefinition Width="8" />
+            <ColumnDefinition Width="2*" />
           </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="8" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
 
-          <StackPanel Grid.Column="0">
-            <Border Style="{StaticResource HealthCardStyle}">
-              <StackPanel>
-                <TextBlock x:Name="CheckSettingsHeaderTextBlock"
-                           Style="{StaticResource HealthSectionHeaderStyle}"
-                           Text="DNS check" />
+          <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource HealthCardStyle}">
+            <StackPanel>
+              <TextBlock x:Name="CheckSettingsHeaderTextBlock"
+                         Style="{StaticResource HealthSectionHeaderStyle}"
+                         Text="DNS check" />
 
-                <WrapPanel Margin="0,16,0,0">
-                  <StackPanel Width="150"
-                              Margin="0,0,12,12">
-                    <TextBlock x:Name="IntervalLabelTextBlock"
-                               Style="{StaticResource HealthFieldLabelStyle}"
-                               Text="Interval, sec:" />
-                    <TextBox x:Name="IntervalTextBox" />
-                  </StackPanel>
-
-                  <StackPanel Width="150"
-                              Margin="0,0,12,12">
-                    <TextBlock x:Name="FailureThresholdLabelTextBlock"
-                               Style="{StaticResource HealthFieldLabelStyle}"
-                               Text="Failure threshold:" />
-                    <TextBox x:Name="FailureThresholdTextBox" />
-                  </StackPanel>
-
-                  <StackPanel Width="170"
-                              Margin="0,0,12,12">
-                    <TextBlock x:Name="RecoveryThresholdLabelTextBlock"
-                               Style="{StaticResource HealthFieldLabelStyle}"
-                               Text="Recovery threshold:" />
-                    <TextBox x:Name="RecoveryThresholdTextBox" />
-                  </StackPanel>
-
-                  <StackPanel Width="150"
-                              Margin="0,0,0,12">
-                    <TextBlock x:Name="CooldownLabelTextBlock"
-                               Style="{StaticResource HealthFieldLabelStyle}"
-                               Text="Cooldown, sec:" />
-                    <TextBox x:Name="CooldownTextBox" />
-                  </StackPanel>
-                </WrapPanel>
-
-                <UniformGrid Columns="2"
-                             Margin="0,2,0,0">
-                  <StackPanel Margin="0,0,8,0">
-                    <TextBlock x:Name="CheckModeLabelTextBlock"
-                               Style="{StaticResource HealthFieldLabelStyle}"
-                               Text="Check mode:" />
-                    <ComboBox x:Name="CheckModeComboBox"
-                              DisplayMemberPath="DisplayName"
-                              SelectedValuePath="Mode"
-                              SelectionChanged="OnCheckModeSelectionChanged" />
-                  </StackPanel>
-
-                  <StackPanel Margin="8,0,0,0">
-                    <TextBlock x:Name="ActionOnFailureLabelTextBlock"
-                               Style="{StaticResource HealthFieldLabelStyle}"
-                               Text="Action on failure:" />
-                    <ComboBox x:Name="ActionComboBox"
-                              DisplayMemberPath="DisplayName"
-                              SelectedValuePath="Action"
-                              SelectionChanged="OnActionSelectionChanged" />
-                  </StackPanel>
-                </UniformGrid>
-
-                <Border Margin="0,14,0,0"
-                        Padding="10"
-                        CornerRadius="7"
-                        Background="{DynamicResource AccentSurfaceBrush}">
-                  <TextBlock x:Name="ThresholdHintTextBlock"
-                             Foreground="{DynamicResource AccentTextBrush}"
-                             TextWrapping="Wrap"
-                             Text="Failure threshold counts consecutive failed checks; recovery requires consecutive successful checks." />
-                </Border>
-
-                <Border x:Name="ValidationMessageBorder"
-                        Margin="0,10,0,0"
-                        Padding="10"
-                        CornerRadius="7"
-                        Background="{DynamicResource ErrorStatusBrush}"
-                        Visibility="Collapsed">
-                  <TextBlock x:Name="ValidationMessageTextBlock"
-                             Foreground="{DynamicResource ErrorTextBrush}"
-                             TextWrapping="Wrap" />
-                </Border>
-              </StackPanel>
-            </Border>
-
-            <Border Margin="0,12,0,0"
-                    Style="{StaticResource HealthCardStyle}">
-              <StackPanel>
-                <TextBlock x:Name="TestDomainsHeaderTextBlock"
-                           Style="{StaticResource HealthSectionHeaderStyle}"
-                           Text="Test Domains" />
-                <TextBlock x:Name="TestDomainsHintTextBlock"
-                           Margin="0,5,0,0"
-                           Style="{StaticResource HealthDescriptionStyle}"
-                           Text="These domains are used by the agent monitor and manual health check." />
-
-                <ListBox x:Name="TestDomainsListBox"
-                         MinHeight="118"
-                         MaxHeight="220"
-                         Margin="0,12,0,0"
-                         ItemContainerStyle="{StaticResource HealthListItemStyle}">
-                  <ListBox.ItemTemplate>
-                    <DataTemplate>
-                      <Grid Margin="10,7">
-                        <Grid.ColumnDefinitions>
-                          <ColumnDefinition Width="*" />
-                          <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock VerticalAlignment="Center"
-                                   Text="{Binding}" />
-                        <Button Grid.Column="1"
-                                MinWidth="72"
-                                Margin="10,0,0,0"
-                                Padding="8,4"
-                                Style="{StaticResource DangerActionButtonStyle}"
-                                Tag="{Binding}"
-                                Content="{Binding RemoveActionText, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
-                                Click="OnRemoveDomainClicked" />
-                      </Grid>
-                    </DataTemplate>
-                  </ListBox.ItemTemplate>
-                </ListBox>
-
-                <Grid Margin="0,10,0,0">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                  </Grid.ColumnDefinitions>
-                  <TextBox x:Name="TestDomainInputTextBox"
-                           MaxHeight="72"
-                           AcceptsReturn="True"
-                           TextWrapping="Wrap"
-                           VerticalScrollBarVisibility="Auto"
-                           KeyDown="OnDomainInputKeyDown" />
-                  <Button x:Name="AddDomainButton"
-                          Grid.Column="1"
-                          MinWidth="96"
-                          Margin="8,0,0,0"
-                          Click="OnAddDomainsClicked"
-                          Content="Add" />
-                </Grid>
-                <TextBlock x:Name="DomainsInputHintTextBlock"
-                           Margin="0,6,0,0"
-                           Style="{StaticResource HealthDescriptionStyle}"
-                           Text="Enter or paste one or more domains. New lines, commas, and semicolons are supported." />
-              </StackPanel>
-            </Border>
-
-            <Border x:Name="ExpectedIpSectionBorder"
-                    Margin="0,12,0,0"
-                    Style="{StaticResource HealthCardStyle}"
-                    Visibility="Collapsed">
-              <Expander x:Name="ExpectedIpsExpander"
-                        IsExpanded="False">
-                <Expander.Header>
-                  <TextBlock x:Name="ExpectedIpsHeaderTextBlock"
-                             Style="{StaticResource HealthSectionHeaderStyle}"
-                             Text="Additional IP checks" />
-                </Expander.Header>
-                <StackPanel Margin="0,12,0,0">
-                  <TextBlock x:Name="ExpectedIpsHintTextBlock"
-                             Style="{StaticResource HealthDescriptionStyle}"
-                             Text="Optional. Use only when DNS answers are stable. Format: domain=ip1,ip2" />
-                  <TextBox x:Name="ExpectedAddressesTextBox"
-                           MinHeight="100"
-                           Margin="0,10,0,0"
-                           AcceptsReturn="True"
-                           VerticalScrollBarVisibility="Auto"
-                           TextWrapping="Wrap" />
+              <UniformGrid Columns="4" Margin="0,9,0,0">
+                <StackPanel Margin="0,0,7,0">
+                  <TextBlock x:Name="IntervalLabelTextBlock" Style="{StaticResource HealthFieldLabelStyle}" Text="Interval, sec:" />
+                  <TextBox x:Name="IntervalTextBox" />
                 </StackPanel>
-              </Expander>
-            </Border>
-          </StackPanel>
+                <StackPanel Margin="0,0,7,0">
+                  <TextBlock x:Name="FailureThresholdLabelTextBlock" Style="{StaticResource HealthFieldLabelStyle}" Text="Failure threshold:" />
+                  <TextBox x:Name="FailureThresholdTextBox" />
+                </StackPanel>
+                <StackPanel Margin="0,0,7,0">
+                  <TextBlock x:Name="RecoveryThresholdLabelTextBlock" Style="{StaticResource HealthFieldLabelStyle}" Text="Recovery threshold:" />
+                  <TextBox x:Name="RecoveryThresholdTextBox" />
+                </StackPanel>
+                <StackPanel>
+                  <TextBlock x:Name="CooldownLabelTextBlock" Style="{StaticResource HealthFieldLabelStyle}" Text="Cooldown, sec:" />
+                  <TextBox x:Name="CooldownTextBox" />
+                </StackPanel>
+              </UniformGrid>
 
-          <StackPanel Grid.Column="2">
-            <Border x:Name="FailoverChainCard"
-                    Style="{StaticResource HealthCardStyle}"
-                    Visibility="Collapsed">
-              <StackPanel>
-                <TextBlock x:Name="FailoverChainHeaderTextBlock"
-                           Style="{StaticResource HealthSectionHeaderStyle}"
-                           Text="Failover Chain" />
-                <TextBlock x:Name="FailoverChainHintTextBlock"
-                           Margin="0,5,0,0"
-                           Style="{StaticResource HealthDescriptionStyle}"
-                           Text="Used when the failure action switches to the next profile." />
+              <UniformGrid Columns="2" Margin="0,9,0,0">
+                <StackPanel Margin="0,0,6,0">
+                  <TextBlock x:Name="CheckModeLabelTextBlock" Style="{StaticResource HealthFieldLabelStyle}" Text="Check mode:" />
+                  <ComboBox x:Name="CheckModeComboBox"
+                            DisplayMemberPath="DisplayName"
+                            SelectedValuePath="Mode"
+                            SelectionChanged="OnCheckModeSelectionChanged" />
+                </StackPanel>
+                <StackPanel Margin="6,0,0,0">
+                  <TextBlock x:Name="ActionOnFailureLabelTextBlock" Style="{StaticResource HealthFieldLabelStyle}" Text="Action on failure:" />
+                  <ComboBox x:Name="ActionComboBox"
+                            DisplayMemberPath="DisplayName"
+                            SelectedValuePath="Action"
+                            SelectionChanged="OnActionSelectionChanged" />
+                </StackPanel>
+              </UniformGrid>
 
-                <Grid Margin="0,12,0,0">
+              <Border Margin="0,9,0,0"
+                      Padding="8,6"
+                      CornerRadius="6"
+                      Background="{DynamicResource AccentSurfaceBrush}">
+                <TextBlock x:Name="ThresholdHintTextBlock"
+                           FontSize="10"
+                           Foreground="{DynamicResource AccentTextBrush}"
+                           TextWrapping="Wrap"
+                           Text="Failure threshold counts consecutive failed checks; recovery requires consecutive successful checks." />
+              </Border>
+
+              <Border x:Name="ExpectedIpSectionBorder"
+                      Margin="0,8,0,0"
+                      Padding="8,6"
+                      CornerRadius="6"
+                      Background="{DynamicResource SurfaceMutedBrush}"
+                      Visibility="Collapsed">
+                <Expander x:Name="ExpectedIpsExpander" IsExpanded="False">
+                  <Expander.Header>
+                    <TextBlock x:Name="ExpectedIpsHeaderTextBlock"
+                               FontWeight="SemiBold"
+                               Text="Additional IP checks" />
+                  </Expander.Header>
+                  <StackPanel Margin="0,6,0,0">
+                    <TextBlock x:Name="ExpectedIpsHintTextBlock"
+                               Style="{StaticResource HealthDescriptionStyle}"
+                               Text="Optional. Use only when DNS answers are stable. Format: domain=ip1,ip2" />
+                    <TextBox x:Name="ExpectedAddressesTextBox"
+                             Height="72"
+                             Margin="0,6,0,0"
+                             AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto"
+                             TextWrapping="Wrap" />
+                  </StackPanel>
+                </Expander>
+              </Border>
+
+              <Border x:Name="ValidationMessageBorder"
+                      Margin="0,8,0,0"
+                      Padding="8,6"
+                      CornerRadius="6"
+                      Background="{DynamicResource ErrorStatusBrush}"
+                      Visibility="Collapsed">
+                <TextBlock x:Name="ValidationMessageTextBlock"
+                           FontSize="10"
+                           Foreground="{DynamicResource ErrorTextBrush}"
+                           TextWrapping="Wrap" />
+              </Border>
+            </StackPanel>
+          </Border>
+
+          <Border Grid.Row="0" Grid.Column="2" Style="{StaticResource HealthCardStyle}">
+            <StackPanel>
+              <TextBlock x:Name="CurrentHealthStateHeaderTextBlock"
+                         Style="{StaticResource HealthSectionHeaderStyle}"
+                         Text="Current Health State" />
+
+              <Grid Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border x:Name="HealthStatusBadgeBorder"
+                        Padding="8,4"
+                        CornerRadius="11"
+                        Background="{DynamicResource SurfaceMutedBrush}">
+                  <StackPanel Orientation="Horizontal">
+                    <Ellipse x:Name="HealthStatusDot"
+                             Width="7"
+                             Height="7"
+                             Margin="0,0,6,0"
+                             VerticalAlignment="Center"
+                             Fill="{DynamicResource SecondaryTextBrush}" />
+                    <TextBlock x:Name="HealthStatusTextBlock"
+                               VerticalAlignment="Center"
+                               FontSize="10"
+                               FontWeight="SemiBold"
+                               Text="Disabled" />
+                  </StackPanel>
+                </Border>
+                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                  <TextBlock x:Name="ActiveProfileLabelTextBlock"
+                             FontSize="9"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             Text="Active profile:" />
+                  <TextBlock x:Name="ActiveProfileValueTextBlock"
+                             Margin="0,1,0,0"
+                             FontSize="10"
+                             FontWeight="SemiBold"
+                             TextWrapping="Wrap" />
+                </StackPanel>
+              </Grid>
+
+              <UniformGrid Columns="2" Margin="0,9,-6,-6">
+                <Border Style="{StaticResource HealthMetricCardStyle}">
+                  <StackPanel>
+                    <TextBlock x:Name="FailuresMetricLabelTextBlock" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Consecutive failures:" />
+                    <TextBlock x:Name="FailuresMetricValueTextBlock" Margin="0,2,0,0" FontSize="15" FontWeight="SemiBold" Text="0" />
+                  </StackPanel>
+                </Border>
+                <Border Style="{StaticResource HealthMetricCardStyle}">
+                  <StackPanel>
+                    <TextBlock x:Name="SuccessesMetricLabelTextBlock" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Consecutive successes:" />
+                    <TextBlock x:Name="SuccessesMetricValueTextBlock" Margin="0,2,0,0" FontSize="15" FontWeight="SemiBold" Text="0" />
+                  </StackPanel>
+                </Border>
+                <Border Style="{StaticResource HealthMetricCardStyle}">
+                  <StackPanel>
+                    <TextBlock x:Name="LastCheckedMetricLabelTextBlock" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Last checked UTC:" />
+                    <TextBlock x:Name="LastCheckedMetricValueTextBlock" Margin="0,2,0,0" FontSize="10" FontWeight="SemiBold" TextWrapping="Wrap" />
+                  </StackPanel>
+                </Border>
+                <Border Style="{StaticResource HealthMetricCardStyle}">
+                  <StackPanel>
+                    <TextBlock x:Name="LastFailoverMetricLabelTextBlock" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Last failover profile:" />
+                    <TextBlock x:Name="LastFailoverMetricValueTextBlock" Margin="0,2,0,0" FontSize="10" FontWeight="SemiBold" TextWrapping="Wrap" />
+                  </StackPanel>
+                </Border>
+              </UniformGrid>
+
+              <Expander x:Name="StateDetailsExpander" Margin="0,5,0,0" IsExpanded="False">
+                <Expander.Header>
+                  <TextBlock x:Name="StateDetailsHeaderTextBlock" FontSize="10" FontWeight="SemiBold" Text="Details" />
+                </Expander.Header>
+                <Grid Margin="0,6,0,0">
                   <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="140" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
-                  <ComboBox x:Name="ChainProfileComboBox"
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                  </Grid.RowDefinitions>
+                  <TextBlock x:Name="LastSuccessfulLabelTextBlock" Grid.Row="0" Margin="0,0,8,5" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Last successful UTC:" />
+                  <TextBlock x:Name="LastSuccessfulValueTextBlock" Grid.Row="0" Grid.Column="1" Margin="0,0,0,5" FontSize="9" TextWrapping="Wrap" />
+                  <TextBlock x:Name="LastFailureLabelTextBlock" Grid.Row="1" Margin="0,0,8,5" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Last failure UTC:" />
+                  <TextBlock x:Name="LastFailureValueTextBlock" Grid.Row="1" Grid.Column="1" Margin="0,0,0,5" FontSize="9" TextWrapping="Wrap" />
+                  <TextBlock x:Name="CooldownUntilLabelTextBlock" Grid.Row="2" Margin="0,0,8,5" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Cooldown until UTC:" />
+                  <TextBlock x:Name="CooldownUntilValueTextBlock" Grid.Row="2" Grid.Column="1" Margin="0,0,0,5" FontSize="9" TextWrapping="Wrap" />
+                  <TextBlock x:Name="FailureReasonLabelTextBlock" Grid.Row="3" Margin="0,0,8,5" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Last failure reason:" />
+                  <TextBlock x:Name="FailureReasonValueTextBlock" Grid.Row="3" Grid.Column="1" Margin="0,0,0,5" FontSize="9" TextWrapping="Wrap" />
+                  <TextBlock x:Name="LastActionLabelTextBlock" Grid.Row="4" Margin="0,0,8,0" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Last action:" />
+                  <TextBlock x:Name="LastActionValueTextBlock" Grid.Row="4" Grid.Column="1" FontSize="9" TextWrapping="Wrap" />
+                </Grid>
+              </Expander>
+            </StackPanel>
+          </Border>
+
+          <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource HealthCardStyle}">
+            <StackPanel>
+              <TextBlock x:Name="TestDomainsHeaderTextBlock"
+                         Style="{StaticResource HealthSectionHeaderStyle}"
+                         Text="Test Domains" />
+              <TextBlock x:Name="TestDomainsHintTextBlock"
+                         Margin="0,3,0,0"
+                         Style="{StaticResource HealthDescriptionStyle}"
+                         Text="These domains are used by the agent monitor and manual health check." />
+
+              <ListBox x:Name="TestDomainsListBox"
+                       Height="112"
+                       Margin="0,7,0,0"
+                       ItemContainerStyle="{StaticResource HealthListItemStyle}">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <Grid Margin="8,4">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <TextBlock VerticalAlignment="Center" FontSize="10" Text="{Binding}" />
+                      <Button Grid.Column="1"
+                              MinWidth="62"
+                              Margin="8,0,0,0"
+                              Padding="6,3"
+                              FontSize="10"
+                              Style="{StaticResource DangerActionButtonStyle}"
+                              Tag="{Binding}"
+                              Content="{Binding RemoveActionText, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                              Click="OnRemoveDomainClicked" />
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+
+              <Grid Margin="0,7,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="TestDomainInputTextBox"
+                         MaxHeight="58"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto"
+                         KeyDown="OnDomainInputKeyDown" />
+                <Button x:Name="AddDomainButton"
+                        Grid.Column="1"
+                        MinWidth="82"
+                        Margin="7,0,0,0"
+                        Padding="7,4"
+                        Click="OnAddDomainsClicked"
+                        Content="Add" />
+              </Grid>
+              <TextBlock x:Name="DomainsInputHintTextBlock"
+                         Margin="0,4,0,0"
+                         Style="{StaticResource HealthDescriptionStyle}"
+                         Text="Enter or paste one or more domains. New lines, commas, and semicolons are supported." />
+            </StackPanel>
+          </Border>
+
+          <Border x:Name="FailoverChainCard"
+                  Grid.Row="2"
+                  Grid.Column="2"
+                  Style="{StaticResource HealthCardStyle}">
+            <StackPanel>
+              <TextBlock x:Name="FailoverChainHeaderTextBlock"
+                         Style="{StaticResource HealthSectionHeaderStyle}"
+                         Text="Failover Chain" />
+              <TextBlock x:Name="FailoverChainHintTextBlock"
+                         Margin="0,3,0,0"
+                         Style="{StaticResource HealthDescriptionStyle}"
+                         Text="Used when the failure action switches to the next profile." />
+
+              <Border x:Name="FallbackProfileCard"
+                      Margin="0,7,0,0"
+                      Padding="8"
+                      CornerRadius="6"
+                      Background="{DynamicResource SurfaceMutedBrush}"
+                      BorderBrush="{DynamicResource BorderBrush}"
+                      BorderThickness="1"
+                      Visibility="Collapsed">
+                <StackPanel>
+                  <TextBlock x:Name="FallbackHeaderTextBlock" FontSize="11" FontWeight="SemiBold" Text="Fallback profile" />
+                  <TextBlock x:Name="FallbackDescriptionTextBlock" Margin="0,2,0,5" Style="{StaticResource HealthDescriptionStyle}" Text="DNS switches to this profile after the configured failure threshold is reached." />
+                  <TextBlock x:Name="FallbackProfileLabelTextBlock" Style="{StaticResource HealthFieldLabelStyle}" Text="Fallback profile:" />
+                  <ComboBox x:Name="FallbackProfileComboBox"
                             DisplayMemberPath="DisplayName"
                             SelectedValuePath="ProfileId" />
-                  <Button x:Name="AddChainButton"
-                          Grid.Column="1"
-                          MinWidth="88"
-                          Margin="8,0,0,0"
-                          Click="OnAddChainProfileClicked"
-                          Content="Add" />
-                </Grid>
+                </StackPanel>
+              </Border>
 
-                <ListBox x:Name="FailoverChainListBox"
-                         MinHeight="150"
-                         MaxHeight="310"
-                         Margin="0,10,0,0"
-                         ItemContainerStyle="{StaticResource HealthListItemStyle}">
-                  <ListBox.ItemTemplate>
-                    <DataTemplate>
-                      <Grid Margin="9,8">
-                        <Grid.ColumnDefinitions>
-                          <ColumnDefinition Width="34" />
-                          <ColumnDefinition Width="*" />
-                          <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-
-                        <Border Width="26"
-                                Height="26"
-                                HorizontalAlignment="Left"
-                                VerticalAlignment="Center"
-                                CornerRadius="13"
-                                Background="{DynamicResource SurfaceRaisedBrush}"
-                                BorderBrush="{DynamicResource BorderBrush}"
-                                BorderThickness="1">
-                          <TextBlock HorizontalAlignment="Center"
-                                     VerticalAlignment="Center"
-                                     FontSize="11"
-                                     Text="{Binding Position}" />
-                        </Border>
-
-                        <StackPanel Grid.Column="1"
-                                    Margin="4,0,8,0"
-                                    VerticalAlignment="Center">
-                          <TextBlock FontWeight="SemiBold"
-                                     Text="{Binding DisplayName}" />
-                          <TextBlock Margin="0,2,0,0"
-                                     FontSize="10"
-                                     Foreground="{DynamicResource SecondaryTextBrush}"
-                                     Text="{Binding Details}" />
-                        </StackPanel>
-
-                        <StackPanel Grid.Column="2"
-                                    Orientation="Horizontal"
-                                    VerticalAlignment="Center">
-                          <Button MinWidth="54"
-                                  Padding="7,4"
-                                  Tag="{Binding}"
-                                  IsEnabled="{Binding CanMoveUp}"
-                                  Content="{Binding MoveUpActionText, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
-                                  Click="OnMoveChainUpClicked" />
-                          <Button MinWidth="54"
-                                  Margin="5,0,0,0"
-                                  Padding="7,4"
-                                  Tag="{Binding}"
-                                  IsEnabled="{Binding CanMoveDown}"
-                                  Content="{Binding MoveDownActionText, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
-                                  Click="OnMoveChainDownClicked" />
-                          <Button MinWidth="70"
-                                  Margin="5,0,0,0"
-                                  Padding="7,4"
-                                  Style="{StaticResource DangerActionButtonStyle}"
-                                  Tag="{Binding}"
-                                  Content="{Binding RemoveActionText, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
-                                  Click="OnRemoveChainProfileClicked" />
-                        </StackPanel>
-                      </Grid>
-                    </DataTemplate>
-                  </ListBox.ItemTemplate>
-                </ListBox>
-              </StackPanel>
-            </Border>
-
-            <Border x:Name="FallbackProfileCard"
-                    Style="{StaticResource HealthCardStyle}"
-                    Visibility="Collapsed">
-              <StackPanel>
-                <TextBlock x:Name="FallbackHeaderTextBlock"
-                           Style="{StaticResource HealthSectionHeaderStyle}"
-                           Text="Fallback profile" />
-                <TextBlock x:Name="FallbackDescriptionTextBlock"
-                           Margin="0,5,0,0"
-                           Style="{StaticResource HealthDescriptionStyle}"
-                           Text="DNS switches to this profile after the configured failure threshold is reached." />
-                <TextBlock x:Name="FallbackProfileLabelTextBlock"
-                           Margin="0,14,0,6"
-                           Style="{StaticResource HealthFieldLabelStyle}"
-                           Text="Fallback profile:" />
-                <ComboBox x:Name="FallbackProfileComboBox"
+              <Grid Margin="0,7,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ComboBox x:Name="ChainProfileComboBox"
                           DisplayMemberPath="DisplayName"
                           SelectedValuePath="ProfileId" />
-              </StackPanel>
-            </Border>
+                <Button x:Name="AddChainButton"
+                        Grid.Column="1"
+                        MinWidth="74"
+                        Margin="7,0,0,0"
+                        Padding="6,4"
+                        Click="OnAddChainProfileClicked"
+                        Content="Add" />
+              </Grid>
 
-            <Border Margin="0,12,0,0"
-                    Style="{StaticResource HealthCardStyle}">
-              <StackPanel>
-                <TextBlock x:Name="CurrentHealthStateHeaderTextBlock"
-                           Style="{StaticResource HealthSectionHeaderStyle}"
-                           Text="Current Health State" />
-
-                <Grid Margin="0,12,0,0">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                  </Grid.ColumnDefinitions>
-
-                  <Border x:Name="HealthStatusBadgeBorder"
-                          Padding="9,5"
-                          CornerRadius="12"
-                          Background="{DynamicResource SurfaceMutedBrush}">
-                    <StackPanel Orientation="Horizontal">
-                      <Ellipse x:Name="HealthStatusDot"
-                               Width="8"
-                               Height="8"
-                               Margin="0,0,7,0"
-                               VerticalAlignment="Center"
-                               Fill="{DynamicResource SecondaryTextBrush}" />
-                      <TextBlock x:Name="HealthStatusTextBlock"
-                                 VerticalAlignment="Center"
-                                 FontWeight="SemiBold"
-                                 Text="Disabled" />
-                    </StackPanel>
-                  </Border>
-
-                  <StackPanel Grid.Column="1"
-                              Margin="14,0,0,0"
-                              VerticalAlignment="Center">
-                    <TextBlock x:Name="ActiveProfileLabelTextBlock"
-                               FontSize="10"
-                               Foreground="{DynamicResource SecondaryTextBrush}"
-                               Text="Active profile:" />
-                    <TextBlock x:Name="ActiveProfileValueTextBlock"
-                               Margin="0,2,0,0"
-                               FontWeight="SemiBold"
-                               TextWrapping="Wrap" />
-                  </StackPanel>
-                </Grid>
-
-                <UniformGrid Columns="2"
-                             Margin="0,14,-8,-8">
-                  <Border Style="{StaticResource HealthMetricCardStyle}">
-                    <StackPanel>
-                      <TextBlock x:Name="FailuresMetricLabelTextBlock"
-                                 FontSize="10"
-                                 Foreground="{DynamicResource SecondaryTextBrush}"
-                                 Text="Consecutive failures:" />
-                      <TextBlock x:Name="FailuresMetricValueTextBlock"
-                                 Margin="0,4,0,0"
-                                 FontSize="17"
-                                 FontWeight="SemiBold"
-                                 Text="0" />
-                    </StackPanel>
-                  </Border>
-
-                  <Border Style="{StaticResource HealthMetricCardStyle}">
-                    <StackPanel>
-                      <TextBlock x:Name="SuccessesMetricLabelTextBlock"
-                                 FontSize="10"
-                                 Foreground="{DynamicResource SecondaryTextBrush}"
-                                 Text="Consecutive successes:" />
-                      <TextBlock x:Name="SuccessesMetricValueTextBlock"
-                                 Margin="0,4,0,0"
-                                 FontSize="17"
-                                 FontWeight="SemiBold"
-                                 Text="0" />
-                    </StackPanel>
-                  </Border>
-
-                  <Border Style="{StaticResource HealthMetricCardStyle}">
-                    <StackPanel>
-                      <TextBlock x:Name="LastCheckedMetricLabelTextBlock"
-                                 FontSize="10"
-                                 Foreground="{DynamicResource SecondaryTextBrush}"
-                                 Text="Last checked UTC:" />
-                      <TextBlock x:Name="LastCheckedMetricValueTextBlock"
-                                 Margin="0,4,0,0"
-                                 FontWeight="SemiBold"
-                                 TextWrapping="Wrap" />
-                    </StackPanel>
-                  </Border>
-
-                  <Border Style="{StaticResource HealthMetricCardStyle}">
-                    <StackPanel>
-                      <TextBlock x:Name="LastFailoverMetricLabelTextBlock"
-                                 FontSize="10"
-                                 Foreground="{DynamicResource SecondaryTextBrush}"
-                                 Text="Last failover profile:" />
-                      <TextBlock x:Name="LastFailoverMetricValueTextBlock"
-                                 Margin="0,4,0,0"
-                                 FontWeight="SemiBold"
-                                 TextWrapping="Wrap" />
-                    </StackPanel>
-                  </Border>
-                </UniformGrid>
-
-                <Expander x:Name="StateDetailsExpander"
-                          Margin="0,10,0,0"
-                          IsExpanded="False">
-                  <Expander.Header>
-                    <TextBlock x:Name="StateDetailsHeaderTextBlock"
-                               FontWeight="SemiBold"
-                               Text="Details" />
-                  </Expander.Header>
-                  <Grid Margin="0,10,0,0">
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="155" />
-                      <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                      <RowDefinition Height="Auto" />
-                      <RowDefinition Height="Auto" />
-                      <RowDefinition Height="Auto" />
-                      <RowDefinition Height="Auto" />
-                      <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-
-                    <TextBlock x:Name="LastSuccessfulLabelTextBlock"
-                               Grid.Row="0"
-                               Margin="0,0,10,8"
-                               Foreground="{DynamicResource SecondaryTextBrush}"
-                               Text="Last successful UTC:" />
-                    <TextBlock x:Name="LastSuccessfulValueTextBlock"
-                               Grid.Row="0"
-                               Grid.Column="1"
-                               Margin="0,0,0,8"
-                               TextWrapping="Wrap" />
-
-                    <TextBlock x:Name="LastFailureLabelTextBlock"
-                               Grid.Row="1"
-                               Margin="0,0,10,8"
-                               Foreground="{DynamicResource SecondaryTextBrush}"
-                               Text="Last failure UTC:" />
-                    <TextBlock x:Name="LastFailureValueTextBlock"
-                               Grid.Row="1"
-                               Grid.Column="1"
-                               Margin="0,0,0,8"
-                               TextWrapping="Wrap" />
-
-                    <TextBlock x:Name="CooldownUntilLabelTextBlock"
-                               Grid.Row="2"
-                               Margin="0,0,10,8"
-                               Foreground="{DynamicResource SecondaryTextBrush}"
-                               Text="Cooldown until UTC:" />
-                    <TextBlock x:Name="CooldownUntilValueTextBlock"
-                               Grid.Row="2"
-                               Grid.Column="1"
-                               Margin="0,0,0,8"
-                               TextWrapping="Wrap" />
-
-                    <TextBlock x:Name="FailureReasonLabelTextBlock"
-                               Grid.Row="3"
-                               Margin="0,0,10,8"
-                               Foreground="{DynamicResource SecondaryTextBrush}"
-                               Text="Last failure reason:" />
-                    <TextBlock x:Name="FailureReasonValueTextBlock"
-                               Grid.Row="3"
-                               Grid.Column="1"
-                               Margin="0,0,0,8"
-                               TextWrapping="Wrap" />
-
-                    <TextBlock x:Name="LastActionLabelTextBlock"
-                               Grid.Row="4"
-                               Margin="0,0,10,0"
-                               Foreground="{DynamicResource SecondaryTextBrush}"
-                               Text="Last action:" />
-                    <TextBlock x:Name="LastActionValueTextBlock"
-                               Grid.Row="4"
-                               Grid.Column="1"
-                               TextWrapping="Wrap" />
-                  </Grid>
-                </Expander>
-              </StackPanel>
-            </Border>
-          </StackPanel>
+              <ListBox x:Name="FailoverChainListBox"
+                       Height="128"
+                       Margin="0,7,0,0"
+                       ItemContainerStyle="{StaticResource HealthListItemStyle}">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <Grid Margin="6,4">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <Border Width="22"
+                              Height="22"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Center"
+                              CornerRadius="11"
+                              Background="{DynamicResource SurfaceRaisedBrush}"
+                              BorderBrush="{DynamicResource BorderBrush}"
+                              BorderThickness="1">
+                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="9" Text="{Binding Position}" />
+                      </Border>
+                      <StackPanel Grid.Column="1" Margin="3,0,6,0" VerticalAlignment="Center">
+                        <TextBlock FontSize="10" FontWeight="SemiBold" Text="{Binding DisplayName}" />
+                        <TextBlock Margin="0,1,0,0" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="{Binding Details}" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button MinWidth="46" Padding="5,3" FontSize="9" Tag="{Binding}" IsEnabled="{Binding CanMoveUp}" Content="{Binding MoveUpActionText, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" Click="OnMoveChainUpClicked" />
+                        <Button MinWidth="46" Margin="4,0,0,0" Padding="5,3" FontSize="9" Tag="{Binding}" IsEnabled="{Binding CanMoveDown}" Content="{Binding MoveDownActionText, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" Click="OnMoveChainDownClicked" />
+                        <Button MinWidth="58" Margin="4,0,0,0" Padding="5,3" FontSize="9" Style="{StaticResource DangerActionButtonStyle}" Tag="{Binding}" Content="{Binding RemoveActionText, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" Click="OnRemoveChainProfileClicked" />
+                      </StackPanel>
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </StackPanel>
+          </Border>
         </Grid>
       </StackPanel>
     </ScrollViewer>
 
     <Border Grid.Row="1"
-            Padding="20,14"
+            Padding="14,10"
             Background="{DynamicResource SurfaceBrush}"
             BorderBrush="{DynamicResource BorderBrush}"
             BorderThickness="0,1,0,0">
@@ -677,22 +516,19 @@
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-
         <Button x:Name="RunCheckButton"
-                Width="140"
+                Width="128"
                 HorizontalAlignment="Left"
                 Click="OnRunCheckClicked"
                 Content="Run Check" />
-
-        <StackPanel Grid.Column="1"
-                    Orientation="Horizontal">
+        <StackPanel Grid.Column="1" Orientation="Horizontal">
           <Button x:Name="CancelButton"
-                  Width="108"
-                  Margin="0,0,8,0"
+                  Width="100"
+                  Margin="0,0,7,0"
                   IsCancel="True"
                   Content="Cancel" />
           <Button x:Name="SaveButton"
-                  Width="118"
+                  Width="112"
                   Style="{StaticResource PrimaryActionButtonStyle}"
                   IsDefault="True"
                   Click="OnSaveClicked"
