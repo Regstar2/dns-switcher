@@ -2,165 +2,549 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Split DNS"
-        Width="940"
-        Height="680"
-        MinWidth="820"
-        MinHeight="560"
+        Width="1160"
+        Height="740"
+        MinWidth="980"
+        MinHeight="620"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource WindowBackgroundBrush}">
-  <Grid Margin="16">
+  <Window.Resources>
+    <Style x:Key="SplitDnsToggleStyle" TargetType="{x:Type CheckBox}">
+      <Setter Property="Width" Value="42" />
+      <Setter Property="Height" Value="22" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="{x:Type CheckBox}">
+            <Border x:Name="Track"
+                    Background="{DynamicResource SurfaceRaisedBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="11"
+                    SnapsToDevicePixels="True">
+              <Grid Margin="2">
+                <Ellipse x:Name="Thumb"
+                         Width="16"
+                         Height="16"
+                         HorizontalAlignment="Left"
+                         Fill="{DynamicResource PrimaryTextBrush}" />
+              </Grid>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Track" Property="Background" Value="{DynamicResource SelectionBrush}" />
+                <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource SelectionBrush}" />
+                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right" />
+              </Trigger>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource SelectionBrush}" />
+              </Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource SelectionBrush}" />
+                <Setter TargetName="Track" Property="BorderThickness" Value="2" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.55" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="SplitDnsRuleItemStyle"
+           TargetType="{x:Type ListBoxItem}"
+           BasedOn="{StaticResource {x:Type ListBoxItem}}">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Margin" Value="0,0,0,8" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+  </Window.Resources>
+
+  <Grid Margin="20">
     <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
-    <Border Padding="10"
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+
+      <StackPanel>
+        <TextBlock x:Name="PageTitleTextBlock"
+                   FontSize="24"
+                   FontWeight="SemiBold" />
+        <TextBlock x:Name="PageSubtitleTextBlock"
+                   Margin="0,4,0,0"
+                   Foreground="{DynamicResource SecondaryTextBrush}"
+                   TextWrapping="Wrap" />
+      </StackPanel>
+
+      <Border Grid.Column="1"
+              Margin="20,2,0,0"
+              Padding="12,7"
+              VerticalAlignment="Top"
+              Background="{DynamicResource SurfaceBrush}"
+              BorderBrush="{DynamicResource BorderBrush}"
+              BorderThickness="1"
+              CornerRadius="12">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock x:Name="ConfigurationStateLabelTextBlock"
+                     Margin="0,0,8,0"
+                     VerticalAlignment="Center"
+                     Foreground="{DynamicResource SecondaryTextBrush}" />
+          <TextBlock x:Name="ConfigurationStateTextBlock"
+                     VerticalAlignment="Center"
+                     FontWeight="SemiBold" />
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <Border Grid.Row="1"
+            Margin="0,14,0,14"
+            Padding="12,9"
             Background="{DynamicResource InfoStatusBrush}"
             CornerRadius="8">
       <TextBlock x:Name="SplitDnsWarningTextBlock"
-                 TextWrapping="Wrap"
-                 Text="Split DNS uses Windows NRPT rules. Apply/reset requires DnsSwitcher Agent or administrator rights. Apps with their own DNS/DoH stack can bypass Windows NRPT." />
+                 TextWrapping="Wrap" />
     </Border>
 
-    <Grid Grid.Row="1"
-          Margin="0,12,0,12">
+    <Grid Grid.Row="2">
       <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="0.58*" />
+        <ColumnDefinition Width="14" />
         <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="12" />
-        <ColumnDefinition Width="1.1*" />
       </Grid.ColumnDefinitions>
 
-      <GroupBox x:Name="RulesGroupBox" Header="Rules">
-        <Grid Margin="12">
+      <Border Grid.Column="0"
+              Padding="14"
+              Background="{DynamicResource SurfaceBrush}"
+              BorderBrush="{DynamicResource BorderBrush}"
+              BorderThickness="1"
+              CornerRadius="10">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock x:Name="RulesHeaderTextBlock"
+                         FontSize="17"
+                         FontWeight="SemiBold" />
+              <Border Margin="8,0,0,0"
+                      Padding="7,2"
+                      Background="{DynamicResource SurfaceMutedBrush}"
+                      CornerRadius="9">
+                <TextBlock x:Name="RulesCountTextBlock"
+                           FontSize="11"
+                           Foreground="{DynamicResource SecondaryTextBrush}" />
+              </Border>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock x:Name="SplitDnsEnabledLabelTextBlock"
+                         Margin="0,0,8,0"
+                         VerticalAlignment="Center"
+                         Foreground="{DynamicResource SecondaryTextBrush}" />
+              <CheckBox x:Name="SplitDnsEnabledCheckBox"
+                        Style="{StaticResource SplitDnsToggleStyle}"
+                        Checked="OnSplitDnsEnabledChanged"
+                        Unchecked="OnSplitDnsEnabledChanged" />
+            </StackPanel>
+          </Grid>
+
+          <Grid Grid.Row="1" Margin="0,12,0,10">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="RulesSearchTextBox"
+                     MinHeight="34"
+                     Margin="0,0,8,0"
+                     TextChanged="OnRulesSearchTextChanged" />
+            <Button x:Name="NewRuleButton"
+                    Grid.Column="1"
+                    MinWidth="88"
+                    Click="OnNewRuleClicked" />
+          </Grid>
+
+          <Grid Grid.Row="2">
+            <ListBox x:Name="RulesListBox"
+                     BorderThickness="0"
+                     Background="Transparent"
+                     ItemContainerStyle="{StaticResource SplitDnsRuleItemStyle}"
+                     SelectionChanged="OnRuleSelectionChanged"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <Border Padding="12"
+                          BorderThickness="1"
+                          CornerRadius="8">
+                    <Border.Style>
+                      <Style TargetType="{x:Type Border}">
+                        <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+                        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}}" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
+                          </DataTrigger>
+                          <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}}" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource SelectionBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource SelectionBrush}" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Border.Style>
+                    <Grid>
+                      <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                      </Grid.RowDefinitions>
+
+                      <TextBlock Text="{Binding Rule.Namespace}"
+                                 FontSize="14"
+                                 FontWeight="SemiBold"
+                                 TextTrimming="CharacterEllipsis" />
+
+                      <StackPanel Grid.Row="1"
+                                  Margin="0,4,0,0"
+                                  Orientation="Horizontal">
+                        <TextBlock Text="{Binding ProfileName}"
+                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Margin="6,0,0,0"
+                                   Text="{Binding Rule.ProfileId, StringFormat='({0})'}"
+                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                   FontSize="11"
+                                   TextTrimming="CharacterEllipsis" />
+                      </StackPanel>
+
+                      <Grid Grid.Row="2" Margin="0,9,0,0">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Border HorizontalAlignment="Left"
+                                Padding="7,2"
+                                CornerRadius="9">
+                          <Border.Style>
+                            <Style TargetType="{x:Type Border}">
+                              <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}" />
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding Rule.Enabled}" Value="True">
+                                  <Setter Property="Background" Value="{DynamicResource SuccessStatusBrush}" />
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </Border.Style>
+                          <TextBlock Text="{Binding EnabledText}"
+                                     FontSize="11">
+                            <TextBlock.Style>
+                              <Style TargetType="{x:Type TextBlock}">
+                                <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+                                <Style.Triggers>
+                                  <DataTrigger Binding="{Binding Rule.Enabled}" Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource SuccessTextBrush}" />
+                                  </DataTrigger>
+                                </Style.Triggers>
+                              </Style>
+                            </TextBlock.Style>
+                          </TextBlock>
+                        </Border>
+                        <StackPanel Grid.Column="1"
+                                    Orientation="Horizontal"
+                                    VerticalAlignment="Center">
+                          <TextBlock Text="{Binding PriorityText}"
+                                     FontSize="11"
+                                     Foreground="{DynamicResource SecondaryTextBrush}" />
+                          <TextBlock Margin="4,0,0,0"
+                                     Text="{Binding Rule.Priority}"
+                                     FontSize="11"
+                                     FontWeight="SemiBold" />
+                        </StackPanel>
+                      </Grid>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+
+            <StackPanel x:Name="EmptyStatePanel"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        MaxWidth="280"
+                        Visibility="Collapsed">
+              <TextBlock x:Name="EmptyStateTextBlock"
+                         HorizontalAlignment="Center"
+                         TextAlignment="Center"
+                         TextWrapping="Wrap"
+                         Foreground="{DynamicResource SecondaryTextBrush}" />
+              <Button x:Name="EmptyCreateRuleButton"
+                      Margin="0,12,0,0"
+                      HorizontalAlignment="Center"
+                      MinWidth="110"
+                      Click="OnNewRuleClicked" />
+            </StackPanel>
+          </Grid>
+
+          <Grid Grid.Row="3" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button x:Name="RefreshButton"
+                    HorizontalAlignment="Left"
+                    MinWidth="96"
+                    Click="OnRefreshClicked" />
+            <Button x:Name="DeleteRuleButton"
+                    Grid.Column="1"
+                    MinWidth="96"
+                    Style="{StaticResource DangerActionButtonStyle}"
+                    Click="OnDeleteRuleClicked" />
+          </Grid>
+        </Grid>
+      </Border>
+
+      <Border Grid.Column="2"
+              Padding="16"
+              Background="{DynamicResource SurfaceBrush}"
+              BorderBrush="{DynamicResource BorderBrush}"
+              BorderThickness="1"
+              CornerRadius="10">
+        <Grid>
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
 
-          <CheckBox x:Name="SplitDnsEnabledCheckBox"
-                    Margin="0,0,0,8"
-                    Checked="OnSplitDnsEnabledChanged"
-                    Unchecked="OnSplitDnsEnabledChanged"
-                    Content="Enable Split DNS configuration" />
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <TextBlock x:Name="RuleEditorHeaderTextBlock"
+                         FontSize="17"
+                         FontWeight="SemiBold" />
+              <TextBlock x:Name="EditorContextTextBlock"
+                         Margin="0,3,0,0"
+                         Foreground="{DynamicResource SecondaryTextBrush}"
+                         TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+            <StackPanel Grid.Column="1"
+                        Margin="14,0,0,0"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center">
+              <TextBlock x:Name="RuleEnabledLabelTextBlock"
+                         Margin="0,0,8,0"
+                         Foreground="{DynamicResource SecondaryTextBrush}"
+                         VerticalAlignment="Center" />
+              <CheckBox x:Name="RuleEnabledCheckBox"
+                        Style="{StaticResource SplitDnsToggleStyle}"
+                        Checked="OnRuleEnabledChanged"
+                        Unchecked="OnRuleEnabledChanged" />
+            </StackPanel>
+          </Grid>
 
-          <ListBox x:Name="RulesListBox"
-                   Grid.Row="1"
-                   SelectionChanged="OnRuleSelectionChanged" />
+          <ScrollViewer Grid.Row="1"
+                        Margin="0,14,0,12"
+                        VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Disabled">
+            <StackPanel x:Name="EditorFormPanel">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="1.35*" />
+                  <ColumnDefinition Width="12" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
 
-          <WrapPanel Grid.Row="2"
-                     Margin="0,10,0,0"
-                     HorizontalAlignment="Right">
-            <Button x:Name="NewRuleButton" Width="90" Margin="0,0,8,0" Click="OnNewRuleClicked" Content="New" />
-            <Button x:Name="DeleteRuleButton" Width="90" Margin="0,0,8,0" Click="OnDeleteRuleClicked" Style="{StaticResource DangerActionButtonStyle}" Content="Delete" />
-            <Button x:Name="RefreshButton" Width="90" Click="OnRefreshClicked" Content="Refresh" />
-          </WrapPanel>
+                <StackPanel>
+                  <TextBlock x:Name="NamespaceLabelTextBlock"
+                             Margin="0,0,0,5"
+                             FontWeight="SemiBold" />
+                  <TextBox x:Name="NamespaceTextBox"
+                           MinHeight="34" />
+                  <TextBlock x:Name="NamespaceHintTextBlock"
+                             Margin="0,5,0,0"
+                             FontSize="11"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             TextWrapping="Wrap" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                  <TextBlock x:Name="RuleIdLabelTextBlock"
+                             Margin="0,0,0,5"
+                             FontWeight="SemiBold" />
+                  <TextBox x:Name="RuleIdTextBox"
+                           MinHeight="34" />
+                </StackPanel>
+              </Grid>
+
+              <Border Margin="0,16,0,0"
+                      BorderBrush="{DynamicResource BorderBrush}"
+                      BorderThickness="0,1,0,0" />
+
+              <Grid Margin="0,16,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="1.35*" />
+                  <ColumnDefinition Width="12" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                  <TextBlock x:Name="TargetProfileLabelTextBlock"
+                             Margin="0,0,0,5"
+                             FontWeight="SemiBold" />
+                  <ComboBox x:Name="TargetProfileComboBox"
+                            MinHeight="34"
+                            DisplayMemberPath="DisplayName"
+                            SelectedValuePath="ProfileId" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                  <TextBlock x:Name="PriorityLabelTextBlock"
+                             Margin="0,0,0,5"
+                             FontWeight="SemiBold" />
+                  <TextBox x:Name="PriorityTextBox"
+                           MinHeight="34" />
+                  <TextBlock x:Name="PriorityHintTextBlock"
+                             Margin="0,5,0,0"
+                             FontSize="11"
+                             Foreground="{DynamicResource SecondaryTextBrush}" />
+                </StackPanel>
+              </Grid>
+
+              <StackPanel Margin="0,16,0,0">
+                <TextBlock x:Name="CommentLabelTextBlock"
+                           Margin="0,0,0,5"
+                           FontWeight="SemiBold" />
+                <TextBox x:Name="CommentTextBox"
+                         MinHeight="70"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto" />
+              </StackPanel>
+
+              <Border Margin="0,16,0,0"
+                      Padding="12"
+                      Background="{DynamicResource SurfaceMutedBrush}"
+                      CornerRadius="8">
+                <StackPanel>
+                  <TextBlock x:Name="TestHeaderTextBlock"
+                             Margin="0,0,0,8"
+                             FontWeight="SemiBold" />
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="TestDomainTextBox"
+                             MinHeight="34"
+                             Margin="0,0,8,0" />
+                    <Button x:Name="TestRuleButton"
+                            Grid.Column="1"
+                            MinWidth="88"
+                            Click="OnTestRuleClicked" />
+                  </Grid>
+                  <TextBlock x:Name="TestResultTextBlock"
+                             Margin="0,9,0,0"
+                             TextWrapping="Wrap" />
+                  <Expander x:Name="DetailsExpander"
+                            Margin="0,7,0,0">
+                    <TextBlock x:Name="TechnicalDetailsTextBlock"
+                               Margin="0,6,0,0"
+                               FontSize="11"
+                               Foreground="{DynamicResource SecondaryTextBrush}"
+                               TextWrapping="Wrap" />
+                  </Expander>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </ScrollViewer>
+
+          <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Border x:Name="PendingApplyBorder"
+                    Padding="9,5"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center"
+                    Background="{DynamicResource InfoStatusBrush}"
+                    CornerRadius="8"
+                    Visibility="Collapsed">
+              <TextBlock x:Name="PendingApplyTextBlock"
+                         FontSize="11"
+                         FontWeight="SemiBold" />
+            </Border>
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+              <Button x:Name="CancelRuleButton"
+                      MinWidth="96"
+                      Margin="0,0,8,0"
+                      Click="OnCancelRuleClicked" />
+              <Button x:Name="SaveRuleButton"
+                      MinWidth="104"
+                      Style="{StaticResource PrimaryActionButtonStyle}"
+                      Click="OnSaveRuleClicked" />
+            </StackPanel>
+          </Grid>
         </Grid>
-      </GroupBox>
-
-      <GroupBox Grid.Column="2"
-                x:Name="RuleEditorGroupBox"
-                Header="Rule Editor">
-        <Grid Margin="12">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="150" />
-            <ColumnDefinition Width="12" />
-            <ColumnDefinition Width="*" />
-          </Grid.ColumnDefinitions>
-          <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-          </Grid.RowDefinitions>
-
-          <TextBlock x:Name="RuleIdLabelTextBlock" Grid.Row="0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Rule ID:" />
-          <TextBox x:Name="RuleIdTextBox" Grid.Row="0" Grid.Column="2" Margin="0,0,0,8" />
-
-          <TextBlock x:Name="NamespaceLabelTextBlock" Grid.Row="1" VerticalAlignment="Center" FontWeight="SemiBold" Text="Namespace:" />
-          <TextBox x:Name="NamespaceTextBox" Grid.Row="1" Grid.Column="2" Margin="0,0,0,8" ToolTip="Examples: *.example.com, .example.com, internal.corp.local" />
-
-          <TextBlock x:Name="TargetProfileLabelTextBlock" Grid.Row="2" VerticalAlignment="Center" FontWeight="SemiBold" Text="Target profile:" />
-          <ComboBox x:Name="TargetProfileComboBox"
-                    Grid.Row="2"
-                    Grid.Column="2"
-                    Margin="0,0,0,8"
-                    DisplayMemberPath="DisplayName"
-                    SelectedValuePath="ProfileId" />
-
-          <TextBlock x:Name="PriorityLabelTextBlock" Grid.Row="3" VerticalAlignment="Center" FontWeight="SemiBold" Text="Priority:" />
-          <TextBox x:Name="PriorityTextBox" Grid.Row="3" Grid.Column="2" Margin="0,0,0,8" />
-
-          <TextBlock x:Name="RuleEnabledLabelTextBlock" Grid.Row="4" VerticalAlignment="Center" FontWeight="SemiBold" Text="Enabled:" />
-          <CheckBox x:Name="RuleEnabledCheckBox" Grid.Row="4" Grid.Column="2" Margin="0,0,0,8" />
-
-          <TextBlock x:Name="CommentLabelTextBlock" Grid.Row="5" VerticalAlignment="Top" FontWeight="SemiBold" Text="Comment:" />
-          <TextBox x:Name="CommentTextBox"
-                   Grid.Row="5"
-                   Grid.Column="2"
-                   Height="64"
-                   Margin="0,0,0,8"
-                   AcceptsReturn="True"
-                   TextWrapping="Wrap" />
-
-          <WrapPanel Grid.Row="6"
-                     Grid.ColumnSpan="3"
-                     Margin="0,4,0,12"
-                     HorizontalAlignment="Right">
-            <Button x:Name="SaveRuleButton" Width="120" Margin="0,0,8,0" Click="OnSaveRuleClicked" Content="Save Rule" />
-            <Button x:Name="ToggleRuleButton" Width="120" Click="OnToggleRuleClicked" Content="Toggle Rule" />
-          </WrapPanel>
-
-          <GroupBox Grid.Row="7"
-                    Grid.ColumnSpan="3"
-                    x:Name="TestStatusGroupBox"
-                    Header="Test / Status">
-            <Grid Margin="12">
-              <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-              </Grid.RowDefinitions>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-
-              <TextBox x:Name="TestDomainTextBox"
-                       Margin="0,0,8,8"
-                       ToolTip="Domain to test against current rules" />
-              <Button x:Name="TestRuleButton"
-                      Grid.Column="1"
-                      Width="96"
-                      Margin="0,0,0,8"
-                      Click="OnTestRuleClicked"
-                      Content="Test" />
-
-              <TextBox x:Name="StatusTextBox"
-                       Grid.Row="1"
-                       Grid.ColumnSpan="2"
-                       IsReadOnly="True"
-                       FontFamily="Consolas"
-                       FontSize="12"
-                       TextWrapping="NoWrap"
-                       VerticalScrollBarVisibility="Auto"
-                       HorizontalScrollBarVisibility="Auto" />
-            </Grid>
-          </GroupBox>
-        </Grid>
-      </GroupBox>
+      </Border>
     </Grid>
 
-    <StackPanel Grid.Row="2"
-                Orientation="Horizontal"
-                HorizontalAlignment="Right">
-      <Button x:Name="ApplyRulesButton" Width="120" Margin="0,0,8,0" Click="OnApplyRulesClicked" Content="Apply Rules" />
-      <Button x:Name="ResetRulesButton" Width="120" Margin="0,0,8,0" Style="{StaticResource DangerActionButtonStyle}" Click="OnResetRulesClicked" Content="Reset Rules" />
-      <Button x:Name="CloseButton" Width="96" IsCancel="True" Click="OnCloseClicked" Content="Close" />
-    </StackPanel>
+    <Grid Grid.Row="3" Margin="0,14,0,0">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <TextBlock x:Name="StatusTextBlock"
+                   VerticalAlignment="Center"
+                   Foreground="{DynamicResource SecondaryTextBrush}"
+                   TextWrapping="Wrap" />
+        <TextBlock x:Name="BusyTextBlock"
+                   Margin="10,0,0,0"
+                   VerticalAlignment="Center"
+                   FontWeight="SemiBold"
+                   Visibility="Collapsed" />
+      </StackPanel>
+
+      <StackPanel Grid.Column="1" Orientation="Horizontal">
+        <Button x:Name="ResetRulesButton"
+                MinWidth="118"
+                Margin="0,0,8,0"
+                Style="{StaticResource DangerActionButtonStyle}"
+                Click="OnResetRulesClicked" />
+        <Button x:Name="CloseButton"
+                MinWidth="96"
+                Margin="0,0,8,0"
+                IsCancel="True"
+                Click="OnCloseClicked" />
+        <Button x:Name="ApplyRulesButton"
+                MinWidth="112"
+                Style="{StaticResource PrimaryActionButtonStyle}"
+                Click="OnApplyRulesClicked" />
+      </StackPanel>
+    </Grid>
   </Grid>
 </Window>

@@ -14,6 +14,12 @@ public partial class SplitDnsRulesWindow : Window
     private SplitDnsConfiguration configuration = SplitDnsConfiguration.Default;
     private IReadOnlyList<DnsProfile> staticProfiles = [];
     private bool suppressEnabledChanged;
+    private bool suppressRuleEnabledChanged;
+    private bool suppressSelectionChanged;
+    private bool isCreatingNew;
+    private bool pendingApply;
+    private string? editingRuleId;
+    private string? lastTestDetails;
 
     public SplitDnsRulesWindow(WindowsDnsSwitcherHost host, AppLocalizer localizer)
     {
@@ -33,19 +39,74 @@ public partial class SplitDnsRulesWindow : Window
 
     private async void OnRefreshClicked(object sender, RoutedEventArgs e)
     {
-        await LoadAsync().ConfigureAwait(true);
+        await LoadAsync(editingRuleId).ConfigureAwait(true);
+    }
+
+    private void OnRulesSearchTextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        RefreshRulesListPreservingEditor(editingRuleId);
+        UpdateEditorState();
     }
 
     private void OnNewRuleClicked(object sender, RoutedEventArgs e)
     {
+        suppressSelectionChanged = true;
         RulesListBox.SelectedItem = null;
+        suppressSelectionChanged = false;
+
+        isCreatingNew = true;
+        editingRuleId = null;
         RuleIdTextBox.Text = string.Empty;
         NamespaceTextBox.Text = string.Empty;
         TargetProfileComboBox.SelectedIndex = staticProfiles.Count > 0 ? 0 : -1;
         PriorityTextBox.Text = "0";
-        RuleEnabledCheckBox.IsChecked = true;
+        SetRuleEnabledEditorValue(true);
         CommentTextBox.Text = string.Empty;
+        TestResultTextBlock.Text = string.Empty;
+        EditorContextTextBlock.Text = localizer["NewButton"];
+        UpdateEditorState();
+
+        if (staticProfiles.Count == 0)
+        {
+            SetStatus(localizer["SplitDnsTargetProfileRequired"]);
+        }
+
         NamespaceTextBox.Focus();
+    }
+
+    private void OnCancelRuleClicked(object sender, RoutedEventArgs e)
+    {
+        if (isCreatingNew)
+        {
+            isCreatingNew = false;
+            editingRuleId = null;
+
+            if (RulesListBox.Items.Count > 0)
+            {
+                RulesListBox.SelectedIndex = 0;
+            }
+            else
+            {
+                ClearEditor();
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(editingRuleId))
+        {
+            var rule = configuration.Rules.FirstOrDefault(rule =>
+                string.Equals(rule.Id, editingRuleId, StringComparison.OrdinalIgnoreCase));
+
+            if (rule is not null)
+            {
+                PopulateEditor(rule);
+            }
+        }
+
+        UpdateEditorState();
     }
 
     private async void OnSaveRuleClicked(object sender, RoutedEventArgs e)
@@ -75,24 +136,73 @@ public partial class SplitDnsRulesWindow : Window
         await RunAsync(async () =>
         {
             await host.SplitDnsRuleService.RemoveRuleAsync(item.Rule.Id).ConfigureAwait(true);
-            await LoadAsync().ConfigureAwait(true);
+            configuration = await host.SplitDnsRuleService.GetConfigurationAsync().ConfigureAwait(true);
+            isCreatingNew = false;
+            editingRuleId = null;
+            MarkPendingApply();
+            RefreshRulesList(null, selectFirstWhenNone: true);
+
+            if (RulesListBox.SelectedItem is not RuleItem)
+            {
+                ClearEditor();
+            }
+
+            UpdateConfigurationState();
+            UpdateTechnicalDetails();
+            UpdateEditorState();
             SetStatus(localizer.Format("SplitDnsRuleDeletedFormat", item.Rule.Id));
         }).ConfigureAwait(true);
     }
 
-    private async void OnToggleRuleClicked(object sender, RoutedEventArgs e)
+    private async void OnRuleEnabledChanged(object sender, RoutedEventArgs e)
     {
-        if (RulesListBox.SelectedItem is not RuleItem item)
+        if (suppressRuleEnabledChanged || isCreatingNew || string.IsNullOrWhiteSpace(editingRuleId))
         {
-            SetStatus(localizer["SplitDnsSelectRuleToggle"]);
             return;
         }
 
+        var rule = configuration.Rules.FirstOrDefault(rule =>
+            string.Equals(rule.Id, editingRuleId, StringComparison.OrdinalIgnoreCase));
+
+        if (rule is null)
+        {
+            return;
+        }
+
+        var enabled = RuleEnabledCheckBox.IsChecked == true;
+
+        if (rule.Enabled == enabled)
+        {
+            return;
+        }
+
+        var ruleId = rule.Id;
         await RunAsync(async () =>
         {
-            await host.SplitDnsRuleService.SetRuleEnabledAsync(item.Rule.Id, !item.Rule.Enabled).ConfigureAwait(true);
-            await LoadAsync(item.Rule.Id).ConfigureAwait(true);
+            await host.SplitDnsRuleService.SetRuleEnabledAsync(ruleId, enabled).ConfigureAwait(true);
+            configuration = configuration with
+            {
+                Rules = configuration.Rules
+                    .Select(existing => string.Equals(existing.Id, ruleId, StringComparison.OrdinalIgnoreCase)
+                        ? existing with { Enabled = enabled }
+                        : existing)
+                    .ToList(),
+            };
+
+            MarkPendingApply();
+            RefreshRulesListPreservingEditor(ruleId);
+            UpdateTechnicalDetails();
+            UpdateEditorState();
+            SetStatus(localizer.Format("SplitDnsRuleSavedFormat", ruleId));
         }).ConfigureAwait(true);
+
+        var currentRule = configuration.Rules.FirstOrDefault(existing =>
+            string.Equals(existing.Id, ruleId, StringComparison.OrdinalIgnoreCase));
+
+        if (currentRule is not null && RuleEnabledCheckBox.IsChecked != currentRule.Enabled)
+        {
+            SetRuleEnabledEditorValue(currentRule.Enabled);
+        }
     }
 
     private async void OnSplitDnsEnabledChanged(object sender, RoutedEventArgs e)
@@ -102,27 +212,43 @@ public partial class SplitDnsRulesWindow : Window
             return;
         }
 
+        var enabled = SplitDnsEnabledCheckBox.IsChecked == true;
         await RunAsync(async () =>
         {
-            configuration = configuration with { Enabled = SplitDnsEnabledCheckBox.IsChecked == true };
-            await host.SplitDnsRuleService.SaveConfigurationAsync(configuration).ConfigureAwait(true);
-            await LoadAsync().ConfigureAwait(true);
+            var updatedConfiguration = configuration with { Enabled = enabled };
+            await host.SplitDnsRuleService.SaveConfigurationAsync(updatedConfiguration).ConfigureAwait(true);
+            configuration = updatedConfiguration;
+            MarkPendingApply();
+            UpdateConfigurationState();
+            UpdateTechnicalDetails();
+            SetStatus(
+                $"{localizer["SplitDnsEnabledLine"]} " +
+                $"{(configuration.Enabled ? localizer["YesValue"] : localizer["NoValue"])}");
         }).ConfigureAwait(true);
+
+        if (SplitDnsEnabledCheckBox.IsChecked != configuration.Enabled)
+        {
+            suppressEnabledChanged = true;
+            SplitDnsEnabledCheckBox.IsChecked = configuration.Enabled;
+            suppressEnabledChanged = false;
+        }
     }
 
     private void OnRuleSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (RulesListBox.SelectedItem is not RuleItem item)
+        if (suppressSelectionChanged)
         {
             return;
         }
 
-        RuleIdTextBox.Text = item.Rule.Id;
-        NamespaceTextBox.Text = item.Rule.Namespace;
-        TargetProfileComboBox.SelectedValue = item.Rule.ProfileId;
-        PriorityTextBox.Text = item.Rule.Priority.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        RuleEnabledCheckBox.IsChecked = item.Rule.Enabled;
-        CommentTextBox.Text = item.Rule.Comment ?? string.Empty;
+        if (RulesListBox.SelectedItem is RuleItem item)
+        {
+            isCreatingNew = false;
+            editingRuleId = item.Rule.Id;
+            PopulateEditor(item.Rule);
+        }
+
+        UpdateEditorState();
     }
 
     private async void OnTestRuleClicked(object sender, RoutedEventArgs e)
@@ -136,11 +262,11 @@ public partial class SplitDnsRulesWindow : Window
         await RunAsync(async () =>
         {
             var match = await host.SplitDnsRuleService.TestMatchAsync(TestDomainTextBox.Text).ConfigureAwait(true);
-            SetStatus(
-                $"{localizer["SplitDnsDomainLine"]} {match.Domain}{Environment.NewLine}" +
-                $"{localizer["SplitDnsMatchedLine"]} {(match.Matched ? localizer["YesValue"] : localizer["NoValue"])}{Environment.NewLine}" +
-                $"{localizer["SplitDnsRuleLine"]} {match.Rule?.Id ?? localizer["NoneValue"]}{Environment.NewLine}" +
-                $"{localizer["SplitDnsDetailsLine"]} {match.Details}");
+            TestResultTextBlock.Text = match.Matched && match.Rule is not null
+                ? $"{match.Domain} → {match.Rule.Namespace} → {ResolveProfileName(match.Rule.ProfileId)}"
+                : $"{match.Domain} → {localizer["NoneValue"]}";
+            lastTestDetails = match.Details;
+            UpdateTechnicalDetails();
         }).ConfigureAwait(true);
     }
 
@@ -150,6 +276,9 @@ public partial class SplitDnsRulesWindow : Window
         {
             await SaveCurrentConfigurationAsync().ConfigureAwait(true);
             await host.AgentSplitDnsService.ApplyAsync(configuration).ConfigureAwait(true);
+            pendingApply = false;
+            UpdatePendingApplyState();
+            UpdateTechnicalDetails();
             SetStatus(localizer["SplitDnsAppliedStatus"]);
         }).ConfigureAwait(true);
     }
@@ -170,6 +299,8 @@ public partial class SplitDnsRulesWindow : Window
         await RunAsync(async () =>
         {
             await host.AgentSplitDnsService.ResetAsync().ConfigureAwait(true);
+            pendingApply = configuration.Enabled && configuration.Rules.Count > 0;
+            UpdatePendingApplyState();
             SetStatus(localizer["SplitDnsResetStatus"]);
         }).ConfigureAwait(true);
     }
@@ -188,17 +319,45 @@ public partial class SplitDnsRulesWindow : Window
                 .Where(profile => profile.Mode == ProfileMode.Static)
                 .OrderBy(profile => profile.Name, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
+
             TargetProfileComboBox.ItemsSource = staticProfiles
                 .Select(profile => new ProfileOption(profile.Id, $"{profile.Name} ({profile.Id})"))
                 .ToArray();
+
             configuration = await host.SplitDnsRuleService.GetConfigurationAsync().ConfigureAwait(true);
 
             suppressEnabledChanged = true;
             SplitDnsEnabledCheckBox.IsChecked = configuration.Enabled;
             suppressEnabledChanged = false;
 
-            RefreshRulesList(selectedRuleId);
-            SetStatus(BuildConfigurationStatus());
+            isCreatingNew = false;
+            editingRuleId = selectedRuleId;
+            RefreshRulesList(selectedRuleId, selectFirstWhenNone: selectedRuleId is null);
+
+            if (RulesListBox.SelectedItem is not RuleItem)
+            {
+                var selectedRule = !string.IsNullOrWhiteSpace(selectedRuleId)
+                    ? configuration.Rules.FirstOrDefault(rule =>
+                        string.Equals(rule.Id, selectedRuleId, StringComparison.OrdinalIgnoreCase))
+                    : null;
+
+                if (selectedRule is not null)
+                {
+                    editingRuleId = selectedRule.Id;
+                    PopulateEditor(selectedRule);
+                }
+                else if (configuration.Rules.Count == 0)
+                {
+                    editingRuleId = null;
+                    ClearEditor();
+                }
+            }
+
+            UpdateConfigurationState();
+            UpdatePendingApplyState();
+            UpdateTechnicalDetails();
+            UpdateEditorState();
+            SetStatus(localizer["ReadyStatus"]);
         }).ConfigureAwait(true);
     }
 
@@ -208,9 +367,8 @@ public partial class SplitDnsRulesWindow : Window
         {
             var rule = BuildEditedRule();
             var rules = configuration.Rules.ToList();
-            var selectedRuleId = (RulesListBox.SelectedItem as RuleItem)?.Rule.Id;
             var existingIndex = rules.FindIndex(existing =>
-                string.Equals(existing.Id, selectedRuleId ?? rule.Id, StringComparison.OrdinalIgnoreCase));
+                string.Equals(existing.Id, editingRuleId ?? rule.Id, StringComparison.OrdinalIgnoreCase));
 
             if (existingIndex >= 0)
             {
@@ -228,7 +386,13 @@ public partial class SplitDnsRulesWindow : Window
             };
 
             await host.SplitDnsRuleService.SaveConfigurationAsync(configuration).ConfigureAwait(true);
-            await LoadAsync(rule.Id).ConfigureAwait(true);
+            isCreatingNew = false;
+            editingRuleId = rule.Id;
+            MarkPendingApply();
+            RefreshRulesList(rule.Id);
+            UpdateConfigurationState();
+            UpdateTechnicalDetails();
+            UpdateEditorState();
             SetStatus(localizer.Format("SplitDnsRuleSavedFormat", rule.Id));
         }).ConfigureAwait(true);
     }
@@ -298,8 +462,9 @@ public partial class SplitDnsRulesWindow : Window
         return candidate;
     }
 
-    private void RefreshRulesList(string? selectedRuleId)
+    private void RefreshRulesList(string? selectedRuleId, bool selectFirstWhenNone = false)
     {
+        var query = RulesSearchTextBox.Text.Trim();
         var items = configuration.Rules
             .OrderByDescending(rule => rule.Priority)
             .ThenBy(rule => rule.Namespace, StringComparer.OrdinalIgnoreCase)
@@ -308,8 +473,10 @@ public partial class SplitDnsRulesWindow : Window
                 ResolveProfileName(rule.ProfileId),
                 rule.Enabled ? localizer["EnabledValue"] : localizer["DisabledValue"],
                 localizer["SplitDnsPriorityListText"]))
+            .Where(item => MatchesSearch(item, query))
             .ToArray();
 
+        suppressSelectionChanged = true;
         RulesListBox.ItemsSource = items;
 
         if (!string.IsNullOrWhiteSpace(selectedRuleId))
@@ -317,6 +484,76 @@ public partial class SplitDnsRulesWindow : Window
             RulesListBox.SelectedItem = items.FirstOrDefault(item =>
                 string.Equals(item.Rule.Id, selectedRuleId, StringComparison.OrdinalIgnoreCase));
         }
+        else if (selectFirstWhenNone && items.Length > 0)
+        {
+            RulesListBox.SelectedIndex = 0;
+        }
+
+        suppressSelectionChanged = false;
+
+        if (RulesListBox.SelectedItem is RuleItem selectedItem && !isCreatingNew)
+        {
+            editingRuleId = selectedItem.Rule.Id;
+            PopulateEditor(selectedItem.Rule);
+        }
+
+        RulesCountTextBlock.Text = string.IsNullOrWhiteSpace(query)
+            ? configuration.Rules.Count.ToString(System.Globalization.CultureInfo.CurrentCulture)
+            : $"{items.Length}/{configuration.Rules.Count}";
+
+        EmptyStatePanel.Visibility = items.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        EmptyStateTextBlock.Text = configuration.Rules.Count == 0
+            ? localizer["SplitDnsNoRulesConfigured"]
+            : localizer["NoneValue"];
+        EmptyCreateRuleButton.Visibility = configuration.Rules.Count == 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
+    private void RefreshRulesListPreservingEditor(string? selectedRuleId)
+    {
+        suppressSelectionChanged = true;
+        var query = RulesSearchTextBox.Text.Trim();
+        var items = configuration.Rules
+            .OrderByDescending(rule => rule.Priority)
+            .ThenBy(rule => rule.Namespace, StringComparer.OrdinalIgnoreCase)
+            .Select(rule => new RuleItem(
+                rule,
+                ResolveProfileName(rule.ProfileId),
+                rule.Enabled ? localizer["EnabledValue"] : localizer["DisabledValue"],
+                localizer["SplitDnsPriorityListText"]))
+            .Where(item => MatchesSearch(item, query))
+            .ToArray();
+
+        RulesListBox.ItemsSource = items;
+        RulesListBox.SelectedItem = !string.IsNullOrWhiteSpace(selectedRuleId)
+            ? items.FirstOrDefault(item => string.Equals(item.Rule.Id, selectedRuleId, StringComparison.OrdinalIgnoreCase))
+            : null;
+        suppressSelectionChanged = false;
+
+        RulesCountTextBlock.Text = string.IsNullOrWhiteSpace(query)
+            ? configuration.Rules.Count.ToString(System.Globalization.CultureInfo.CurrentCulture)
+            : $"{items.Length}/{configuration.Rules.Count}";
+        EmptyStatePanel.Visibility = items.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        EmptyStateTextBlock.Text = configuration.Rules.Count == 0
+            ? localizer["SplitDnsNoRulesConfigured"]
+            : localizer["NoneValue"];
+        EmptyCreateRuleButton.Visibility = configuration.Rules.Count == 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
+    private static bool MatchesSearch(RuleItem item, string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return true;
+        }
+
+        return item.Rule.Namespace.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || item.Rule.Id.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || item.Rule.ProfileId.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || item.ProfileName.Contains(query, StringComparison.OrdinalIgnoreCase);
     }
 
     private string ResolveProfileName(string profileId)
@@ -324,6 +561,77 @@ public partial class SplitDnsRulesWindow : Window
         var profile = staticProfiles.FirstOrDefault(profile =>
             string.Equals(profile.Id, profileId, StringComparison.OrdinalIgnoreCase));
         return profile?.Name ?? localizer["MissingProfileValue"];
+    }
+
+    private void PopulateEditor(SplitDnsRule rule)
+    {
+        RuleIdTextBox.Text = rule.Id;
+        NamespaceTextBox.Text = rule.Namespace;
+        TargetProfileComboBox.SelectedValue = rule.ProfileId;
+        PriorityTextBox.Text = rule.Priority.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        SetRuleEnabledEditorValue(rule.Enabled);
+        CommentTextBox.Text = rule.Comment ?? string.Empty;
+        EditorContextTextBlock.Text = rule.Namespace;
+    }
+
+    private void ClearEditor()
+    {
+        RuleIdTextBox.Text = string.Empty;
+        NamespaceTextBox.Text = string.Empty;
+        TargetProfileComboBox.SelectedIndex = -1;
+        PriorityTextBox.Text = "0";
+        SetRuleEnabledEditorValue(false);
+        CommentTextBox.Text = string.Empty;
+        EditorContextTextBlock.Text = localizer["NoneValue"];
+        TestResultTextBlock.Text = string.Empty;
+    }
+
+    private void SetRuleEnabledEditorValue(bool enabled)
+    {
+        suppressRuleEnabledChanged = true;
+        RuleEnabledCheckBox.IsChecked = enabled;
+        suppressRuleEnabledChanged = false;
+    }
+
+    private void UpdateEditorState()
+    {
+        var hasEditorTarget = isCreatingNew || !string.IsNullOrWhiteSpace(editingRuleId);
+        EditorFormPanel.IsEnabled = hasEditorTarget;
+        RuleEnabledCheckBox.IsEnabled = hasEditorTarget;
+        SaveRuleButton.IsEnabled = hasEditorTarget;
+        CancelRuleButton.IsEnabled = hasEditorTarget;
+        DeleteRuleButton.IsEnabled = !isCreatingNew && RulesListBox.SelectedItem is RuleItem;
+    }
+
+    private void UpdateConfigurationState()
+    {
+        ConfigurationStateTextBlock.Text = configuration.Enabled
+            ? localizer["EnabledValue"]
+            : localizer["DisabledValue"];
+    }
+
+    private void MarkPendingApply()
+    {
+        pendingApply = true;
+        UpdatePendingApplyState();
+    }
+
+    private void UpdatePendingApplyState()
+    {
+        PendingApplyBorder.Visibility = pendingApply ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void UpdateTechnicalDetails()
+    {
+        var details = BuildConfigurationStatus();
+
+        if (!string.IsNullOrWhiteSpace(lastTestDetails))
+        {
+            details += Environment.NewLine + Environment.NewLine +
+                       $"{localizer["SplitDnsDetailsLine"]} {lastTestDetails}";
+        }
+
+        TechnicalDetailsTextBlock.Text = details;
     }
 
     private string BuildConfigurationStatus()
@@ -342,6 +650,7 @@ public partial class SplitDnsRulesWindow : Window
     {
         IsEnabled = !busy;
         Cursor = busy ? System.Windows.Input.Cursors.Wait : null;
+        BusyTextBlock.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private async Task RunAsync(Func<Task> action)
@@ -369,44 +678,55 @@ public partial class SplitDnsRulesWindow : Window
 
     private void SetStatus(string message)
     {
-        StatusTextBox.Text = message;
-        StatusTextBox.ScrollToEnd();
+        StatusTextBlock.Text = message;
     }
-
-    private sealed record ProfileOption(string ProfileId, string DisplayName);
 
     private void ApplyLocalization()
     {
         Title = localizer["SplitDnsTitle"];
+        PageTitleTextBlock.Text = localizer["SplitDnsTitle"];
+        PageSubtitleTextBlock.Text = localizer["SettingsSplitDnsDescription"];
+        ConfigurationStateLabelTextBlock.Text = localizer["SplitDnsLabel"];
         SplitDnsWarningTextBlock.Text = localizer["SplitDnsWarningText"];
-        SplitDnsEnabledCheckBox.Content = localizer["SplitDnsEnableConfiguration"];
-        RulesGroupBox.Header = localizer["SplitDnsRulesHeader"];
+        SplitDnsEnabledLabelTextBlock.Text = localizer["SplitDnsLabel"];
+        RulesHeaderTextBlock.Text = localizer["SplitDnsRulesHeader"];
         NewRuleButton.Content = localizer["NewButton"];
+        EmptyCreateRuleButton.Content = localizer["NewButton"];
         DeleteRuleButton.Content = localizer["DeleteProfileButton"];
         RefreshButton.Content = localizer["ReloadButton"];
-        RuleEditorGroupBox.Header = localizer["SplitDnsRuleEditorHeader"];
+        RuleEditorHeaderTextBlock.Text = localizer["SplitDnsRuleEditorHeader"];
         RuleIdLabelTextBlock.Text = localizer["SplitDnsRuleIdLabel"];
         NamespaceLabelTextBlock.Text = localizer["SplitDnsNamespaceLabel"];
+        NamespaceHintTextBlock.Text = localizer["SplitDnsNamespaceExamplesTooltip"];
         TargetProfileLabelTextBlock.Text = localizer["SplitDnsTargetProfileLabel"];
         PriorityLabelTextBlock.Text = localizer["SplitDnsPriorityLabel"];
+        PriorityHintTextBlock.Visibility = Visibility.Collapsed;
         RuleEnabledLabelTextBlock.Text = localizer["SplitDnsRuleEnabledLabel"];
         CommentLabelTextBlock.Text = localizer["SplitDnsCommentLabel"];
-        SaveRuleButton.Content = localizer["SplitDnsSaveRuleButton"];
-        ToggleRuleButton.Content = localizer["SplitDnsToggleRuleButton"];
-        TestStatusGroupBox.Header = localizer["SplitDnsTestStatusHeader"];
+        SaveRuleButton.Content = localizer["SaveButton"];
+        CancelRuleButton.Content = localizer["CancelButton"];
+        TestHeaderTextBlock.Text = localizer["SplitDnsTestStatusHeader"];
         TestRuleButton.Content = localizer["TestButton"];
-        ApplyRulesButton.Content = localizer["SplitDnsApplyRulesButton"];
-        ResetRulesButton.Content = localizer["SplitDnsResetRulesButton"];
+        DetailsExpander.Header = localizer["SplitDnsDetailsLine"];
+        ApplyRulesButton.Content = localizer["ApplyButton"];
+        ResetRulesButton.Content = localizer["TraySplitDnsReset"];
         CloseButton.Content = localizer["CloseButton"];
+        PendingApplyTextBlock.Text = localizer["TraySplitDnsApply"];
+        BusyTextBlock.Text = localizer["WorkingStatus"];
         NamespaceTextBox.ToolTip = localizer["SplitDnsNamespaceExamplesTooltip"];
         TestDomainTextBox.ToolTip = localizer["SplitDnsTestDomainTooltip"];
+        RulesSearchTextBox.ToolTip = $"{localizer["SplitDnsRulesHeader"]}: " +
+                                     $"{localizer["SplitDnsNamespaceLabel"].TrimEnd(':')} / " +
+                                     localizer["SplitDnsTargetProfileLabel"].TrimEnd(':');
+        EmptyStateTextBlock.Text = localizer["SplitDnsNoRulesConfigured"];
+        EditorContextTextBlock.Text = localizer["NoneValue"];
     }
 
-    private sealed record RuleItem(SplitDnsRule Rule, string ProfileName, string EnabledText, string PriorityText)
-    {
-        public override string ToString()
-        {
-            return $"{Rule.Namespace} -> {ProfileName} ({Rule.ProfileId}) | {EnabledText} | {PriorityText} {Rule.Priority}";
-        }
-    }
+    private sealed record ProfileOption(string ProfileId, string DisplayName);
+
+    private sealed record RuleItem(
+        SplitDnsRule Rule,
+        string ProfileName,
+        string EnabledText,
+        string PriorityText);
 }
