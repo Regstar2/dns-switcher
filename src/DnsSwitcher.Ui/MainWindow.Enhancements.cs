@@ -2,7 +2,9 @@ using System.Windows;
 using System.Windows.Controls;
 using DnsSwitcher.Core.Models;
 using DnsSwitcher.Infrastructure.Windows.Configuration;
+using DnsSwitcher.Infrastructure.Windows.Dns;
 using DnsSwitcher.Ui.UiModels;
+using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 
 namespace DnsSwitcher.Ui;
