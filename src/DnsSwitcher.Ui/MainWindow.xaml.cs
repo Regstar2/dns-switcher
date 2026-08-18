@@ -22,7 +22,6 @@ public partial class MainWindow : Window
 {
     private const double CompactWidthThreshold = 760;
     private const double HideSelectedProfileHeightThreshold = 500;
-    private const double HideCurrentStatusHeightThreshold = 380;
     private const string TrayAutostartValueName = "DnsSwitcherTray";
     private const string LegacyUiAutostartValueName = "DnsSwitcherUi";
     private static readonly TimeSpan PeriodicRefreshInterval = TimeSpan.FromSeconds(10);
@@ -85,7 +84,7 @@ public partial class MainWindow : Window
             MigrateLegacyUiAutostartIfNeeded();
             ApplyLocalization();
             InitializeExternalRefresh();
-            await RefreshUiAsync(localizer["UiLoadedStatus"]).ConfigureAwait(true);
+            await RefreshUiAsync(localizer["ReadyStatus"]).ConfigureAwait(true);
             UpdateResponsiveLayout();
             isInitialized = true;
             await ShowAgentManagerOnFirstLaunchAsync().ConfigureAwait(true);
@@ -201,6 +200,12 @@ public partial class MainWindow : Window
     {
         MoreToolsContextMenu.PlacementTarget = MoreToolsButton;
         MoreToolsContextMenu.IsOpen = true;
+    }
+
+    private void OnOpenAdditionalClicked(object sender, RoutedEventArgs e)
+    {
+        AdditionalContextMenu.PlacementTarget = AdditionalButton;
+        AdditionalContextMenu.IsOpen = true;
     }
 
     private async void OnResetClicked(object sender, RoutedEventArgs e)
@@ -724,17 +729,47 @@ public partial class MainWindow : Window
         SplitDnsConfiguration splitDnsConfiguration)
     {
         CurrentProfileValueTextBlock.Text = GetCurrentProfileText(configuration, status);
+
+        var configuredProfileId = activeProfile?.Id ?? configuration.ActiveProfileId;
+        var currentMatchesConfigured = !string.IsNullOrWhiteSpace(configuredProfileId)
+            && string.Equals(status.MatchedProfileId, configuredProfileId, StringComparison.OrdinalIgnoreCase);
         ConfigActiveProfileValueTextBlock.Text = activeProfile is null
-            ? localizer["NoneValue"]
+            ? configuredProfileId ?? localizer["NoneValue"]
             : $"{activeProfile.Name} ({activeProfile.Id})";
+        ConfigActiveProfilePanel.Visibility = string.IsNullOrWhiteSpace(configuredProfileId) || currentMatchesConfigured
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+
         SelectedAdapterValueTextBlock.Text = status.AdapterName ?? localizer["NoneValue"];
-        DnsModeValueTextBlock.Text = status.Mode.ToString();
+        DnsModeValueTextBlock.Text = GetDnsModeText(status.Mode);
         AgentServiceStatusValueTextBlock.Text = agentServiceStatus.ToString();
         AgentAvailableValueTextBlock.Text = agentAvailable ? localizer["YesValue"] : localizer["NoValue"];
-        HealthMonitorValueTextBlock.Text = $"{(healthSettings.Enabled ? localizer["EnabledValue"] : localizer["DisabledValue"])} ({healthState.Status})";
-        SplitDnsValueTextBlock.Text = $"{(splitDnsConfiguration.Enabled ? localizer["EnabledValue"] : localizer["DisabledValue"])} ({splitDnsConfiguration.Rules.Count} rule(s))";
+        AgentAvailabilityPanel.Visibility = agentAvailable && agentServiceStatus == AgentServiceStatus.Running
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+
+        HealthMonitorValueTextBlock.Text = healthSettings.Enabled
+            ? $"{localizer["EnabledValue"]} · {healthState.Status}"
+            : localizer["DisabledValue"];
+        SplitDnsValueTextBlock.Text = splitDnsConfiguration.Enabled
+            ? $"{localizer["EnabledValue"]} · {splitDnsConfiguration.Rules.Count}"
+            : localizer["DisabledValue"];
         Ipv4ValueTextBlock.Text = FormatServers(status.Ipv4.NameServers);
         Ipv6ValueTextBlock.Text = FormatServers(status.Ipv6.NameServers);
+
+        AgentStatusBorder.Background = agentServiceStatus == AgentServiceStatus.Running && !agentAvailable
+            ? GetBrushResource("ErrorStatusBrush")
+            : agentAvailable
+                ? GetBrushResource("AccentSurfaceBrush")
+                : GetBrushResource("SurfaceMutedBrush");
+        HealthStatusBorder.Background = healthState.Status == DnsHealthStatus.Failed
+            ? GetBrushResource("ErrorStatusBrush")
+            : healthSettings.Enabled
+                ? GetBrushResource("AccentSurfaceBrush")
+                : GetBrushResource("SurfaceMutedBrush");
+        SplitDnsStatusBorder.Background = splitDnsConfiguration.Enabled
+            ? GetBrushResource("AccentSurfaceBrush")
+            : GetBrushResource("SurfaceMutedBrush");
     }
 
     private void UpdateSelectedProfilePanel(ProfileListItem? item)
@@ -743,12 +778,25 @@ public partial class MainWindow : Window
         {
             SelectedProfileNameTextBlock.Text = localizer["NoneValue"];
             SelectedProfileSummaryTextBlock.Text = localizer["NoneValue"];
+            SelectedProfileIpv4ValueTextBlock.Text = localizer["NoneValue"];
+            SelectedProfileIpv6ValueTextBlock.Text = localizer["NoneValue"];
             SelectedProfileTagsTextBlock.Text = localizer["NoneValue"];
             return;
         }
 
-        SelectedProfileNameTextBlock.Text = $"{item.Name} ({item.Id})";
-        SelectedProfileSummaryTextBlock.Text = item.SummaryText;
+        SelectedProfileNameTextBlock.Text = item.Name;
+        SelectedProfileSummaryTextBlock.Text = item.Id;
+        if (item.Profile.Mode == ProfileMode.Dhcp)
+        {
+            SelectedProfileIpv4ValueTextBlock.Text = localizer["AutomaticDhcpStatus"];
+            SelectedProfileIpv6ValueTextBlock.Text = localizer["AutomaticDhcpStatus"];
+        }
+        else
+        {
+            SelectedProfileIpv4ValueTextBlock.Text = FormatServers(item.Profile.Ipv4);
+            SelectedProfileIpv6ValueTextBlock.Text = FormatServers(item.Profile.Ipv6);
+        }
+
         SelectedProfileTagsTextBlock.Text = item.Profile.Tags.Count == 0
             ? localizer["NoneValue"]
             : string.Join(", ", item.Profile.Tags);
@@ -766,8 +814,11 @@ public partial class MainWindow : Window
         ResetButton.IsEnabled = !isBusy && hasAdapterOptions;
         ReloadButton.IsEnabled = !isBusy;
         SettingsButton.IsEnabled = !isBusy;
+        AdditionalButton.IsEnabled = !isBusy;
         OpenConfigButton.IsEnabled = !isBusy;
         OpenLogsButton.IsEnabled = !isBusy;
+        OpenConfigMenuItem.IsEnabled = !isBusy;
+        OpenLogsMenuItem.IsEnabled = !isBusy;
         ChecksButton.IsEnabled = !isBusy;
         TestDnsMenuItem.IsEnabled = !isBusy;
         TestSitesMenuItem.IsEnabled = !isBusy;
@@ -788,27 +839,62 @@ public partial class MainWindow : Window
     private void UpdateResponsiveLayout()
     {
         var isWidthCompact = ActualWidth < CompactWidthThreshold;
-        var hideSelectedProfile = ActualHeight < HideSelectedProfileHeightThreshold;
-        var hideCurrentStatus = ActualHeight < HideCurrentStatusHeightThreshold;
+        var hideSelectedProfile = isWidthCompact || ActualHeight < HideSelectedProfileHeightThreshold;
 
-        DetailsPanel.Visibility = isWidthCompact ? Visibility.Collapsed : Visibility.Visible;
-        Grid.SetColumnSpan(ProfilesGroupBox, isWidthCompact ? 2 : 1);
-        ProfilesGroupBox.Margin = isWidthCompact ? new Thickness(0) : new Thickness(0, 0, 12, 0);
+        AdapterGroupBox.Visibility = Visibility.Visible;
+        DetailsPanel.Visibility = Visibility.Visible;
+        CurrentStatusGroupBox.Visibility = Visibility.Visible;
+        SelectedProfileGroupBox.Visibility = hideSelectedProfile ? Visibility.Collapsed : Visibility.Visible;
 
         if (isWidthCompact)
         {
-            BottomActionsPanel.Visibility = Visibility.Collapsed;
+            MainContentGrid.RowDefinitions[1].Height = GridLength.Auto;
+            Grid.SetRow(ProfilesGroupBox, 0);
+            Grid.SetColumn(ProfilesGroupBox, 0);
+            Grid.SetColumnSpan(ProfilesGroupBox, 2);
+            ProfilesGroupBox.Margin = new Thickness(0);
+
+            Grid.SetRow(DetailsPanel, 1);
+            Grid.SetColumn(DetailsPanel, 0);
+            Grid.SetColumnSpan(DetailsPanel, 2);
+            DetailsPanel.Margin = new Thickness(0, 10, 0, 0);
+
+            BottomBarGrid.RowDefinitions[1].Height = GridLength.Auto;
+            Grid.SetRow(OperationStatusBorder, 0);
+            Grid.SetColumn(OperationStatusBorder, 0);
             Grid.SetColumnSpan(OperationStatusBorder, 2);
             OperationStatusBorder.Margin = new Thickness(0);
+
+            Grid.SetRow(BottomActionsPanel, 1);
+            Grid.SetColumn(BottomActionsPanel, 0);
+            Grid.SetColumnSpan(BottomActionsPanel, 2);
+            BottomActionsPanel.Margin = new Thickness(0, 8, 0, 0);
+            BottomActionsPanel.HorizontalAlignment = HorizontalAlignment.Right;
             return;
         }
 
-        BottomActionsPanel.Visibility = Visibility.Visible;
+        MainContentGrid.RowDefinitions[1].Height = new GridLength(0);
+        Grid.SetRow(ProfilesGroupBox, 0);
+        Grid.SetColumn(ProfilesGroupBox, 0);
+        Grid.SetColumnSpan(ProfilesGroupBox, 1);
+        ProfilesGroupBox.Margin = new Thickness(0, 0, 6, 0);
+
+        Grid.SetRow(DetailsPanel, 0);
+        Grid.SetColumn(DetailsPanel, 1);
+        Grid.SetColumnSpan(DetailsPanel, 1);
+        DetailsPanel.Margin = new Thickness(6, 0, 0, 0);
+
+        BottomBarGrid.RowDefinitions[1].Height = new GridLength(0);
+        Grid.SetRow(OperationStatusBorder, 0);
+        Grid.SetColumn(OperationStatusBorder, 0);
         Grid.SetColumnSpan(OperationStatusBorder, 1);
-        OperationStatusBorder.Margin = new Thickness(0, 0, 6, 0);
-        AdapterGroupBox.Visibility = Visibility.Visible;
-        CurrentStatusGroupBox.Visibility = hideCurrentStatus ? Visibility.Collapsed : Visibility.Visible;
-        SelectedProfileGroupBox.Visibility = hideSelectedProfile ? Visibility.Collapsed : Visibility.Visible;
+        OperationStatusBorder.Margin = new Thickness(0, 0, 8, 0);
+
+        Grid.SetRow(BottomActionsPanel, 0);
+        Grid.SetColumn(BottomActionsPanel, 1);
+        Grid.SetColumnSpan(BottomActionsPanel, 1);
+        BottomActionsPanel.Margin = new Thickness(0);
+        BottomActionsPanel.HorizontalAlignment = HorizontalAlignment.Right;
     }
 
     private void SetBusyState(bool value, bool showBusyMessage = true)
@@ -825,8 +911,17 @@ public partial class MainWindow : Window
 
     private void SetOperationStatus(string message, bool isError)
     {
-        OperationStatusBorder.Background = isError ? GetBrushResource("ErrorStatusBrush") : GetBrushResource("InfoStatusBrush");
-        OperationStatusTextBlock.Foreground = isError ? GetBrushResource("ErrorTextBrush") : GetBrushResource("PrimaryTextBrush");
+        var isReady = !isError && string.Equals(message, localizer["ReadyStatus"], StringComparison.Ordinal);
+        OperationStatusBorder.Background = isError
+            ? GetBrushResource("ErrorStatusBrush")
+            : isReady
+                ? GetBrushResource("SurfaceMutedBrush")
+                : GetBrushResource("InfoStatusBrush");
+        OperationStatusTextBlock.Foreground = isError
+            ? GetBrushResource("ErrorTextBrush")
+            : isReady
+                ? GetBrushResource("SecondaryTextBrush")
+                : GetBrushResource("PrimaryTextBrush");
         OperationStatusTextBlock.Text = message;
     }
 
@@ -903,22 +998,20 @@ public partial class MainWindow : Window
             flags.Add(localizer["ConfiguredFlag"]);
         }
 
-        var summaryParts = new List<string>
-        {
-            $"ID: {profile.Id}",
-            $"IPv4: {FormatServers(profile.Ipv4)}",
-        };
+        var summaryText = profile.Mode == ProfileMode.Dhcp
+            ? localizer["AutomaticDhcpStatus"]
+            : $"{localizer["Ipv4Label"]} {FormatServers(profile.Ipv4)}";
 
-        if (profile.Ipv6.Count > 0)
+        if (profile.Mode != ProfileMode.Dhcp && profile.Ipv6.Count > 0)
         {
-            summaryParts.Add($"IPv6: {FormatServers(profile.Ipv6)}");
+            summaryText += $" · {localizer["Ipv6Label"]} {FormatServers(profile.Ipv6)}";
         }
 
         return new ProfileListItem
         {
             Profile = profile,
-            StatusText = flags.Count == 0 ? localizer["AvailableProfile"] : string.Join(" | ", flags),
-            SummaryText = string.Join(Environment.NewLine, summaryParts),
+            StatusText = flags.Count == 0 ? string.Empty : string.Join(" · ", flags),
+            SummaryText = summaryText,
         };
     }
 
@@ -929,7 +1022,7 @@ public partial class MainWindow : Window
 
         if (matchedProfile is not null)
         {
-            return $"{matchedProfile.Name} ({matchedProfile.Id})";
+            return matchedProfile.Name;
         }
 
         return status.Mode switch
@@ -938,6 +1031,17 @@ public partial class MainWindow : Window
             DnsMode.Manual => localizer["CustomManualDnsStatus"],
             DnsMode.Mixed => localizer["CustomMixedDnsStatus"],
             _ => localizer["UnknownValue"],
+        };
+    }
+
+    private string GetDnsModeText(DnsMode mode)
+    {
+        return mode switch
+        {
+            DnsMode.Dhcp => localizer["DhcpStatus"],
+            DnsMode.Manual => localizer["ManualDnsStatus"],
+            DnsMode.Mixed => localizer["MixedDnsStatus"],
+            _ => localizer["UnknownStatus"],
         };
     }
 
@@ -1067,10 +1171,14 @@ public partial class MainWindow : Window
     private void ApplyLocalization()
     {
         Title = localizer["AppTitle"];
-        ProfilesGroupBox.Header = localizer["ProfilesHeader"];
-        AdapterGroupBox.Header = localizer["AdapterAndAppHeader"];
-        CurrentStatusGroupBox.Header = localizer["CurrentStatusHeader"];
-        SelectedProfileGroupBox.Header = localizer["SelectedProfileHeader"];
+        ProfilesHeaderTextBlock.Text = localizer["ProfilesHeader"];
+        AdapterHeaderTextBlock.Text = localizer["SelectedAdapterLabel"].TrimEnd(':');
+        var currentStatusHeader = localizer["CurrentStatusHeader"];
+        var lastSpaceIndex = currentStatusHeader.LastIndexOf(' ');
+        CurrentStatusHeaderTextBlock.Text = lastSpaceIndex > 0
+            ? $"{currentStatusHeader[..lastSpaceIndex]} DNS"
+            : currentStatusHeader;
+        SelectedProfileHeaderTextBlock.Text = localizer["SelectedProfileHeader"];
 
         ApplyButton.Content = localizer["ApplyProfileButton"];
         ResetButton.Content = localizer["RestoreAutoDnsButton"];
@@ -1091,9 +1199,13 @@ public partial class MainWindow : Window
         EditProfileButton.Content = localizer["EditProfileButton"];
         DeleteProfileButton.Content = localizer["DeleteProfileButton"];
         ReloadButton.Content = localizer["ReloadButton"];
+        ReloadButton.ToolTip = localizer["ReloadedStatus"];
         SettingsButton.Content = localizer["SettingsButton"];
+        AdditionalButton.Content = localizer["MoreButton"];
         OpenConfigButton.Content = localizer["OpenConfigButton"];
         OpenLogsButton.Content = localizer["OpenLogsButton"];
+        OpenConfigMenuItem.Header = localizer["OpenConfigButton"];
+        OpenLogsMenuItem.Header = localizer["OpenLogsButton"];
 
         CurrentProfileLabelTextBlock.Text = localizer["CurrentProfileLabel"];
         ConfigActiveProfileLabelTextBlock.Text = localizer["ConfigActiveProfileLabel"];
@@ -1106,7 +1218,7 @@ public partial class MainWindow : Window
         Ipv4LabelTextBlock.Text = localizer["Ipv4Label"];
         Ipv6LabelTextBlock.Text = localizer["Ipv6Label"];
         ProfileLabelTextBlock.Text = localizer["ProfileLabel"];
-        SummaryLabelTextBlock.Text = localizer["SummaryLabel"];
+        SummaryLabelTextBlock.Text = localizer["ProfileEditorIdLabel"];
         TagsLabelTextBlock.Text = localizer["TagsLabel"];
 
         if (string.IsNullOrWhiteSpace(OperationStatusTextBlock.Text) || OperationStatusTextBlock.Text == "Ready.")

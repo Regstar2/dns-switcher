@@ -87,6 +87,26 @@ public sealed class JsonDnsProfileExchangeService
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(profile);
 
+        var fullPath = PrepareExportPath(filePath);
+        await using var stream = File.Create(fullPath);
+        await JsonSerializer.SerializeAsync(stream, profile, SerializerOptions, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task ExportProfilesAsync(
+        string filePath,
+        IReadOnlyList<DnsProfile> profiles,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        ArgumentNullException.ThrowIfNull(profiles);
+
+        var fullPath = PrepareExportPath(filePath);
+        await using var stream = File.Create(fullPath);
+        await JsonSerializer.SerializeAsync(stream, profiles, SerializerOptions, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static string PrepareExportPath(string filePath)
+    {
         var fullPath = Path.GetFullPath(filePath);
         var directoryPath = Path.GetDirectoryName(fullPath);
 
@@ -95,7 +115,6 @@ public sealed class JsonDnsProfileExchangeService
             Directory.CreateDirectory(directoryPath);
         }
 
-        await using var stream = File.Create(fullPath);
-        await JsonSerializer.SerializeAsync(stream, profile, SerializerOptions, cancellationToken).ConfigureAwait(false);
+        return fullPath;
     }
 }
