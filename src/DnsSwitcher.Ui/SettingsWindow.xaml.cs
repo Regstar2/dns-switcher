@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Automation;
 using DnsSwitcher.Infrastructure.Windows.Configuration;
 using DnsSwitcher.Infrastructure.Windows.Presentation;
 using DnsSwitcher.Ui.UiModels;
@@ -68,6 +69,10 @@ public partial class SettingsWindow : Window
         StartWithWindowsDescriptionTextBlock.Text = localizer["SettingsStartWithWindowsDescription"];
         CloseToTrayTitleTextBlock.Text = localizer["CloseToTrayCheckBox"];
         CloseToTrayDescriptionTextBlock.Text = localizer["SettingsCloseToTrayDescription"];
+        AutomationProperties.SetName(StartWithWindowsCheckBox, StartWithWindowsTitleTextBlock.Text);
+        AutomationProperties.SetHelpText(StartWithWindowsCheckBox, StartWithWindowsDescriptionTextBlock.Text);
+        AutomationProperties.SetName(MinimizeToTrayCheckBox, CloseToTrayTitleTextBlock.Text);
+        AutomationProperties.SetHelpText(MinimizeToTrayCheckBox, CloseToTrayDescriptionTextBlock.Text);
 
         AgentManagerTitleTextBlock.Text = localizer["AgentManagerSettingsButton"];
         AgentManagerDescriptionTextBlock.Text = localizer["SettingsAgentDescription"];
