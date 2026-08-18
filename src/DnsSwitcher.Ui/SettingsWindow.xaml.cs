@@ -54,16 +54,28 @@ public partial class SettingsWindow : Window
     private void ApplyLocalization(bool isDarkTheme)
     {
         Title = localizer["SettingsWindowTitle"];
-        LanguageGroupBox.Header = localizer["SettingsLanguageHeader"];
-        BehaviorGroupBox.Header = localizer["SettingsBehaviorHeader"];
-        ThemeGroupBox.Header = localizer["SettingsThemeHeader"];
-        LanguageLabelTextBlock.Text = localizer["LanguageLabel"];
-        ThemeLabelTextBlock.Text = localizer["ThemeLabel"];
-        StartWithWindowsCheckBox.Content = localizer["StartWithWindowsCheckBox"];
-        MinimizeToTrayCheckBox.Content = localizer["CloseToTrayCheckBox"];
-        AgentManagerButton.Content = localizer["AgentManagerSettingsButton"];
-        HealthSettingsButton.Content = localizer["HealthSettingsButton"];
-        SplitDnsSettingsButton.Content = localizer["SplitDnsButton"];
+        SettingsHeaderTextBlock.Text = localizer["SettingsWindowTitle"];
+        SettingsSubtitleTextBlock.Text = localizer["SettingsSubtitle"];
+        GeneralHeaderTextBlock.Text = localizer["SettingsGeneralHeader"];
+        BehaviorHeaderTextBlock.Text = localizer["SettingsBehaviorHeader"];
+        AdvancedHeaderTextBlock.Text = localizer["SettingsAdvancedHeader"];
+
+        LanguageLabelTextBlock.Text = localizer["SettingsLanguageHeader"];
+        LanguageDescriptionTextBlock.Text = localizer["SettingsLanguageDescription"];
+        ThemeLabelTextBlock.Text = localizer["SettingsThemeHeader"];
+
+        StartWithWindowsTitleTextBlock.Text = localizer["StartWithWindowsCheckBox"];
+        StartWithWindowsDescriptionTextBlock.Text = localizer["SettingsStartWithWindowsDescription"];
+        CloseToTrayTitleTextBlock.Text = localizer["CloseToTrayCheckBox"];
+        CloseToTrayDescriptionTextBlock.Text = localizer["SettingsCloseToTrayDescription"];
+
+        AgentManagerTitleTextBlock.Text = localizer["AgentManagerSettingsButton"];
+        AgentManagerDescriptionTextBlock.Text = localizer["SettingsAgentDescription"];
+        HealthSettingsTitleTextBlock.Text = localizer["HealthSettingsButton"];
+        HealthSettingsDescriptionTextBlock.Text = localizer["SettingsHealthDescription"];
+        SplitDnsSettingsTitleTextBlock.Text = localizer["SplitDnsButton"];
+        SplitDnsSettingsDescriptionTextBlock.Text = localizer["SettingsSplitDnsDescription"];
+
         UpdateThemePreview(isDarkTheme);
         SaveButton.Content = localizer["SaveButton"];
         CancelButton.Content = localizer["CancelButton"];
@@ -101,12 +113,13 @@ public partial class SettingsWindow : Window
 
     private void UpdateThemePreview(bool isDarkTheme)
     {
-        ThemeModeTextBlock.Text = SelectedTheme == AppTheme.System
-            ? localizer["ThemeFollowsSystemText"]
-            : string.Empty;
-        ThemeCurrentTextBlock.Text = localizer.Format(
+        var currentThemeText = localizer.Format(
             "ThemeCurrentFormat",
             isDarkTheme ? localizer["ThemeDarkValue"] : localizer["ThemeLightValue"]);
+
+        ThemeCurrentTextBlock.Text = SelectedTheme == AppTheme.System
+            ? $"{localizer["ThemeFollowsSystemText"]} {currentThemeText}"
+            : currentThemeText;
     }
 
     private void OnSaveClicked(object sender, RoutedEventArgs e)
