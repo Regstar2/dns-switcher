@@ -27,12 +27,49 @@
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="Padding" Value="10,6" />
       <Setter Property="MinHeight" Value="34" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="SnapsToDevicePixels" Value="True" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="{x:Type Button}">
+            <Grid SnapsToDevicePixels="True">
+              <Border x:Name="ButtonBorder"
+                      Background="{TemplateBinding Background}"
+                      BorderBrush="{TemplateBinding BorderBrush}"
+                      BorderThickness="{TemplateBinding BorderThickness}"
+                      CornerRadius="5"
+                      SnapsToDevicePixels="True">
+                <ContentPresenter Margin="{TemplateBinding Padding}"
+                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                  RecognizesAccessKey="True" />
+              </Border>
+              <Border x:Name="FocusBorder"
+                      Margin="1"
+                      BorderBrush="Transparent"
+                      BorderThickness="1"
+                      CornerRadius="4"
+                      IsHitTestVisible="False" />
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="FocusBorder"
+                        Property="BorderBrush"
+                        Value="{DynamicResource SelectionBrush}" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
       <Style.Triggers>
         <Trigger Property="IsMouseOver" Value="True">
           <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
+          <Setter Property="BorderBrush" Value="{DynamicResource SelectionBrush}" />
         </Trigger>
         <Trigger Property="IsPressed" Value="True">
           <Setter Property="Background" Value="{DynamicResource PressedBrush}" />
+          <Setter Property="BorderBrush" Value="{DynamicResource SelectionBrush}" />
         </Trigger>
         <Trigger Property="IsEnabled" Value="False">
           <Setter Property="Opacity" Value="0.7" />
