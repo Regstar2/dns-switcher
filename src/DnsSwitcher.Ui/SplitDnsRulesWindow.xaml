@@ -194,10 +194,23 @@
               <ListBox.ItemTemplate>
                 <DataTemplate>
                   <Border Padding="12"
-                          Background="{DynamicResource SurfaceRaisedBrush}"
-                          BorderBrush="{DynamicResource BorderBrush}"
                           BorderThickness="1"
                           CornerRadius="8">
+                    <Border.Style>
+                      <Style TargetType="{x:Type Border}">
+                        <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+                        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}}" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
+                          </DataTrigger>
+                          <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}}" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource SelectionBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource SelectionBrush}" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Border.Style>
                     <Grid>
                       <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -230,10 +243,30 @@
                         </Grid.ColumnDefinitions>
                         <Border HorizontalAlignment="Left"
                                 Padding="7,2"
-                                Background="{DynamicResource SurfaceMutedBrush}"
                                 CornerRadius="9">
+                          <Border.Style>
+                            <Style TargetType="{x:Type Border}">
+                              <Setter Property="Background" Value="{DynamicResource SurfaceMutedBrush}" />
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding Rule.Enabled}" Value="True">
+                                  <Setter Property="Background" Value="{DynamicResource SuccessStatusBrush}" />
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </Border.Style>
                           <TextBlock Text="{Binding EnabledText}"
-                                     FontSize="11" />
+                                     FontSize="11">
+                            <TextBlock.Style>
+                              <Style TargetType="{x:Type TextBlock}">
+                                <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+                                <Style.Triggers>
+                                  <DataTrigger Binding="{Binding Rule.Enabled}" Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource SuccessTextBrush}" />
+                                  </DataTrigger>
+                                </Style.Triggers>
+                              </Style>
+                            </TextBlock.Style>
+                          </TextBlock>
                         </Border>
                         <StackPanel Grid.Column="1"
                                     Orientation="Horizontal"
