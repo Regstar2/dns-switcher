@@ -180,7 +180,7 @@ public partial class SplitDnsRulesWindow : Window
                     .Select(existing => string.Equals(existing.Id, ruleId, StringComparison.OrdinalIgnoreCase)
                         ? existing with { Enabled = enabled }
                         : existing)
-                    .ToArray(),
+                    .ToList(),
             };
 
             MarkPendingApply();
