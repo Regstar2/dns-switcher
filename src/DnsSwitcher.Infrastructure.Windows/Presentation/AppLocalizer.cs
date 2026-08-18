@@ -141,7 +141,7 @@ public sealed class AppLocalizer(AppLanguage configuredLanguage)
         ["ProfileUpdatedStatus"] = "DNS profile was updated.",
         ["ProfileDeletedStatus"] = "DNS profile was deleted.",
         ["ProfilesImportedFormat"] = "Imported {0} DNS profile(s). Existing profiles with the same ID were replaced.",
-        ["ProfileExportedStatus"] = "DNS profile exported.",
+        ["ProfileExportedStatus"] = "DNS profile was exported.",
         ["DeleteProfileConfirmFormat"] = "Delete profile '{0}'?",
         ["DeleteProfileTitle"] = "Delete DNS Profile",
         ["SelectProfileToEditError"] = "Select a DNS profile to edit.",
