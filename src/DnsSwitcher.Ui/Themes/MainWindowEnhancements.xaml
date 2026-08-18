@@ -8,6 +8,9 @@
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="Padding" Value="10,6" />
     <Setter Property="MinHeight" Value="34" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
     <Setter Property="SnapsToDevicePixels" Value="True" />
     <Setter Property="Template">
       <Setter.Value>
@@ -51,6 +54,7 @@
     <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="Padding" Value="3" />
+    <Setter Property="FontSize" Value="13" />
     <Setter Property="HasDropShadow" Value="True" />
     <Setter Property="SnapsToDevicePixels" Value="True" />
     <Setter Property="Template">
@@ -75,6 +79,7 @@
     <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
     <Setter Property="Padding" Value="11,7" />
     <Setter Property="MinHeight" Value="32" />
+    <Setter Property="FontSize" Value="13" />
     <Setter Property="SnapsToDevicePixels" Value="True" />
     <Setter Property="Template">
       <Setter.Value>
