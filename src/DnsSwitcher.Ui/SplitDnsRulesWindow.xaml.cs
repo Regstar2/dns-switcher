@@ -49,7 +49,7 @@ public partial class SplitDnsRulesWindow : Window
             return;
         }
 
-        RefreshRulesList(editingRuleId);
+        RefreshRulesListPreservingEditor(editingRuleId);
         UpdateEditorState();
     }
 
@@ -70,6 +70,12 @@ public partial class SplitDnsRulesWindow : Window
         TestResultTextBlock.Text = string.Empty;
         EditorContextTextBlock.Text = localizer["NewButton"];
         UpdateEditorState();
+
+        if (staticProfiles.Count == 0)
+        {
+            SetStatus(localizer["SplitDnsTargetProfileRequired"]);
+        }
+
         NamespaceTextBox.Focus();
     }
 
@@ -189,6 +195,14 @@ public partial class SplitDnsRulesWindow : Window
             UpdateEditorState();
             SetStatus(localizer.Format("SplitDnsRuleSavedFormat", ruleId));
         }).ConfigureAwait(true);
+
+        var currentRule = configuration.Rules.FirstOrDefault(existing =>
+            string.Equals(existing.Id, ruleId, StringComparison.OrdinalIgnoreCase));
+
+        if (currentRule is not null && RuleEnabledCheckBox.IsChecked != currentRule.Enabled)
+        {
+            SetRuleEnabledEditorValue(currentRule.Enabled);
+        }
     }
 
     private async void OnSplitDnsEnabledChanged(object sender, RoutedEventArgs e)
@@ -198,10 +212,12 @@ public partial class SplitDnsRulesWindow : Window
             return;
         }
 
+        var enabled = SplitDnsEnabledCheckBox.IsChecked == true;
         await RunAsync(async () =>
         {
-            configuration = configuration with { Enabled = SplitDnsEnabledCheckBox.IsChecked == true };
-            await host.SplitDnsRuleService.SaveConfigurationAsync(configuration).ConfigureAwait(true);
+            var updatedConfiguration = configuration with { Enabled = enabled };
+            await host.SplitDnsRuleService.SaveConfigurationAsync(updatedConfiguration).ConfigureAwait(true);
+            configuration = updatedConfiguration;
             MarkPendingApply();
             UpdateConfigurationState();
             UpdateTechnicalDetails();
@@ -209,6 +225,13 @@ public partial class SplitDnsRulesWindow : Window
                 $"{localizer["SplitDnsEnabledLine"]} " +
                 $"{(configuration.Enabled ? localizer["YesValue"] : localizer["NoValue"])}");
         }).ConfigureAwait(true);
+
+        if (SplitDnsEnabledCheckBox.IsChecked != configuration.Enabled)
+        {
+            suppressEnabledChanged = true;
+            SplitDnsEnabledCheckBox.IsChecked = configuration.Enabled;
+            suppressEnabledChanged = false;
+        }
     }
 
     private void OnRuleSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -692,6 +715,9 @@ public partial class SplitDnsRulesWindow : Window
         BusyTextBlock.Text = localizer["WorkingStatus"];
         NamespaceTextBox.ToolTip = localizer["SplitDnsNamespaceExamplesTooltip"];
         TestDomainTextBox.ToolTip = localizer["SplitDnsTestDomainTooltip"];
+        RulesSearchTextBox.ToolTip = $"{localizer["SplitDnsRulesHeader"]}: " +
+                                     $"{localizer["SplitDnsNamespaceLabel"].TrimEnd(':')} / " +
+                                     localizer["SplitDnsTargetProfileLabel"].TrimEnd(':');
         EmptyStateTextBlock.Text = localizer["SplitDnsNoRulesConfigured"];
         EditorContextTextBlock.Text = localizer["NoneValue"];
     }
