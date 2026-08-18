@@ -85,6 +85,36 @@ public sealed class JsonDnsProfileExchangeServiceTests : IDisposable
         Assert.Contains("\"mode\": \"static\"", json);
     }
 
+    [Fact]
+    public async Task ExportProfilesAsync_WritesImportableProfileList()
+    {
+        var filePath = Path.Combine(rootPath, "all-profiles.json");
+        var profiles = new[]
+        {
+            new DnsProfile
+            {
+                Id = "quad9",
+                Name = "Quad9",
+                Mode = ProfileMode.Static,
+                Ipv4 = ["9.9.9.9"],
+            },
+            new DnsProfile
+            {
+                Id = "dhcp",
+                Name = "Automatic DNS",
+                Mode = ProfileMode.Dhcp,
+            },
+        };
+
+        await service.ExportProfilesAsync(filePath, profiles);
+
+        var importedProfiles = await service.ImportProfilesAsync(filePath);
+
+        Assert.Equal(2, importedProfiles.Count);
+        Assert.Contains(importedProfiles, profile => profile.Id == "quad9");
+        Assert.Contains(importedProfiles, profile => profile.Id == "dhcp");
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(rootPath))
