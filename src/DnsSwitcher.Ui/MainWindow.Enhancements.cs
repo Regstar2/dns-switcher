@@ -32,7 +32,7 @@ public partial class MainWindow
     {
         Resources.MergedDictionaries.Add(new ResourceDictionary
         {
-            Source = new Uri("/DnsSwitcher.Ui;component/Themes/MainWindowEnhancements.xaml", UriKind.Relative),
+            Source = new Uri("/Themes/MainWindowEnhancements.xaml", UriKind.Relative),
         });
     }
 
