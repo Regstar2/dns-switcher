@@ -7,14 +7,14 @@
   <SolidColorBrush x:Key="PrimaryTextBrush" Color="#FFF3F4F6" />
   <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FFB7BDC6" />
   <SolidColorBrush x:Key="BorderBrush" Color="#FF3E444D" />
-  <SolidColorBrush x:Key="HoverBrush" Color="#FF333841" />
-  <SolidColorBrush x:Key="PressedBrush" Color="#FF3A4048" />
-  <SolidColorBrush x:Key="SelectionBrush" Color="#FF414851" />
-  <SolidColorBrush x:Key="AccentSurfaceBrush" Color="#FF353A42" />
+  <SolidColorBrush x:Key="HoverBrush" Color="#FF30343B" />
+  <SolidColorBrush x:Key="PressedBrush" Color="#FF353A42" />
+  <SolidColorBrush x:Key="SelectionBrush" Color="#FF3A4048" />
+  <SolidColorBrush x:Key="AccentSurfaceBrush" Color="#FF30353C" />
   <SolidColorBrush x:Key="AccentTextBrush" Color="#FFF3F4F6" />
   <SolidColorBrush x:Key="PrimaryActionBrush" Color="#FF46515D" />
-  <SolidColorBrush x:Key="PrimaryActionHoverBrush" Color="#FF52606E" />
-  <SolidColorBrush x:Key="PrimaryActionPressedBrush" Color="#FF5D6D7D" />
+  <SolidColorBrush x:Key="PrimaryActionHoverBrush" Color="#FF4D5864" />
+  <SolidColorBrush x:Key="PrimaryActionPressedBrush" Color="#FF566474" />
   <SolidColorBrush x:Key="PrimaryActionTextBrush" Color="#FFF7F9FB" />
   <SolidColorBrush x:Key="DangerActionBorderBrush" Color="#FF9C5A5A" />
   <SolidColorBrush x:Key="DangerActionForegroundBrush" Color="#FFF2B3B3" />
@@ -27,8 +27,8 @@
   <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="#FF2B2F35" />
   <SolidColorBrush x:Key="{x:Static SystemColors.WindowTextBrushKey}" Color="#FFF3F4F6" />
   <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="#FFF3F4F6" />
-  <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#FF414851" />
+  <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#FF3A4048" />
   <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#FFF3F4F6" />
-  <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#FF353A42" />
+  <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#FF30353C" />
   <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#FFF3F4F6" />
 </ResourceDictionary>
