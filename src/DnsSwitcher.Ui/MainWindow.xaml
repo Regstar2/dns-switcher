@@ -6,10 +6,10 @@
         xmlns:ui="clr-namespace:DnsSwitcher.Ui.UiModels"
         mc:Ignorable="d"
         Title="DnsSwitcher"
-        Height="600"
+        Height="680"
         Width="1000"
         WindowStartupLocation="CenterScreen"
-        MinHeight="440"
+        MinHeight="640"
         MinWidth="420"
         Background="{DynamicResource WindowBackgroundBrush}">
   <Window.Resources>

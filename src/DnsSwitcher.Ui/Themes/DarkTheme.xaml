@@ -21,6 +21,10 @@
   <SolidColorBrush x:Key="DangerActionHoverBrush" Color="#FF3D2A2A" />
   <SolidColorBrush x:Key="DangerActionPressedBrush" Color="#FF4A3030" />
   <SolidColorBrush x:Key="InfoStatusBrush" Color="#FF2B2F35" />
+  <SolidColorBrush x:Key="SuccessStatusBrush" Color="#FF21382A" />
+  <SolidColorBrush x:Key="SuccessTextBrush" Color="#FFA7E3B6" />
+  <SolidColorBrush x:Key="WarningStatusBrush" Color="#FF40351F" />
+  <SolidColorBrush x:Key="WarningTextBrush" Color="#FFF1D184" />
   <SolidColorBrush x:Key="ErrorStatusBrush" Color="#FF4A2323" />
   <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFF2B3B3" />
   <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#FF2B2F35" />
