@@ -2,10 +2,10 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="DNS Health Failover"
-        Width="1160"
-        Height="780"
-        MinWidth="960"
-        MinHeight="700"
+        Width="1080"
+        Height="700"
+        MinWidth="900"
+        MinHeight="620"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource WindowBackgroundBrush}">
   <Window.Resources>
@@ -324,33 +324,49 @@
                 </Border>
               </UniformGrid>
 
-              <Expander x:Name="StateDetailsExpander" Margin="0,5,0,0" IsExpanded="False">
+              <Expander x:Name="StateDetailsExpander"
+                        Margin="0,5,0,0"
+                        IsExpanded="False">
                 <Expander.Header>
                   <TextBlock x:Name="StateDetailsHeaderTextBlock" FontSize="10" FontWeight="SemiBold" Text="Details" />
                 </Expander.Header>
-                <Grid Margin="0,6,0,0">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="140" />
-                    <ColumnDefinition Width="*" />
-                  </Grid.ColumnDefinitions>
-                  <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                  </Grid.RowDefinitions>
-                  <TextBlock x:Name="LastSuccessfulLabelTextBlock" Grid.Row="0" Margin="0,0,8,5" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Last successful UTC:" />
-                  <TextBlock x:Name="LastSuccessfulValueTextBlock" Grid.Row="0" Grid.Column="1" Margin="0,0,0,5" FontSize="9" TextWrapping="Wrap" />
-                  <TextBlock x:Name="LastFailureLabelTextBlock" Grid.Row="1" Margin="0,0,8,5" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Last failure UTC:" />
-                  <TextBlock x:Name="LastFailureValueTextBlock" Grid.Row="1" Grid.Column="1" Margin="0,0,0,5" FontSize="9" TextWrapping="Wrap" />
-                  <TextBlock x:Name="CooldownUntilLabelTextBlock" Grid.Row="2" Margin="0,0,8,5" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Cooldown until UTC:" />
-                  <TextBlock x:Name="CooldownUntilValueTextBlock" Grid.Row="2" Grid.Column="1" Margin="0,0,0,5" FontSize="9" TextWrapping="Wrap" />
-                  <TextBlock x:Name="FailureReasonLabelTextBlock" Grid.Row="3" Margin="0,0,8,5" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Last failure reason:" />
-                  <TextBlock x:Name="FailureReasonValueTextBlock" Grid.Row="3" Grid.Column="1" Margin="0,0,0,5" FontSize="9" TextWrapping="Wrap" />
-                  <TextBlock x:Name="LastActionLabelTextBlock" Grid.Row="4" Margin="0,0,8,0" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Last action:" />
-                  <TextBlock x:Name="LastActionValueTextBlock" Grid.Row="4" Grid.Column="1" FontSize="9" TextWrapping="Wrap" />
-                </Grid>
+                <Popup Placement="Bottom"
+                       PlacementTarget="{Binding ElementName=StateDetailsExpander}"
+                       IsOpen="{Binding IsExpanded, ElementName=StateDetailsExpander, Mode=TwoWay}"
+                       StaysOpen="False"
+                       AllowsTransparency="True">
+                  <Border Width="390"
+                          Margin="0,4,0,0"
+                          Padding="10"
+                          Background="{DynamicResource SurfaceRaisedBrush}"
+                          BorderBrush="{DynamicResource BorderBrush}"
+                          BorderThickness="1"
+                          CornerRadius="8">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                      </Grid.RowDefinitions>
+                      <TextBlock x:Name="LastSuccessfulLabelTextBlock" Grid.Row="0" Margin="0,0,8,5" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Last successful UTC:" />
+                      <TextBlock x:Name="LastSuccessfulValueTextBlock" Grid.Row="0" Grid.Column="1" Margin="0,0,0,5" FontSize="9" TextWrapping="Wrap" />
+                      <TextBlock x:Name="LastFailureLabelTextBlock" Grid.Row="1" Margin="0,0,8,5" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Last failure UTC:" />
+                      <TextBlock x:Name="LastFailureValueTextBlock" Grid.Row="1" Grid.Column="1" Margin="0,0,0,5" FontSize="9" TextWrapping="Wrap" />
+                      <TextBlock x:Name="CooldownUntilLabelTextBlock" Grid.Row="2" Margin="0,0,8,5" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Cooldown until UTC:" />
+                      <TextBlock x:Name="CooldownUntilValueTextBlock" Grid.Row="2" Grid.Column="1" Margin="0,0,0,5" FontSize="9" TextWrapping="Wrap" />
+                      <TextBlock x:Name="FailureReasonLabelTextBlock" Grid.Row="3" Margin="0,0,8,5" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Last failure reason:" />
+                      <TextBlock x:Name="FailureReasonValueTextBlock" Grid.Row="3" Grid.Column="1" Margin="0,0,0,5" FontSize="9" TextWrapping="Wrap" />
+                      <TextBlock x:Name="LastActionLabelTextBlock" Grid.Row="4" Margin="0,0,8,0" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="Last action:" />
+                      <TextBlock x:Name="LastActionValueTextBlock" Grid.Row="4" Grid.Column="1" FontSize="9" TextWrapping="Wrap" />
+                    </Grid>
+                  </Border>
+                </Popup>
               </Expander>
             </StackPanel>
           </Border>
@@ -371,12 +387,12 @@
                        ItemContainerStyle="{StaticResource HealthListItemStyle}">
                 <ListBox.ItemTemplate>
                   <DataTemplate>
-                    <Grid Margin="8,4">
+                    <Grid Margin="8,5">
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                       </Grid.ColumnDefinitions>
-                      <TextBlock VerticalAlignment="Center" FontSize="10" Text="{Binding}" />
+                      <TextBlock VerticalAlignment="Center" FontSize="12" Text="{Binding}" />
                       <Button Grid.Column="1"
                               MinWidth="62"
                               Margin="8,0,0,0"
@@ -488,13 +504,38 @@
                         <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="9" Text="{Binding Position}" />
                       </Border>
                       <StackPanel Grid.Column="1" Margin="3,0,6,0" VerticalAlignment="Center">
-                        <TextBlock FontSize="10" FontWeight="SemiBold" Text="{Binding DisplayName}" />
+                        <TextBlock FontSize="11" FontWeight="SemiBold" Text="{Binding DisplayName}" />
                         <TextBlock Margin="0,1,0,0" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" Text="{Binding Details}" />
                       </StackPanel>
                       <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button MinWidth="46" Padding="5,3" FontSize="9" Tag="{Binding}" IsEnabled="{Binding CanMoveUp}" Content="{Binding MoveUpActionText, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" Click="OnMoveChainUpClicked" />
-                        <Button MinWidth="46" Margin="4,0,0,0" Padding="5,3" FontSize="9" Tag="{Binding}" IsEnabled="{Binding CanMoveDown}" Content="{Binding MoveDownActionText, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" Click="OnMoveChainDownClicked" />
-                        <Button MinWidth="58" Margin="4,0,0,0" Padding="5,3" FontSize="9" Style="{StaticResource DangerActionButtonStyle}" Tag="{Binding}" Content="{Binding RemoveActionText, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" Click="OnRemoveChainProfileClicked" />
+                        <Button Width="32"
+                                Height="30"
+                                Padding="0"
+                                FontSize="15"
+                                Tag="{Binding}"
+                                IsEnabled="{Binding CanMoveUp}"
+                                Content="↑"
+                                ToolTip="{Binding MoveUpActionText, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                Click="OnMoveChainUpClicked" />
+                        <Button Width="32"
+                                Height="30"
+                                Margin="4,0,0,0"
+                                Padding="0"
+                                FontSize="15"
+                                Tag="{Binding}"
+                                IsEnabled="{Binding CanMoveDown}"
+                                Content="↓"
+                                ToolTip="{Binding MoveDownActionText, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                Click="OnMoveChainDownClicked" />
+                        <Button MinWidth="58"
+                                Height="30"
+                                Margin="4,0,0,0"
+                                Padding="5,3"
+                                FontSize="9"
+                                Style="{StaticResource DangerActionButtonStyle}"
+                                Tag="{Binding}"
+                                Content="{Binding RemoveActionText, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                Click="OnRemoveChainProfileClicked" />
                       </StackPanel>
                     </Grid>
                   </DataTemplate>
