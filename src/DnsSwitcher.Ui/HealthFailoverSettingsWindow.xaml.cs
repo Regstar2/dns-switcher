@@ -14,6 +14,7 @@ namespace DnsSwitcher.Ui;
 public partial class HealthFailoverSettingsWindow : Window
 {
     private static readonly char[] ValueSeparators = ['\r', '\n', ',', ';'];
+
     private readonly AppLocalizer localizer;
     private readonly IReadOnlyList<DnsProfile> profiles;
     private readonly List<string> failoverChain;
@@ -27,6 +28,7 @@ public partial class HealthFailoverSettingsWindow : Window
     {
         InitializeComponent();
         WindowThemeService.Attach(this);
+
         this.localizer = localizer;
         this.profiles = profiles;
         failoverChain = settings.FailoverChain.ToList();
@@ -37,10 +39,13 @@ public partial class HealthFailoverSettingsWindow : Window
             .ToList();
 
         var profileOptions = BuildProfileOptions(profiles).ToArray();
-        FallbackProfileComboBox.ItemsSource = new[] { new ProfileOption(null, localizer["NoneValue"]) }.Concat(profileOptions).ToArray();
+        FallbackProfileComboBox.ItemsSource = new[] { new ProfileOption(null, localizer["NoneValue"]) }
+            .Concat(profileOptions)
+            .ToArray();
         ChainProfileComboBox.ItemsSource = profileOptions;
         CheckModeComboBox.ItemsSource = BuildCheckModeOptions();
         ActionComboBox.ItemsSource = BuildActionOptions();
+
         ApplyLocalization();
 
         EnabledCheckBox.IsChecked = settings.Enabled;
@@ -75,8 +80,12 @@ public partial class HealthFailoverSettingsWindow : Window
         FailureThreshold = ParsePositiveInt(FailureThresholdTextBox.Text, FailureThresholdLabelTextBlock.Text),
         RecoveryThreshold = ParsePositiveInt(RecoveryThresholdTextBox.Text, RecoveryThresholdLabelTextBlock.Text),
         CooldownSeconds = ParseNonNegativeInt(CooldownTextBox.Text, CooldownLabelTextBlock.Text),
-        CheckMode = CheckModeComboBox.SelectedValue is DnsHealthCheckMode mode ? mode : DnsHealthCheckMode.ResolveOnly,
-        ActionOnFailure = ActionComboBox.SelectedValue is DnsHealthFailureAction action ? action : DnsHealthFailureAction.NotifyOnly,
+        CheckMode = CheckModeComboBox.SelectedValue is DnsHealthCheckMode mode
+            ? mode
+            : DnsHealthCheckMode.ResolveOnly,
+        ActionOnFailure = ActionComboBox.SelectedValue is DnsHealthFailureAction action
+            ? action
+            : DnsHealthFailureAction.NotifyOnly,
         FallbackProfileId = FallbackProfileComboBox.SelectedValue as string,
         FailoverChain = failoverChain.ToList(),
         TestDomains = testDomains.ToList(),
@@ -132,11 +141,13 @@ public partial class HealthFailoverSettingsWindow : Window
             return;
         }
 
-        if (!failoverChain.Contains(profileId, StringComparer.OrdinalIgnoreCase))
+        if (failoverChain.Contains(profileId, StringComparer.OrdinalIgnoreCase))
         {
-            failoverChain.Add(profileId);
-            RefreshChainList();
+            return;
         }
+
+        failoverChain.Add(profileId);
+        RefreshChainList();
     }
 
     private void OnRemoveChainProfileClicked(object sender, RoutedEventArgs e)
@@ -188,10 +199,9 @@ public partial class HealthFailoverSettingsWindow : Window
 
     private void AddDomainsFromInput()
     {
-        var values = SplitValues(TestDomainInputTextBox.Text);
         var changed = false;
 
-        foreach (var value in values)
+        foreach (var value in SplitValues(TestDomainInputTextBox.Text))
         {
             var domain = value.Trim();
 
@@ -224,9 +234,9 @@ public partial class HealthFailoverSettingsWindow : Window
         ExpectedIpSectionBorder.Visibility = checkMode == DnsHealthCheckMode.ResolveWithExpectedIp
             ? Visibility.Visible
             : Visibility.Collapsed;
-        FailoverChainCard.Visibility = action == DnsHealthFailureAction.SwitchToNextProfile
-            ? Visibility.Visible
-            : Visibility.Collapsed;
+
+        // The failover chain is always visible so it can be reviewed and configured
+        // regardless of the currently selected failure action.
         FallbackProfileCard.Visibility = action == DnsHealthFailureAction.SwitchToFallbackProfile
             ? Visibility.Visible
             : Visibility.Collapsed;
@@ -276,7 +286,8 @@ public partial class HealthFailoverSettingsWindow : Window
 
     private ChainItem BuildChainItem(string profileId, int index, int count)
     {
-        var profile = profiles.FirstOrDefault(candidate => string.Equals(candidate.Id, profileId, StringComparison.OrdinalIgnoreCase));
+        var profile = profiles.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, profileId, StringComparison.OrdinalIgnoreCase));
 
         return profile is null
             ? new ChainItem(
@@ -302,8 +313,12 @@ public partial class HealthFailoverSettingsWindow : Window
             return localizer["NoneValue"];
         }
 
-        var profile = profiles.FirstOrDefault(candidate => string.Equals(candidate.Id, profileId, StringComparison.OrdinalIgnoreCase));
-        return profile is null ? $"{profileId} ({localizer["MissingProfileValue"]})" : profile.Name;
+        var profile = profiles.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, profileId, StringComparison.OrdinalIgnoreCase));
+
+        return profile is null
+            ? $"{profileId} ({localizer["MissingProfileValue"]})"
+            : profile.Name;
     }
 
     private static IReadOnlyList<ProfileOption> BuildProfileOptions(IReadOnlyList<DnsProfile> profiles)
@@ -535,7 +550,8 @@ public partial class HealthFailoverSettingsWindow : Window
     {
         if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result) || result <= 0)
         {
-            throw new InvalidDataException(localizer.Format("HealthValidationPositiveFormat", NormalizeFieldLabel(fieldName)));
+            throw new InvalidDataException(
+                localizer.Format("HealthValidationPositiveFormat", NormalizeFieldLabel(fieldName)));
         }
 
         return result;
@@ -545,7 +561,8 @@ public partial class HealthFailoverSettingsWindow : Window
     {
         if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result) || result < 0)
         {
-            throw new InvalidDataException(localizer.Format("HealthValidationNonNegativeFormat", NormalizeFieldLabel(fieldName)));
+            throw new InvalidDataException(
+                localizer.Format("HealthValidationNonNegativeFormat", NormalizeFieldLabel(fieldName)));
         }
 
         return result;
