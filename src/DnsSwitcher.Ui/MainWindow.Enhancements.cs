@@ -38,7 +38,9 @@ public partial class MainWindow
 
     private void ApplyMainWindowButtonStyles()
     {
-        var style = (Style)FindResource("MainWindowSoftButtonStyle");
+        var softStyle = (Style)FindResource("MainWindowSoftButtonStyle");
+        var primaryStyle = (Style)FindResource("MainWindowPrimaryButtonStyle");
+        var dangerStyle = (Style)FindResource("MainWindowDangerButtonStyle");
         var buttons = new[]
         {
             ReloadButton,
@@ -53,8 +55,11 @@ public partial class MainWindow
 
         foreach (var button in buttons)
         {
-            button.Style = style;
+            button.Style = softStyle;
         }
+
+        ApplyButton.Style = primaryStyle;
+        DeleteProfileButton.Style = dangerStyle;
     }
 
     private void ConfigureMainWindowMenus()
