@@ -22,6 +22,6 @@ Roadmap фиксирует только подтверждённые цели и
 
 Отдельный scope следующей версии пока не утверждён. Новые задачи добавляются в roadmap только после выбора конкретной цели и критериев готовности.
 
-## Текущее ограничение
+## Release source
 
-Основной GitHub repository остаётся private, поэтому anonymous in-app update discovery через GitHub Releases недоступен. Это ограничение release source; embedded credentials не используются.
+Встроенная проверка обновлений использует публично читаемые GitHub Releases без embedded credentials. Release source должен быть доступен anonymous HTTPS client; при недоступном source update-check завершается как nonfatal network/update-source failure.

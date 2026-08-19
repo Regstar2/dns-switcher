@@ -69,9 +69,9 @@ Tray automatic check / UI manual check
 
 Tray запускает `AutomaticUpdateMonitor`. Он периодически перечитывает `app-preferences.json`, а `update-state.json` хранит только `lastCheckedUtc` и `lastNotifiedVersion`. Это предотвращает частые запросы/повторные уведомления без хранения secret или installer.
 
-### Private repository limitation
+### Release source requirement
 
-На момент подготовки `v1.5.0` основной repository private. Анонимный production client не может использовать private GitHub Releases. Встраивать credential запрещено, поэтому release gate остаётся `BLOCKED` до public repository или отдельного public release source.
+Production update discovery требует publicly readable HTTPS GitHub Releases source. Client credentials намеренно не встраиваются; если release metadata недоступна anonymous client, update-check завершается как nonfatal update-source/network failure, а пользователь может установить release asset вручную после проверки SHA-256.
 
 ## Configuration
 

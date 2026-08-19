@@ -28,7 +28,7 @@
 
 `v1.5.0` не добавляет стороннюю updater-библиотеку. SemVer comparison находится в Core, а Windows infrastructure использует стандартные .NET `HttpClient`, `System.Text.Json`, `SHA256` и `ProcessStartInfo` для release discovery, checksum verification и installer handoff.
 
-Production client не содержит GitHub credential. Пока repository private, anonymous GitHub Releases source недоступен и update release gate остаётся `BLOCKED`.
+Production client не содержит GitHub credential. Update discovery рассчитан на anonymous GitHub Releases source; отсутствие публичного доступа обрабатывается как nonfatal update-source/network failure без credential workaround.
 
 ## Зафиксированные версии
 

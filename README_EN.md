@@ -152,7 +152,7 @@ DnsSwitcher does not require a cloud account and stores configuration locally. A
 
 The installed build can be upgraded in place through the Inno Setup installer while preserving profiles and settings. DnsSwitcher provides a manual check and an opt-out automatic update check.
 
-While the GitHub repository remains private, anonymous production update discovery through GitHub Releases is unavailable. This does not prevent manual installation by a user who has repository access.
+Built-in update checks use a publicly readable GitHub Releases source without a token: DnsSwitcher reads metadata, selects the expected installer asset, downloads `SHA256SUMS.txt` from the same release, and verifies SHA-256 before the installer can launch.
 
 ## Build
 
@@ -191,8 +191,7 @@ Plans and evidence: [`docs/testing/`](docs/testing/).
 
 - Windows x64 only;
 - Split DNS uses NRPT and can be bypassed by applications with their own DNS/DoH stack;
-- the exact minimum Windows version is not currently encoded as a dedicated project property;
-- anonymous in-app update discovery is unavailable while the release source remains private.
+- the exact minimum Windows version is not currently encoded as a dedicated project property.
 
 ## License
 

@@ -54,9 +54,9 @@ SHA256SUMS.txt
 - [x] Исторические beta evidence не переписаны задним числом.
 - [x] Private governance files исключены из публикуемого дерева.
 
-## Known limitation
+## Update source
 
-Production anonymous update discovery через GitHub Releases недоступен, пока основной repository private. Это ограничение явно указано в README и release notes; embedded GitHub credentials не используются.
+Production anonymous update discovery использует GitHub Releases без embedded credentials. Release publication предполагает publicly readable repository/release source для anonymous HTTPS clients; если visibility ограничена, update-source gate должен быть открыт заново.
 
 ## Publication
 
