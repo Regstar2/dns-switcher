@@ -8,7 +8,7 @@ public sealed class AppLocalizerUpdateTests
     [Theory]
     [InlineData(AppLanguage.English)]
     [InlineData(AppLanguage.Russian)]
-    public void UpdateAndAboutKeys_AreLocalized(AppLanguage language)
+    public void UpdateAboutHelpAndMoreMenuKeys_AreLocalized(AppLanguage language)
     {
         var localizer = new AppLocalizer(language);
         var keys = new[]
@@ -20,6 +20,43 @@ public sealed class AppLocalizerUpdateTests
             "AboutVersionFormat",
             "CheckForUpdatesButton",
             "OpenGitHubButton",
+            "CloseButton",
+            "MoreHealthMenu",
+            "MoreAboutMenu",
+            "MoreHelpMenu",
+            "AboutWindowTitle",
+            "AboutDetailedSummary",
+            "AboutCapabilitiesHeader",
+            "AboutCapabilitiesBody",
+            "AboutArchitectureHeader",
+            "AboutArchitectureBody",
+            "AboutLicenseHeader",
+            "AboutLicenseBody",
+            "HelpWindowTitle",
+            "HelpWindowHeader",
+            "HelpWindowIntro",
+            "HelpProfilesTitle",
+            "HelpProfilesBody",
+            "HelpAdapterTitle",
+            "HelpAdapterBody",
+            "HelpChecksTitle",
+            "HelpChecksBody",
+            "HelpHealthTitle",
+            "HelpHealthBody",
+            "HelpSplitDnsTitle",
+            "HelpSplitDnsBody",
+            "HelpAgentTitle",
+            "HelpAgentBody",
+            "HelpTrayTitle",
+            "HelpTrayBody",
+            "HelpImportExportTitle",
+            "HelpImportExportBody",
+            "HelpSettingsTitle",
+            "HelpSettingsBody",
+            "HelpUpdatesTitle",
+            "HelpUpdatesBody",
+            "HelpFilesTitle",
+            "HelpFilesBody",
             "UpdateAvailableFormat",
             "UpdateInstallButton",
             "UpdateReleaseNotesButton",
