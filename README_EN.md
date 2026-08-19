@@ -2,47 +2,42 @@
 
 # DnsSwitcher
 
-A Windows application for switching DNS profiles through a desktop UI, system tray, or CLI while sharing one core across the user-facing clients.
+Windows utility for DNS profiles, diagnostics, Health Failover, and Split DNS.
 
 [Русский](README.md) · **English**
 
-[![Release](https://img.shields.io/badge/release-v1.4.1-4C8BF5?style=for-the-badge)](../../releases/tag/v1.4.1)
-[![Platform](https://img.shields.io/badge/platform-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](#requirements)
-[![Documentation](https://img.shields.io/badge/docs-available-555555?style=for-the-badge)](docs/README.md)
+[![Source version](https://img.shields.io/badge/source-v1.5.0-4C8BF5?style=for-the-badge)](Directory.Build.props)
+[![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078D4?style=for-the-badge&logo=windows&logoColor=white)](#requirements)
+[![CI](https://img.shields.io/badge/CI-Windows-555555?style=for-the-badge)](.github/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-2EA44F?style=for-the-badge)](LICENSE.md)
 
-[Quick start](#quick-start) · [Documentation](#documentation) · [Releases](../../releases)
+[Quick start](#quick-start) · [Updates](#updates) · [Documentation](#documentation) · [GitHub Releases](https://github.com/Regstar2/dns-switcher/releases)
 
 </div>
 
 ## About
 
-`DnsSwitcher` targets Windows scenarios where users need to apply saved DNS profiles quickly, return to automatic settings, and diagnose DNS or website connectivity.
+DnsSwitcher applies saved DNS profiles through a WPF UI, system tray, or CLI, can restore automatic DNS, and provides DNS/site/benchmark diagnostics. Privileged operations can use the Windows Agent over Named Pipes.
 
-The CLI, WPF application, and tray client share common models and services. Privileged operations can be delegated to the `DnsSwitcher.Agent.Windows` Windows service over Named Pipes so elevation is not requested for every switch.
-
-## Project status
-
-The current source metadata version is `1.4.1`. The latest published GitHub Release is `v1.4.1`. `main` already contains unreleased delivery-process changes made after that release, so `main` should not be treated as byte-for-byte identical to the historical `v1.4.1` tag.
-
-Core DNS switching, diagnostics, profile management, DNS Health Failover, and Split DNS scenarios are implemented. GitHub Actions are not configured in the repository, and this README does not claim CI coverage.
+The source version on the release-preparation branch is `1.5.0`. This PR does not create the stable `v1.5.0` tag/release; publication is a separate step after all release gates are closed.
 
 ## Features
 
-- static DNS profile application and DHCP reset;
-- CLI, interactive console mode, WPF UI, and tray client;
-- profile creation, editing, deletion, import, and export;
-- current DNS detection and network adapter selection;
-- DNS, website, and profile benchmark diagnostics;
+- static DNS profiles and restore-to-automatic DNS;
+- WPF UI, configurable tray menu, and CLI;
+- profile create/edit/import/export;
+- DNS, site, and benchmark diagnostics;
 - optional DNS Health Failover;
 - optional Split DNS through Windows NRPT;
-- a Windows service and Named Pipes for privileged operations;
-- local configuration, benchmark history, and log storage;
-- Russian and English UI with system-aware light and dark themes.
+- Windows Agent for privileged operations;
+- RU/EN and System/Light/Dark themes;
+- **About** and **Help** sections with the canonical GitHub link;
+- manual and opt-out automatic update checks;
+- installer download only after SHA-256 verification.
 
 ## Quick start
 
-To run from source on Windows:
+From source on Windows:
 
 ```powershell
 git clone https://github.com/Regstar2/dns-switcher.git
@@ -51,209 +46,163 @@ dotnet restore DnsSwitcher.sln
 dotnet run --project src/DnsSwitcher.Ui -c Release
 ```
 
-Run the application as administrator when changing DNS without the agent. The agent can be installed and managed from the UI, tray client, or CLI.
+Release verification:
+
+```powershell
+dotnet restore DnsSwitcher.sln
+dotnet build DnsSwitcher.sln -c Release --no-restore
+dotnet test DnsSwitcher.sln -c Release --no-build
+```
 
 ## Requirements
 
-- Windows; published `v1.4.1` assets target `win-x64`;
-- .NET SDK `10.0.201` or a compatible later .NET 10 SDK allowed by `global.json` (`rollForward: latestFeature`) for source builds;
-- administrator privileges for Windows service installation and direct system DNS changes;
-- Inno Setup 6 only when building the installer.
+- Windows x64;
+- .NET 10 SDK from `global.json` only when building from source;
+- administrator rights for Agent installation and direct system DNS/NRPT operations;
+- Inno Setup 6 only on the installer build machine.
 
-The project files do not pin a separate minimum Windows version, so compatibility with specific unverified Windows releases is not claimed.
+The installer is built self-contained and should not require a separately installed .NET Desktop Runtime on the target machine.
 
-## Installation
+## Installation and assets
 
-The published `v1.4.1` release contains two assets:
+The final `v1.5.0` release is prepared with:
 
-- `DnsSwitcher-1.4.1-win-x64.zip` — portable package;
-- `DnsSwitcher-1.4.1-win-x64-setup.exe` — installer package.
+```text
+DnsSwitcher-1.5.0-win-x64-setup.exe
+DnsSwitcher-1.5.0-win-x64.zip
+SHA256SUMS.txt
+```
 
-Current `main` builds the installer as self-contained by default. The portable release script remains framework-dependent unless `-SelfContained` is passed explicitly. This current-branch behavior must not be projected backward onto the already published historical `v1.4.1` assets.
+Before publication, use only artifacts tied to a specific commit SHA. Historical `v1.4.1` assets are not rewritten.
 
-See [`PORTABLE_RELEASE.md`](PORTABLE_RELEASE.md), [`INSTALLER_RELEASE.md`](INSTALLER_RELEASE.md), and [`SERVICE_INSTALL.md`](SERVICE_INSTALL.md).
+Build the installer with:
+
+```powershell
+.\installer\build-installer.ps1 -Version 1.5.0 -Runtime win-x64
+```
+
+The script also generates `SHA256SUMS.txt` for the installer and portable ZIP.
 
 ## Usage
 
-Typical workflow:
-
 1. Create or import a DNS profile.
-2. Select a network adapter.
-3. Apply the profile from the UI, tray client, or CLI.
-4. Use `status`, DNS test, or site test to verify the result.
-5. Run `reset` to restore automatic DNS.
+2. Select the network adapter.
+3. Apply the profile from UI, Tray, or CLI.
+4. Verify state with `status` or diagnostics.
+5. Use reset to restore automatic DNS.
 
-Profiles containing private addresses or internal domains should remain in local configuration files.
-
-## Operating modes
-
-- **UI** — profile, diagnostics, agent, DNS Health Failover, and Split DNS management.
-- **Tray** — quick switching and common actions without opening the main window.
-- **CLI** — commands for manual use and automation.
-- **Agent** — a Windows service that performs privileged operations over Named Pipes.
-
-## Configuration
-
-Data is stored in the `data/` directory next to the application:
-
-```text
-data/
-  config/
-    app-preferences.json
-    dns-benchmark-history.json
-    dns-health-settings.json
-    dns-health-state.json
-    profiles.json
-    split-dns-rules.json
-    tray-settings.json
-    ui-settings.json
-  logs/
-    dns-switcher.log
-```
-
-Profile example: [`docs/profiles.example.json`](docs/profiles.example.json).
-
-## Commands
-
-Show help:
-
-```powershell
-dotnet run --project src/DnsSwitcher.Cli -- help
-```
-
-Main commands:
+Main CLI commands:
 
 ```text
 profiles
 adapters
 status
-current
 apply <profile-id>
 reset
 test
 test-sites
 benchmark
-health <status|enable|disable|check|chain|fallback|action|domains>
-split-dns <status|enable|disable|list|add|remove|update|enable-rule|disable-rule|test|apply|reset>
-validate-config
+health <...>
+split-dns <...>
 service <install|reinstall|uninstall|start|stop|status>
 ```
 
-Global options: `--adapter <id|name>` and `--config <path>`.
+## Updates
+
+Settings includes:
+
+- **Check for updates** — manual check;
+- **Automatically check for updates** — an opt-out preference enabled by default.
+
+Tray performs a background check with persisted throttling; ordinary network failures neither block startup nor show an error dialog. The stable channel ignores draft/prerelease releases.
+
+Update delivery uses the official GitHub Releases API without a token. When a newer stable release exists, DnsSwitcher selects only `DnsSwitcher-<version>-win-x64-setup.exe`, downloads `SHA256SUMS.txt`, validates SHA-256, and only then allows the Inno Setup installer to start through the Windows/UAC flow.
+
+**Current release gate:** the repository remains private, so the production client cannot read its Releases anonymously. No PAT or other secret is embedded in the application. Until a publicly readable release source exists, the update gate is `BLOCKED`.
+
+See [architecture](docs/architecture/architecture.md) and the [update-delivery rule](.project-rules/AUTO_UPDATE_STANDARD.md).
+
+## Configuration
+
+Runtime data lives under `data/`:
+
+```text
+data/
+  config/
+    app-preferences.json
+    profiles.json
+    tray-settings.json
+    ui-settings.json
+    dns-health-settings.json
+    dns-health-state.json
+    split-dns-rules.json
+    update-state.json
+  logs/
+```
+
+`app-preferences.json` includes the automatic-update preference. `update-state.json` contains only throttle/last-notified state and no token or installer binary.
+
+## Screenshots
+
+`v1.5.0` requires real Windows screenshots of the final UI. This branch intentionally does not substitute mockups, Figma renders, or synthetic images: `SCREENSHOTS REQUIRED — awaiting real Windows capture`.
+
+After capture, expected files under `docs/assets/screenshots/` cover Main, Tray, Settings/About, DNS Health, and Split DNS.
 
 ## Architecture
 
 ```text
-UI / CLI / Tray ──> DnsSwitcher.Core
+UI / CLI / Tray
        │
-       └──> DnsSwitcher.Infrastructure.Windows ──> DnsSwitcher.Core
-                    │
-                    ├──> DnsSwitcher.Contracts ──> DnsSwitcher.Core
-                    │
+       ├──> DnsSwitcher.Core
+       └──> DnsSwitcher.Infrastructure.Windows
+                    ├── Windows DNS / NRPT / storage
+                    ├── update delivery
                     └── Named Pipes ──> DnsSwitcher.Agent.Windows
-                                            ├──> Core
-                                            ├──> Contracts
-                                            └──> Infrastructure.Windows
 ```
 
-`DnsSwitcher.Core` contains models, validation, and shared services. Windows-specific adapters, DNS operations, file-backed configuration, NRPT, and the IPC client live in `DnsSwitcher.Infrastructure.Windows`. The privileged Agent references Core, Contracts, and Windows infrastructure.
+Core owns models and orchestration; Windows-specific API/IO lives in Infrastructure.Windows. Update delivery follows the same split: SemVer/models in Core, GitHub/download/checksum/installer launch in Infrastructure.Windows, presentation in UI/Tray.
 
-See [`docs/architecture/architecture.md`](docs/architecture/architecture.md) and [`docs/architecture/tech-stack.md`](docs/architecture/tech-stack.md).
+## Security and privacy
 
-## Security
-
-Changing system DNS settings is a privileged operation. The agent receives requests through a local Named Pipe, and external profile data is validated before system settings are applied.
-
-Do not commit private DNS profiles, secrets, internal domains, or local configuration. The `data/` directory is ignored by Git.
-
-## Privacy
-
-The project stores configuration, benchmark history, and logs locally. The current code and project files do not declare mandatory telemetry or centralized collection of user data. Diagnostic checks contact domains and URLs selected in profiles or user configuration.
-
-## Troubleshooting
-
-- `test` checks DNS resolution for configured domains;
-- `test-sites` performs staged DNS, TCP, TLS, and HTTP checks;
-- `benchmark` compares profiles and restores the original DNS settings;
-- `health` performs background checks and optional failover actions;
-- `split-dns test` verifies domain matching against NRPT rules.
-
-Logs are stored in `data/logs/dns-switcher.log`. IPC integration checks are documented in [`docs/ipc-integration-tests.md`](docs/ipc-integration-tests.md).
-
-## Updating
-
-For portable installations, extract the new build to a separate directory and move `data/` only after making a backup. For installed versions, use an installer for the same architecture. Stop or reinstall the Agent through a supported command before replacing the service runtime.
-
-## Backup and migration
-
-Back up `data/config/` to move settings. Do not copy old executables over a new package without checking the package layout.
-
-## Development
-
-The repository pins the .NET SDK through `global.json`. To prepare a Windows development environment:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev-setup.ps1
-```
-
-The script installs the requested SDK when needed and then performs restore, Release build, and tests.
-
-## Build
-
-```powershell
-dotnet restore DnsSwitcher.sln
-dotnet build DnsSwitcher.sln -c Release
-```
-
-Portable package:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1 -Version 1.4.1 -Runtime win-x64
-```
-
-Installer:
-
-```powershell
-.\installer\build-installer.ps1 -Version 1.4.1 -Runtime win-x64
-```
+- do not commit private DNS profiles, internal domains, local config, or logs;
+- the update client contains no GitHub credentials;
+- an installer with a SHA-256 mismatch is not launched;
+- update URLs are not arbitrary commands: only expected HTTPS GitHub release paths for the configured repository are accepted;
+- automatic update network checks can be disabled.
 
 ## Testing
 
-Automated checks defined by the repository:
+Automated verification:
 
 ```powershell
 dotnet test DnsSwitcher.sln -c Release
 ```
 
-The solution contains unit tests and a separate Windows-specific IPC integration test project. Manual checks are documented in [`docs/testing/manual-test-plan.md`](docs/testing/manual-test-plan.md).
+Windows CI: [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Final installer/portable/checksums are built by [`.github/workflows/release-candidate.yml`](.github/workflows/release-candidate.yml) from the exact candidate commit.
+
+System scenarios: [`docs/testing/manual-test-plan.md`](docs/testing/manual-test-plan.md). Final About/Update smoke: [`docs/testing/v1.5.0-final-smoke.md`](docs/testing/v1.5.0-final-smoke.md).
 
 ## Documentation
 
 | Area | Document |
 |---|---|
 | Index | [`docs/README.md`](docs/README.md) |
-| Product idea and scope | [`docs/product/idea.md`](docs/product/idea.md), [`docs/product/mvp-scope.md`](docs/product/mvp-scope.md) |
-| Feasibility | [`docs/product/feasibility.md`](docs/product/feasibility.md) |
+| Architecture | [`docs/architecture/architecture.md`](docs/architecture/architecture.md) |
 | Roadmap | [`docs/product/roadmap.md`](docs/product/roadmap.md) |
-| Architecture and stack | [`docs/architecture/architecture.md`](docs/architecture/architecture.md), [`docs/architecture/tech-stack.md`](docs/architecture/tech-stack.md) |
 | Versions | [`docs/versions/versions-index.md`](docs/versions/versions-index.md) |
-| Manual testing | [`docs/testing/manual-test-plan.md`](docs/testing/manual-test-plan.md) |
-| Release notes | [`docs/releases/README.md`](docs/releases/README.md) |
+| v1.5.0 notes | [`RU`](docs/releases/v1.5.0.md) · [`EN`](docs/releases/v1.5.0_EN.md) |
 | Changelog | [`CHANGELOG.md`](CHANGELOG.md) |
-| Portable / installer / service | [`PORTABLE_RELEASE.md`](PORTABLE_RELEASE.md), [`INSTALLER_RELEASE.md`](INSTALLER_RELEASE.md), [`SERVICE_INSTALL.md`](SERVICE_INSTALL.md) |
-| DNS Health Failover / Split DNS | [`DNS_HEALTH_FAILOVER.md`](DNS_HEALTH_FAILOVER.md), [`SPLIT_DNS.md`](SPLIT_DNS.md) |
+| Installer / portable | [`INSTALLER_RELEASE.md`](INSTALLER_RELEASE.md) · [`PORTABLE_RELEASE.md`](PORTABLE_RELEASE.md) |
+| DNS Health / Split DNS | [`DNS_HEALTH_FAILOVER.md`](DNS_HEALTH_FAILOVER.md) · [`SPLIT_DNS.md`](SPLIT_DNS.md) |
 
 ## Limitations
 
-- the project depends on Windows APIs and does not claim support for other operating systems;
-- the published `v1.4.1` release targets `win-x64`;
-- Agent installation and direct DNS changes require administrator privileges;
-- Split DNS relies on Windows NRPT and can be bypassed by applications using their own DNS/DoH stack;
-- the CLI is not fully localized;
-- current UI screenshots are not published;
-- an exact minimum Windows version is not pinned in the project files;
-- GitHub Actions/CI are not configured in the repository.
+- Windows-specific project; other operating systems are not claimed as supported;
+- Split DNS uses Windows NRPT and may be bypassed by applications with their own DNS/DoH stack;
+- the exact minimum Windows version is not encoded as a dedicated project property;
+- the `v1.5.0` production update source is blocked while the repository/release channel is not anonymously readable;
+- final real screenshots still require Windows capture.
 
 ## License
 
-The project is distributed under the MIT License. See [`LICENSE.md`](LICENSE.md).
+MIT — [`LICENSE.md`](LICENSE.md).
