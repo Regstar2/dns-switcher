@@ -1,27 +1,45 @@
 name: Publish v1.5.0
 
 on:
-  push:
+  pull_request:
     branches:
       - main
-    paths:
-      - '.github/workflows/publish-v1.5.0.yml'
-      - 'docs/releases/v1.5.0-github-release.md'
+    types:
+      - closed
+  workflow_dispatch:
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
   publish:
     name: Build and publish v1.5.0
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: windows-latest
     timeout-minutes: 90
+    env:
+      RELEASE_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
 
     steps:
+      - name: Report publication start
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `v1.5.0 publication started for exact commit \`${process.env.RELEASE_SHA}\`.`
+            });
+
       - name: Checkout exact release commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ env.RELEASE_SHA }}
           clean: true
 
       - name: Check release does not already exist
@@ -42,55 +60,47 @@ jobs:
               throw error;
             }
 
-      - name: Stop if v1.5.0 already exists
+      - name: Refuse replacement of an existing stable release
         if: steps.existing.outputs.result == 'true'
         shell: pwsh
-        run: Write-Host "v1.5.0 already exists; refusing to replace an immutable stable release."
+        run: throw "v1.5.0 already exists; immutable stable releases are not replaced."
 
       - name: Set up .NET 10.0.201
-        if: steps.existing.outputs.result != 'true'
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.201'
 
       - name: Install Inno Setup 6
-        if: steps.existing.outputs.result != 'true'
         shell: pwsh
         run: choco install innosetup --yes --no-progress
 
       - name: Verify checkout
-        if: steps.existing.outputs.result != 'true'
         shell: pwsh
         run: |
           git status --short
           $head = git rev-parse HEAD
           Write-Host "release_commit=$head"
-          if ($head -ne "$env:GITHUB_SHA") {
-            throw "Checkout does not match GITHUB_SHA."
+          if ($head -ne "$env:RELEASE_SHA") {
+            throw "Checkout does not match RELEASE_SHA."
           }
 
       - name: Restore
-        if: steps.existing.outputs.result != 'true'
         shell: pwsh
         run: dotnet restore DnsSwitcher.sln
 
       - name: Build Release
-        if: steps.existing.outputs.result != 'true'
         shell: pwsh
         run: dotnet build DnsSwitcher.sln -c Release --no-restore
 
       - name: Test Release
-        if: steps.existing.outputs.result != 'true'
         shell: pwsh
         run: dotnet test DnsSwitcher.sln -c Release --no-build
 
       - name: Build final installer and portable package
-        if: steps.existing.outputs.result != 'true'
         shell: pwsh
         run: .\installer\build-installer.ps1 -Version "1.5.0" -Runtime win-x64
 
       - name: Verify final assets and checksums
-        if: steps.existing.outputs.result != 'true'
         shell: pwsh
         run: |
           $installer = ".\artifacts\installer\v1.5.0\DnsSwitcher-1.5.0-win-x64-setup.exe"
@@ -119,7 +129,6 @@ jobs:
           Get-Content $checksums
 
       - name: Upload final release evidence
-        if: steps.existing.outputs.result != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: DnsSwitcher-v1.5.0-final
@@ -131,7 +140,6 @@ jobs:
             artifacts/installer/v1.5.0/SHA256SUMS.txt
 
       - name: Create immutable stable release
-        if: steps.existing.outputs.result != 'true'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -147,7 +155,7 @@ jobs:
               owner,
               repo,
               tag_name: tag,
-              target_commitish: context.sha,
+              target_commitish: process.env.RELEASE_SHA,
               name: 'DnsSwitcher v1.5.0',
               body,
               draft: true,
@@ -196,7 +204,6 @@ jobs:
             }
 
       - name: Remove obsolete branches
-        if: steps.existing.outputs.result != 'true'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -205,6 +212,7 @@ jobs:
               'agent/add-mit-license',
               'agent/v1.5.0-beta.1-validation',
               'agent/finalize-v1.5.0',
+              'agent/trigger-v1.5.0-release',
               'chore/project-rules-v7',
               'feat/health-failover-ui-refresh',
               'feat/main-window-ui-refresh',
@@ -233,3 +241,29 @@ jobs:
                 throw error;
               }
             }
+
+      - name: Report publication success
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `v1.5.0 published successfully from \`${process.env.RELEASE_SHA}\` with installer, portable ZIP, and SHA256SUMS.txt. Obsolete branches were cleaned up.`
+            });
+
+      - name: Report publication failure
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `v1.5.0 publication failed for \`${process.env.RELEASE_SHA}\`. The stable release was not intentionally replaced; inspect the Publish v1.5.0 workflow run.`
+            });
