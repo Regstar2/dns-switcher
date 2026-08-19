@@ -1,0 +1,88 @@
+name: v1.5.0-beta.1 candidate
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-package:
+    name: Build, test, package beta.1
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          clean: true
+
+      - name: Verify clean worktree and candidate commit
+        shell: pwsh
+        run: |
+          git status --short
+          git rev-parse HEAD
+
+      - name: Restore
+        shell: pwsh
+        run: dotnet restore DnsSwitcher.sln
+
+      - name: Build Release
+        shell: pwsh
+        run: dotnet build DnsSwitcher.sln -c Release --no-restore
+
+      - name: Test Release
+        shell: pwsh
+        run: dotnet test DnsSwitcher.sln -c Release --no-build
+
+      - name: Build self-contained beta installer
+        shell: pwsh
+        run: |
+          .\installer\build-installer.ps1 `
+            -Version "1.5.0-beta.1" `
+            -Runtime win-x64
+
+      - name: Collect candidate evidence
+        shell: pwsh
+        run: |
+          $installer = ".\artifacts\installer\v1.5.0-beta.1\DnsSwitcher-1.5.0-beta.1-win-x64-setup.exe"
+          $portable = ".\artifacts\release\v1.5.0-beta.1\DnsSwitcher-1.5.0-beta.1-win-x64.zip"
+
+          if (-not (Test-Path $installer)) {
+            throw "Expected installer not found: $installer"
+          }
+
+          if (-not (Test-Path $portable)) {
+            throw "Expected portable ZIP not found: $portable"
+          }
+
+          $commit = git rev-parse HEAD
+          $file = Get-Item $installer
+          $hash = Get-FileHash $installer -Algorithm SHA256
+
+          New-Item -ItemType Directory -Path ".\artifacts\beta-evidence" -Force | Out-Null
+          @(
+            "version=1.5.0-beta.1"
+            "commit=$commit"
+            "installer=$($file.Name)"
+            "installer_size=$($file.Length)"
+            "installer_sha256=$($hash.Hash)"
+            "portable=$(Split-Path $portable -Leaf)"
+          ) | Set-Content ".\artifacts\beta-evidence\v1.5.0-beta.1.txt"
+
+          Get-Content ".\artifacts\beta-evidence\v1.5.0-beta.1.txt"
+
+      - name: Upload beta candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: DnsSwitcher-v1.5.0-beta.1-candidate
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            artifacts/installer/v1.5.0-beta.1/DnsSwitcher-1.5.0-beta.1-win-x64-setup.exe
+            artifacts/release/v1.5.0-beta.1/DnsSwitcher-1.5.0-beta.1-win-x64.zip
+            artifacts/beta-evidence/v1.5.0-beta.1.txt
