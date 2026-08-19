@@ -1,4 +1,4 @@
-name: Tray menu customization CI
+name: CI
 
 on:
   pull_request:
@@ -6,7 +6,8 @@ on:
       - main
   push:
     branches:
-      - feat/tray-menu-customization
+      - main
+      - 'release/**'
 
 permissions:
   contents: read
@@ -15,10 +16,19 @@ jobs:
   build-test:
     name: Release build and tests
     runs-on: [self-hosted, Windows, X64]
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
-      - name: Checkout
+      - name: Checkout exact commit
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          clean: true
+
+      - name: Verify checkout
+        shell: pwsh
+        run: |
+          git status --short
+          git rev-parse HEAD
 
       - name: Restore
         shell: pwsh

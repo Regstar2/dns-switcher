@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "1.4.1",
+    [string]$Version,
     [string]$Runtime = "win-x64",
     [switch]$SelfContained,
     [switch]$SkipTests
@@ -10,6 +10,22 @@ $ErrorActionPreference = "Stop"
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptRoot
 $configuration = "Release"
+
+function Resolve-ProjectVersion {
+    $propsPath = Join-Path $repoRoot "Directory.Build.props"
+    [xml]$props = Get-Content $propsPath
+    $resolved = [string]$props.Project.PropertyGroup.Version
+    if ([string]::IsNullOrWhiteSpace($resolved)) {
+        throw "Version is missing from Directory.Build.props."
+    }
+
+    return $resolved.Trim()
+}
+
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    $Version = Resolve-ProjectVersion
+}
+
 $releaseRoot = Join-Path $repoRoot "artifacts\release\v$Version"
 $packageName = "DnsSwitcher-$Version-$Runtime"
 $packageDir = Join-Path $releaseRoot $packageName
@@ -88,6 +104,7 @@ try {
             "-o",
             $outputDir,
             "/p:Version=$Version",
+            "/p:InformationalVersion=$Version",
             "/p:DebugType=None",
             "/p:DebugSymbols=false",
             "/p:UseSharedCompilation=false",

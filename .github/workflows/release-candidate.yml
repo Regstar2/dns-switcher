@@ -1,0 +1,96 @@
+name: Stable release candidate
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Build v1.5.0 candidate assets
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'release/')
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout exact candidate commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          clean: true
+
+      - name: Verify clean worktree and candidate commit
+        shell: pwsh
+        run: |
+          git status --short
+          git rev-parse HEAD
+
+      - name: Restore
+        shell: pwsh
+        run: dotnet restore DnsSwitcher.sln
+
+      - name: Build Release
+        shell: pwsh
+        run: dotnet build DnsSwitcher.sln -c Release --no-restore
+
+      - name: Test Release
+        shell: pwsh
+        run: dotnet test DnsSwitcher.sln -c Release --no-build
+
+      - name: Build self-contained installer and portable package
+        shell: pwsh
+        run: .\installer\build-installer.ps1 -Version "1.5.0" -Runtime win-x64
+
+      - name: Collect exact candidate evidence
+        shell: pwsh
+        run: |
+          $installer = ".\artifacts\installer\v1.5.0\DnsSwitcher-1.5.0-win-x64-setup.exe"
+          $portable = ".\artifacts\release\v1.5.0\DnsSwitcher-1.5.0-win-x64.zip"
+          $checksums = ".\artifacts\installer\v1.5.0\SHA256SUMS.txt"
+
+          foreach ($path in @($installer, $portable, $checksums)) {
+            if (-not (Test-Path $path)) {
+              throw "Expected release asset not found: $path"
+            }
+          }
+
+          $commit = git rev-parse HEAD
+          $installerFile = Get-Item $installer
+          $portableFile = Get-Item $portable
+          $installerHash = (Get-FileHash $installer -Algorithm SHA256).Hash
+          $portableHash = (Get-FileHash $portable -Algorithm SHA256).Hash
+          $checksumText = Get-Content $checksums -Raw
+
+          if ($checksumText -notmatch [regex]::Escape($installerHash) -or $checksumText -notmatch [regex]::Escape($portableHash)) {
+            throw "SHA256SUMS.txt does not match the built assets."
+          }
+
+          New-Item -ItemType Directory -Path ".\artifacts\release-evidence" -Force | Out-Null
+          @(
+            "version=1.5.0"
+            "commit=$commit"
+            "installer=$($installerFile.Name)"
+            "installer_size=$($installerFile.Length)"
+            "installer_sha256=$installerHash"
+            "portable=$($portableFile.Name)"
+            "portable_size=$($portableFile.Length)"
+            "portable_sha256=$portableHash"
+          ) | Set-Content ".\artifacts\release-evidence\v1.5.0.txt"
+          Get-Content ".\artifacts\release-evidence\v1.5.0.txt"
+          Get-Content $checksums
+
+      - name: Upload stable candidate assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: DnsSwitcher-v1.5.0-candidate
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            artifacts/installer/v1.5.0/DnsSwitcher-1.5.0-win-x64-setup.exe
+            artifacts/release/v1.5.0/DnsSwitcher-1.5.0-win-x64.zip
+            artifacts/installer/v1.5.0/SHA256SUMS.txt
+            artifacts/release-evidence/v1.5.0.txt

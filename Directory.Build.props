@@ -3,12 +3,15 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AnalysisLevel>latest</AnalysisLevel>
-    <Version>1.4.1</Version>
-    <FileVersion>1.4.1.0</FileVersion>
-    <AssemblyVersion>1.4.1.0</AssemblyVersion>
-    <InformationalVersion>1.4.1</InformationalVersion>
+    <Version>1.5.0</Version>
+    <FileVersion>1.5.0.0</FileVersion>
+    <AssemblyVersion>1.5.0.0</AssemblyVersion>
+    <InformationalVersion>1.5.0</InformationalVersion>
     <Product>DnsSwitcher</Product>
     <Authors>Regstar2</Authors>
-    <RepositoryUrl>https://github.com/Regstar2/DnsSwitcher</RepositoryUrl>
+    <RepositoryUrl>https://github.com/Regstar2/dns-switcher</RepositoryUrl>
   </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="RepositoryUrl" Value="$(RepositoryUrl)" />
+  </ItemGroup>
 </Project>
