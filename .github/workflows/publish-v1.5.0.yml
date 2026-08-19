@@ -14,7 +14,7 @@ permissions:
 jobs:
   publish:
     name: Build and publish v1.5.0
-    runs-on: [self-hosted, Windows, X64]
+    runs-on: windows-latest
     timeout-minutes: 90
 
     steps:
@@ -45,16 +45,27 @@ jobs:
       - name: Stop if v1.5.0 already exists
         if: steps.existing.outputs.result == 'true'
         shell: pwsh
-        run: |
-          Write-Host "v1.5.0 already exists; refusing to replace an immutable stable release."
+        run: Write-Host "v1.5.0 already exists; refusing to replace an immutable stable release."
+
+      - name: Set up .NET 10.0.201
+        if: steps.existing.outputs.result != 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.201'
+
+      - name: Install Inno Setup 6
+        if: steps.existing.outputs.result != 'true'
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
 
       - name: Verify checkout
         if: steps.existing.outputs.result != 'true'
         shell: pwsh
         run: |
           git status --short
-          git rev-parse HEAD
-          if ((git rev-parse HEAD) -ne "$env:GITHUB_SHA") {
+          $head = git rev-parse HEAD
+          Write-Host "release_commit=$head"
+          if ($head -ne "$env:GITHUB_SHA") {
             throw "Checkout does not match GITHUB_SHA."
           }
 
@@ -103,12 +114,11 @@ jobs:
             throw "SHA256SUMS.txt does not contain the portable hash."
           }
 
-          Write-Host "release_commit=$env:GITHUB_SHA"
           Write-Host "installer_sha256=$installerHash"
           Write-Host "portable_sha256=$portableHash"
           Get-Content $checksums
 
-      - name: Upload release evidence
+      - name: Upload final release evidence
         if: steps.existing.outputs.result != 'true'
         uses: actions/upload-artifact@v4
         with:
@@ -181,9 +191,7 @@ jobs:
               await github.rest.repos.deleteRelease({ owner, repo, release_id: releaseId });
               try {
                 await github.rest.git.deleteRef({ owner, repo, ref: `tags/${tag}` });
-              } catch (_) {
-                // Best-effort cleanup of a tag created with the failed draft release.
-              }
+              } catch (_) {}
               throw error;
             }
 
@@ -219,7 +227,7 @@ jobs:
                 core.info(`Deleted branch ${branch}`);
               } catch (error) {
                 if (error.status === 404 || error.status === 422) {
-                  core.info(`Branch ${branch} was already absent or cannot be deleted: ${error.message}`);
+                  core.info(`Branch ${branch} absent or protected: ${error.message}`);
                   continue;
                 }
                 throw error;
