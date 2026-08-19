@@ -6,5 +6,7 @@ public sealed record AppPreferences
 
     public AppTheme Theme { get; init; } = AppTheme.System;
 
+    public bool AutomaticUpdateChecksEnabled { get; init; } = true;
+
     public static AppPreferences Default { get; } = new();
 }
