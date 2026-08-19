@@ -18,10 +18,26 @@ public sealed class JsonAppPreferencesStoreTests : IDisposable
         Assert.True(File.Exists(store.FilePath));
         Assert.Equal(AppLanguage.System, preferences.Language);
         Assert.Equal(AppTheme.System, preferences.Theme);
+        Assert.True(preferences.AutomaticUpdateChecksEnabled);
     }
 
     [Fact]
-    public async Task SaveAsync_PersistsLanguage()
+    public async Task LoadAsync_LegacyJsonDefaultsAutomaticUpdateChecksToEnabled()
+    {
+        var paths = new PortableAppPaths(rootPath);
+        var store = new JsonAppPreferencesStore(paths, NullLogger<JsonAppPreferencesStore>.Instance);
+        Directory.CreateDirectory(paths.ConfigDirectory);
+        await File.WriteAllTextAsync(store.FilePath, "{\"language\":2,\"theme\":2}");
+
+        var preferences = await store.LoadAsync();
+
+        Assert.Equal(AppLanguage.Russian, preferences.Language);
+        Assert.Equal(AppTheme.Dark, preferences.Theme);
+        Assert.True(preferences.AutomaticUpdateChecksEnabled);
+    }
+
+    [Fact]
+    public async Task SaveAsync_PersistsLanguageThemeAndAutomaticUpdatePreference()
     {
         var paths = new PortableAppPaths(rootPath);
         var store = new JsonAppPreferencesStore(paths, NullLogger<JsonAppPreferencesStore>.Instance);
@@ -30,12 +46,14 @@ public sealed class JsonAppPreferencesStoreTests : IDisposable
         {
             Language = AppLanguage.Russian,
             Theme = AppTheme.Dark,
+            AutomaticUpdateChecksEnabled = false,
         });
 
         var preferences = await store.LoadAsync();
 
         Assert.Equal(AppLanguage.Russian, preferences.Language);
         Assert.Equal(AppTheme.Dark, preferences.Theme);
+        Assert.False(preferences.AutomaticUpdateChecksEnabled);
     }
 
     public void Dispose()

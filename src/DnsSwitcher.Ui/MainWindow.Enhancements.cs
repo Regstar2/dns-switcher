@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using DnsSwitcher.Infrastructure.Windows.Configuration;
+using DnsSwitcher.Infrastructure.Windows.Presentation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 
@@ -10,6 +11,9 @@ public partial class MainWindow
 {
     private bool mainWindowEnhancementsInitialized;
     private MenuItem? exportAllProfilesMenuItem;
+    private MenuItem? healthSettingsMenuItem;
+    private MenuItem? aboutMenuItem;
+    private MenuItem? helpMenuItem;
     private JsonTraySettingsStore? traySettingsStore;
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -82,6 +86,21 @@ public partial class MainWindow
         MoreToolsContextMenu.Items.Add(exportAllProfilesMenuItem);
         MoreToolsContextMenu.Opened += OnMoreToolsContextMenuOpened;
 
+        AdditionalContextMenu.Items.Add(new Separator());
+        healthSettingsMenuItem = new MenuItem();
+        healthSettingsMenuItem.Click += OnOpenHealthFromMoreClicked;
+        AdditionalContextMenu.Items.Add(healthSettingsMenuItem);
+
+        AdditionalContextMenu.Items.Add(new Separator());
+        aboutMenuItem = new MenuItem();
+        aboutMenuItem.Click += OnOpenAboutClicked;
+        AdditionalContextMenu.Items.Add(aboutMenuItem);
+
+        helpMenuItem = new MenuItem();
+        helpMenuItem.Click += OnOpenHelpClicked;
+        AdditionalContextMenu.Items.Add(helpMenuItem);
+        AdditionalContextMenu.Opened += OnAdditionalContextMenuOpened;
+
         ApplyContextMenuStyle(ChecksContextMenu);
         ApplyContextMenuStyle(MoreToolsContextMenu);
         ApplyContextMenuStyle(AdditionalContextMenu);
@@ -115,16 +134,56 @@ public partial class MainWindow
         UpdateEnhancementLocalization();
     }
 
+    private void OnAdditionalContextMenuOpened(object sender, RoutedEventArgs e)
+    {
+        UpdateEnhancementLocalization();
+    }
+
     private void UpdateEnhancementLocalization()
     {
-        if (exportAllProfilesMenuItem is null)
+        if (exportAllProfilesMenuItem is not null)
         {
-            return;
+            exportAllProfilesMenuItem.Header = localizer.GetUpdateText("ExportAllProfilesMenu");
         }
 
-        exportAllProfilesMenuItem.Header = GetEnhancementText(
-            english: "Export all profiles",
-            russian: "Экспорт всех профилей");
+        if (healthSettingsMenuItem is not null)
+        {
+            healthSettingsMenuItem.Header = localizer.GetUpdateText("MoreHealthMenu");
+        }
+
+        if (aboutMenuItem is not null)
+        {
+            aboutMenuItem.Header = localizer.GetUpdateText("MoreAboutMenu");
+        }
+
+        if (helpMenuItem is not null)
+        {
+            helpMenuItem.Header = localizer.GetUpdateText("MoreHelpMenu");
+        }
+    }
+
+    private async void OnOpenHealthFromMoreClicked(object sender, RoutedEventArgs e)
+    {
+        await OpenHealthSettingsAsync(this).ConfigureAwait(true);
+    }
+
+    private void OnOpenAboutClicked(object sender, RoutedEventArgs e)
+    {
+        var window = new AboutWindow(localizer, App.Host.ApplicationMetadata)
+        {
+            Owner = this,
+        };
+        window.OpenRepositoryRequested += (_, _) => OpenRepositoryPage(window);
+        window.ShowDialog();
+    }
+
+    private void OnOpenHelpClicked(object sender, RoutedEventArgs e)
+    {
+        var window = new HelpWindow(localizer)
+        {
+            Owner = this,
+        };
+        window.ShowDialog();
     }
 
     private async void OnOpenSettingsWithTraySettingsClicked(object sender, RoutedEventArgs e)
@@ -144,6 +203,8 @@ public partial class MainWindow
                 IsTrayAutostartEnabled(),
                 uiSettings.MinimizeToTray,
                 traySettings,
+                appPreferences.AutomaticUpdateChecksEnabled,
+                App.Host.ApplicationMetadata.DisplayVersion,
                 App.IsDarkThemeActive)
             {
                 Owner = this,
@@ -160,6 +221,11 @@ public partial class MainWindow
             {
                 await OpenSplitDnsRulesAsync(settingsWindow).ConfigureAwait(true);
             };
+            settingsWindow.CheckForUpdatesRequested += async (_, _) =>
+            {
+                await CheckForUpdatesAsync(settingsWindow).ConfigureAwait(true);
+            };
+            settingsWindow.OpenRepositoryRequested += (_, _) => OpenRepositoryPage(settingsWindow);
 
             if (settingsWindow.ShowDialog() != true)
             {
@@ -167,6 +233,10 @@ public partial class MainWindow
             }
 
             await traySettingsStore.SaveAsync(settingsWindow.EditedTraySettings).ConfigureAwait(true);
+            appPreferences = appPreferences with
+            {
+                AutomaticUpdateChecksEnabled = settingsWindow.AutomaticUpdateChecksEnabled,
+            };
             await ApplySettingsAsync(settingsWindow).ConfigureAwait(true);
         }
         catch (Exception exception)
@@ -202,9 +272,7 @@ public partial class MainWindow
 
         var dialog = new SaveFileDialog
         {
-            Title = GetEnhancementText(
-                english: "Export all DNS profiles",
-                russian: "Экспорт всех DNS-профилей"),
+            Title = localizer.GetUpdateText("ExportAllProfilesDialogTitle"),
             Filter = localizer["JsonFilesFilter"],
             FileName = "dns-profiles.json",
             AddExtension = true,
@@ -225,11 +293,7 @@ public partial class MainWindow
             await profileExchangeService
                 .ExportProfilesAsync(dialog.FileName, configuration.Profiles)
                 .ConfigureAwait(true);
-            SetOperationStatus(
-                GetEnhancementText(
-                    english: "All DNS profiles were exported.",
-                    russian: "Все DNS-профили экспортированы."),
-                isError: false);
+            SetOperationStatus(localizer.GetUpdateText("ExportAllProfilesSuccess"), isError: false);
         }
         catch (Exception exception)
         {
@@ -272,10 +336,5 @@ public partial class MainWindow
         AdapterGroupBox.IsHitTestVisible = enabled;
         MainContentGrid.IsHitTestVisible = enabled;
         BottomBarGrid.IsHitTestVisible = enabled;
-    }
-
-    private string GetEnhancementText(string english, string russian)
-    {
-        return localizer.EffectiveLanguage == AppLanguage.Russian ? russian : english;
     }
 }

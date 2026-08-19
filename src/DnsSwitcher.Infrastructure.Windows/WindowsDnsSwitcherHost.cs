@@ -1,5 +1,6 @@
 using System.Runtime.Versioning;
 using DnsSwitcher.Core.Abstractions;
+using DnsSwitcher.Core.Models;
 using DnsSwitcher.Core.Services;
 using DnsSwitcher.Infrastructure.Windows.Agent;
 using DnsSwitcher.Infrastructure.Windows.Adapters;
@@ -8,6 +9,7 @@ using DnsSwitcher.Infrastructure.Windows.Configuration;
 using DnsSwitcher.Infrastructure.Windows.Dns;
 using DnsSwitcher.Infrastructure.Windows.DnsTesting;
 using DnsSwitcher.Infrastructure.Windows.SplitDns;
+using DnsSwitcher.Infrastructure.Windows.Updates;
 using Microsoft.Extensions.Logging;
 
 namespace DnsSwitcher.Infrastructure.Windows;
@@ -15,10 +17,24 @@ namespace DnsSwitcher.Infrastructure.Windows;
 [SupportedOSPlatform("windows")]
 public sealed class WindowsDnsSwitcherHost : IDisposable
 {
+    private readonly HttpClient updateHttpClient;
+
     public WindowsDnsSwitcherHost(PortableAppPaths paths, ILoggerFactory loggerFactory)
     {
         Paths = paths;
         LoggerFactory = loggerFactory;
+        ApplicationMetadata = AssemblyApplicationMetadataProvider.FromAssembly(typeof(WindowsDnsSwitcherHost).Assembly);
+        updateHttpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(15),
+        };
+        updateHttpClient.DefaultRequestHeaders.UserAgent.ParseAdd($"DnsSwitcher/{ApplicationMetadata.Version}");
+        updateHttpClient.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+        updateHttpClient.DefaultRequestHeaders.TryAddWithoutValidation("X-GitHub-Api-Version", "2026-03-10");
+        UpdateService = new GitHubReleaseUpdateService(
+            updateHttpClient,
+            ApplicationMetadata.RepositoryUri,
+            loggerFactory.CreateLogger<GitHubReleaseUpdateService>());
 
         ProfileStore = new JsonDnsProfileStore(paths, loggerFactory.CreateLogger<JsonDnsProfileStore>());
         NetworkAdapterProvider = new WindowsNetworkAdapterProvider(loggerFactory.CreateLogger<WindowsNetworkAdapterProvider>());
@@ -75,6 +91,10 @@ public sealed class WindowsDnsSwitcherHost : IDisposable
 
     public ILoggerFactory LoggerFactory { get; }
 
+    public ApplicationMetadata ApplicationMetadata { get; }
+
+    public IUpdateService UpdateService { get; }
+
     public IProfileStore ProfileStore { get; }
 
     public INetworkAdapterProvider NetworkAdapterProvider { get; }
@@ -125,6 +145,7 @@ public sealed class WindowsDnsSwitcherHost : IDisposable
 
     public void Dispose()
     {
+        updateHttpClient.Dispose();
         LoggerFactory.Dispose();
     }
 }

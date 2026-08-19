@@ -1,41 +1,28 @@
 # Индекс версий
 
-Индекс связывает подтверждённые tags, changelog и release notes. Он не создаёт недостающую историческую документацию задним числом.
-
 ## Текущее состояние
 
-- metadata version в `main`: `1.4.1`;
-- последний опубликованный GitHub Release: `v1.4.1`;
-- `main` содержит unreleased maintenance-изменения после tag `v1.4.1`;
-- новая версия только ради миграции документации не создаётся.
+- source metadata в release branch: `1.5.0`;
+- target stable version: `v1.5.0`;
+- последний исторически опубликованный Release до финальной публикации: `v1.4.1`;
+- `v1.5.0` tag/release не создаётся до закрытия финальных release gates.
 
-## Подтверждённая история
+## Версии
 
-| Версия | Дата по changelog | Tag | GitHub Release | Полные release notes |
-|---|---|---|---|---|
-| `v1.4.1` | 2026-04-30 | есть | есть | [`RU`](../releases/v1.4.1.md) · [`EN`](../releases/v1.4.1_EN.md) |
-| `v1.4.0` | 2026-04-16 | есть | отдельный GitHub Release в текущем списке не найден | отдельного файла в `docs/releases/` нет |
-| `v1.3.0` | 2026-04-12 | есть | отдельный GitHub Release в текущем списке не найден | отдельного файла в `docs/releases/` нет |
-| `1.0.0` | 2026-04-09 | tag в текущем списке tags не найден | отдельный GitHub Release в текущем списке не найден | отдельного файла в `docs/releases/` нет |
+| Версия | Состояние | Release notes |
+|---|---|---|
+| `v1.5.0` | candidate, не опубликован | [`RU`](../releases/v1.5.0.md) · [`EN`](../releases/v1.5.0_EN.md) |
+| `v1.4.1` | опубликован 2026-04-30 | [`RU`](../releases/v1.4.1.md) · [`EN`](../releases/v1.4.1_EN.md) |
+| `v1.4.0` | changelog/tag history | [`CHANGELOG`](../../CHANGELOG.md) |
+| `v1.3.0` | changelog/tag history | [`CHANGELOG`](../../CHANGELOG.md) |
+| `1.0.0` | changelog history | [`CHANGELOG`](../../CHANGELOG.md) |
 
-Источником содержания старых версий без release notes остаётся [`../../CHANGELOG.md`](../../CHANGELOG.md). Отсутствующие исторические документы не восстанавливаются без достаточных источников.
+Исторические tags/releases не переписываются. Полные notes `v1.5.0` находятся в release commit до будущего tag, чтобы GitHub Release мог ссылаться на immutable tag-relative документы.
 
-## Legacy-ограничение `v1.4.1`
+## v1.5.0 gates
 
-Файлы полной release-документации и MIT License были добавлены/переработаны после исторического tag `v1.4.1`. Tag остаётся неизменным.
-
-Поэтому tag-relative ссылка на эти позднее добавленные файлы внутри `v1.4.1` невозможна без переписывания истории. Для следующих релизов полные release notes и лицензия должны присутствовать в release commit до создания tag.
-
-## Правило для следующих версий
-
-До реализации новой версии следует зафиксировать:
-
-1. одну понятную цель версии;
-2. ограниченный scope;
-3. критерии готовности;
-4. обязательные automated и manual checks;
-5. known limitations;
-6. release notes в RU/EN до tag;
-7. release assets, собранные из того же release commit.
-
-Номер и содержание следующей версии в текущем репозитории не утверждены.
+- Build/tests: должен дать фактический Windows CI result на final candidate commit.
+- Installer/portable/checksums: должны быть собраны одним workflow из того же commit.
+- Update source: `BLOCKED`, пока release source private/не читается anonymous client.
+- Screenshots: `BLOCKED`, пока не добавлен реальный Windows capture.
+- Stable tag/release: только после отдельного подтверждения владельца.
