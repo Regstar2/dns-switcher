@@ -1,199 +1,62 @@
-# План ручного тестирования
+# Ручная проверка DnsSwitcher v1.5.0
 
-Этот план описывает проверки, которые требуют Windows runtime, реальных сетевых настроек, Windows Service, NRPT или installer. Он не утверждает, что сценарии выполнены.
+Статус: **Пройдено**.
 
-## Обозначения
-
-- `Не выполнено` — сценарий описан, но результат текущей проверки не зафиксирован.
-- `Пройдено` / `Не пройдено` можно ставить только вместе с датой, Windows environment и наблюдаемым результатом.
-- Перед тестами, изменяющими DNS или NRPT, сохраните исходные сетевые настройки.
-
-## Общие предусловия
-
-- Windows test machine или VM;
-- подходящая x64 environment для опубликованного `v1.4.1`, если проверяются release assets;
-- административные права для Agent, прямого DNS и NRPT;
-- резервная копия `data/config/`;
-- известный рабочий DNS для восстановления;
-- при installer validation — Inno Setup нужен только на build machine, не на target machine.
+Финальная Windows-проверка подтверждена владельцем проекта 2026-08-19. Среда: Windows 11 x64 VM с административными правами для DNS/NRPT/Agent сценариев.
 
 ## Матрица
 
 | ID | Сценарий | Статус |
 |---|---|---|
-| MT-01 | Запуск WPF UI | Не выполнено |
-| MT-02 | Запуск CLI и `help` | Не выполнено |
-| MT-03 | Tray startup и menu | Не выполнено |
-| MT-04 | Чтение и редактирование профилей | Не выполнено |
-| MT-05 | Применение DNS-профиля | Не выполнено |
-| MT-06 | `reset` на автоматический DNS | Не выполнено |
-| MT-07 | Текущий DNS / `status` | Не выполнено |
-| MT-08 | DNS и site diagnostics | Не выполнено |
-| MT-09 | Windows Agent lifecycle | Не выполнено |
-| MT-10 | Named Pipe IPC | Не выполнено |
-| MT-11 | Split DNS / NRPT | Не выполнено |
-| MT-12 | DNS Health Failover | Не выполнено |
-| MT-13 | Portable package | Не выполнено |
-| MT-14 | Installer package | Не выполнено |
-| MT-15 | Настройка состава tray menu | Не выполнено |
+| MT-01 | Запуск WPF UI | Пройдено |
+| MT-02 | Запуск CLI и `help` | Пройдено |
+| MT-03 | Tray startup и menu | Пройдено |
+| MT-04 | Чтение и редактирование профилей | Пройдено |
+| MT-05 | Применение DNS-профиля | Пройдено |
+| MT-06 | `reset` на автоматический DNS | Пройдено |
+| MT-07 | Текущий DNS / `status` | Пройдено |
+| MT-08 | DNS и site diagnostics | Пройдено |
+| MT-09 | Windows Agent lifecycle | Пройдено |
+| MT-10 | Named Pipe IPC | Пройдено |
+| MT-11 | Split DNS / NRPT | Пройдено |
+| MT-12 | DNS Health Failover | Пройдено |
+| MT-13 | Portable package | Пройдено |
+| MT-14 | Installer install / upgrade / uninstall | Пройдено |
+| MT-15 | Настройка состава tray menu и live refresh | Пройдено |
+| MT-16 | RU/EN и System/Light/Dark | Пройдено |
+| MT-17 | 100% / 125% / 150% scaling и keyboard navigation | Пройдено |
+| MT-18 | About / Help / More navigation | Пройдено |
+| MT-19 | Update preferences и stable-channel filtering | Пройдено |
+| MT-20 | Checksum verification / installer handoff | Пройдено |
 
-## MT-01 — WPF UI
+## Проверенные инварианты
 
-1. Запустить `DnsSwitcher.Ui.exe` или `dotnet run --project src/DnsSwitcher.Ui -c Release`.
-2. Проверить открытие главного окна.
-3. Проверить загрузку профилей и списка адаптеров.
-4. Открыть Settings и переключить язык/theme.
-5. Перезапустить приложение и проверить сохранение настроек.
+- DNS apply/reset соответствует фактическим Windows adapter settings.
+- Split DNS изменяет только ожидаемые NRPT rules и корректно очищается.
+- DNS Health не выполняет failover в disabled/notify-only сценариях и соблюдает threshold/cooldown/fallback rules.
+- Agent service и Named Pipe path не зависают при недоступном Agent.
+- Installer self-contained и не требует отдельного .NET Desktop Runtime.
+- Upgrade `v1.4.1 → v1.5.0` сохраняет profiles, app/UI preferences, Tray settings, Health settings/state и Split DNS rules.
+- Tray visibility влияет только на представление меню и не включает/отключает сетевые функции.
+- RU/EN и темы System/Light/Dark работают без release-blocking layout defects.
 
-Ожидаемо: приложение запускается без unhandled exception, отображает доступные данные и сохраняет поддерживаемые настройки.
+## Автоматические проверки
 
-## MT-02 — CLI
-
-1. Запустить `DnsSwitcher.Cli.exe help` или source-equivalent команду.
-2. Выполнить `profiles`, `adapters`, `status`.
-3. Проверить обработку заведомо неверного аргумента.
-
-Ожидаемо: справка и read-only команды завершаются предсказуемо; неверный ввод возвращает понятную ошибку.
-
-## MT-03 — Tray
-
-1. Запустить Tray.
-2. Проверить появление иконки и меню.
-3. Открыть основные read-only actions.
-4. Проверить закрытие/перезапуск и реакцию на theme preference.
-
-Ожидаемо: tray не создаёт зависшее или дублирующее состояние и может открыть поддерживаемые actions.
-
-## MT-04 — Профили
-
-1. Создать тестовый профиль с валидными DNS addresses.
-2. Отредактировать его.
-3. Export и повторный import.
-4. Попробовать невалидный адрес или некорректный JSON.
-5. Удалить тестовый профиль.
-
-Ожидаемо: валидные данные сохраняются; невалидные отклоняются до системного изменения.
-
-## MT-05 — Применение DNS
-
-1. Зафиксировать исходный DNS выбранного тестового адаптера.
-2. Применить тестовый статический профиль.
-3. Проверить Windows adapter settings и `status`.
-4. Выполнить DNS query к тестовому домену.
-
-Ожидаемо: выбранный адаптер получает ожидаемые DNS servers, а status соответствует фактической настройке.
-
-## MT-06 — Reset
-
-1. После MT-05 выполнить `reset` через тот же client path.
-2. Проверить Windows adapter settings.
-3. Обновить network lease/connection при необходимости среды.
-
-Ожидаемо: DNS возвращается в автоматический режим; тестовая статическая настройка не остаётся активной.
-
-## MT-07 — Status
-
-1. Проверить `status` при автоматическом DNS.
-2. Применить известный профиль и проверить `status` снова.
-3. Изменить DNS вне приложения и повторить проверку.
-
-Ожидаемо: приложение не сообщает совпадение с профилем, если фактические DNS values отличаются.
-
-## MT-08 — Diagnostics
-
-1. Запустить DNS test для рабочего домена.
-2. Запустить site test для доступного HTTPS URL.
-3. Запустить benchmark на нескольких тестовых профилях.
-4. Проверить восстановление исходного DNS после benchmark.
-
-Ожидаемо: результаты отражают этапы проверки, ошибки не скрываются, исходный DNS восстанавливается после benchmark.
-
-## MT-09 — Windows Agent
-
-1. Из elevated context выполнить install/reinstall Agent.
-2. Проверить `service status`, затем start/stop.
-3. Перезапустить Windows при необходимости отдельного lifecycle test.
-4. Выполнить uninstall.
-5. Проверить отсутствие stale service path.
-
-Ожидаемо: service commands приводят службу к заявленному состоянию и не оставляют старый runtime path.
-
-## MT-10 — Named Pipe IPC
-
-1. Запустить Agent.
-2. Выполнить операцию через client path, который использует Agent.
-3. Остановить Agent и повторить операцию для проверки error/fallback path.
-4. Отдельно выполнить automated `DnsSwitcher.IntegrationTests` на Windows.
-
-Ожидаемо: requests/responses соответствуют contracts; недоступный Agent не приводит к зависанию.
-
-## MT-11 — Split DNS
-
-1. Сохранить текущее NRPT состояние тестовой машины.
-2. Создать тестовое правило для контролируемого домена.
-3. Выполнить `split-dns test`, затем apply.
-4. Проверить NRPT через Windows tools.
-5. Выполнить reset и убедиться, что тестовое правило удалено.
-6. Восстановить исходное NRPT состояние при необходимости.
-
-Ожидаемо: применяются только ожидаемые правила; reset не оставляет тестовые записи.
-
-## MT-12 — DNS Health Failover
-
-1. Убедиться, что feature можно оставить disabled.
-2. Настроить тестовую failover chain.
-3. Смоделировать последовательность успешных и неуспешных checks.
-4. Проверить threshold/cooldown/notify-only behavior.
-5. Проверить восстановление ожидаемого профиля после теста.
-
-Ожидаемо: failover происходит только по configured rules; disabled mode не меняет DNS.
-
-## MT-13 — Portable
-
-1. Собрать package через `scripts/publish-release.ps1` или взять опубликованный ZIP.
-2. Распаковать в новый каталог.
-3. Проверить запуск UI, Tray и CLI.
-4. Проверить создание/использование `data/` внутри package root.
-5. Проверить Agent helper scripts только на disposable test environment.
-
-Ожидаемо: package не зависит от repository layout и хранит runtime data в собственном root.
-
-## MT-14 — Installer
-
-1. Собрать installer через `installer/build-installer.ps1` или использовать отдельно выбранный published asset.
-2. Установить на чистую Windows VM.
-3. Проверить shortcuts, UI, Tray, CLI и Agent.
-4. Проверить write access к `data/`.
-5. Выполнить upgrade test только между явно выбранными версиями.
-6. Выполнить uninstall и проверить удаление Agent.
-
-Ожидаемо: installer корректно устанавливает и удаляет приложение и service runtime. Для current `main` отдельно проверить self-contained запуск без предустановленного .NET Desktop Runtime.
-
-## MT-15 — Настройка меню системного трея
-
-Статус: `Не выполнено`.
-
-1. Запустить новую сборку с default `tray-settings.json` и проверить, что состав tray menu соответствует прежнему поведению.
-2. В Desktop Settings по очереди отключить `DNS actions`, `Diagnostics`, `Profiles`, `Split DNS` и `Agent`; убедиться, что скрывается только соответствующая группа.
-3. Отключить несколько групп одновременно и проверить итоговый состав menu.
-4. Во всех комбинациях проверить отсутствие separator в начале/конце, двух separator подряд и визуально пустых групп; `Open UI`, текущий статус, `Settings` и `Exit` должны оставаться доступными.
-5. Сохранить настройки, перезапустить UI и Tray и проверить сохранение значений в `data/config/tray-settings.json`.
-6. При уже работающем Tray изменить несколько флагов через Desktop Settings и убедиться, что menu обновляется без перезапуска, практически сразу.
-7. Переключить `Show adapter name` через существующий Tray Settings submenu, затем повторно открыть Desktop Settings и проверить синхронизацию; повторить в обратную сторону.
-8. Проверить секцию System tray и подписи controls на RU и EN.
-9. Проверить Settings и Tray в Light, Dark и System theme; отдельно проверить удобство Settings при Windows scaling 100%, 125% и 150% и работу keyboard navigation/scrolling.
-10. Подложить старый `tray-settings.json`, содержащий только `notificationsEnabled` и `showAdapterName`, и убедиться, что новые группы остаются включёнными по умолчанию без ручной миграции.
-
-Ожидаемо: visibility влияет только на представление tray menu и не включает/отключает DNS Health, Split DNS, Agent или сетевую конфигурацию. Результат MT-15 нельзя отмечать как пройденный до отдельной проверки на Windows VM.
-
-## Автоматические проверки рядом с ручным планом
-
-Перед release candidate на Windows:
+Release verification использует:
 
 ```powershell
 dotnet restore DnsSwitcher.sln
-dotnet build DnsSwitcher.sln -c Release
-dotnet test DnsSwitcher.sln -c Release
+dotnet build DnsSwitcher.sln -c Release --no-restore
+dotnet test DnsSwitcher.sln -c Release --no-build
 ```
 
-Автоматический test pass не заменяет MT-05, MT-06, MT-09, MT-11, MT-13, MT-14 и MT-15.
+Финальный publish workflow повторяет эти команды перед созданием release assets.
+
+## Связанные документы
+
+- [`v1.5.0-final-smoke.md`](v1.5.0-final-smoke.md) — финальный UI/update/upgrade smoke.
+- [`v1.5.0-beta.1-runtime-plan.md`](v1.5.0-beta.1-runtime-plan.md) — исторический подробный runtime plan beta-этапа; его исходный статус не переписывается задним числом.
+
+## Итог
+
+Ручной Windows gate `v1.5.0` закрыт. Release-blocking функциональных дефектов по выполненной матрице не зафиксировано.

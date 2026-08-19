@@ -125,6 +125,13 @@ try {
     Copy-Item "docs\profiles.example.json" (Join-Path $docsDir "profiles.example.json")
     Copy-Item "docs\profiles.schema.json" (Join-Path $docsDir "profiles.schema.json")
 
+    $screenshotsSourceDir = Join-Path $repoRoot "docs\assets\screenshots"
+    if (Test-Path $screenshotsSourceDir) {
+        $screenshotsPackageDir = Join-Path $docsDir "assets\screenshots"
+        New-Item -ItemType Directory -Path $screenshotsPackageDir -Force | Out-Null
+        Copy-Item (Join-Path $screenshotsSourceDir "*") $screenshotsPackageDir
+    }
+
     $releaseDocs = @(
         "ARCHITECTURE_AUDIT.md",
         "PORTABLE_RELEASE.md",

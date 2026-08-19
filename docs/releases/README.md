@@ -1,19 +1,12 @@
 # Releases
 
-Для каждого нового релиза поддерживаются синхронные RU/EN notes:
+Для опубликованных версий поддерживаются синхронные RU/EN release notes.
 
-```text
-vX.Y.Z.md
-vX.Y.Z_EN.md
-```
+## Stable
 
-## Подготовка
+- [`v1.5.0` — Русский](v1.5.0.md) · [`English`](v1.5.0_EN.md) — 2026-08-19
+- [`v1.4.1` — Русский](v1.4.1.md) · [`English`](v1.4.1_EN.md) — 2026-04-30
 
-- `v1.5.0` candidate: [`RU`](v1.5.0.md) · [`EN`](v1.5.0_EN.md)
-- prepared GitHub body: [`v1.5.0-github-release.md`](v1.5.0-github-release.md)
+Краткий текст GitHub Release `v1.5.0` хранится в [`v1.5.0-github-release.md`](v1.5.0-github-release.md) и используется publish workflow.
 
-## Опубликованные
-
-- [`v1.4.1`](v1.4.1.md) · [`English`](v1.4.1_EN.md)
-
-Исторический `v1.4.1` не переписывается. Для `v1.5.0` notes входят в release commit до создания tag, а GitHub Release должен ссылаться на immutable tag-relative files.
+Исторические tags/releases не переписываются. Исправления опубликованной версии выпускаются отдельным patch release.

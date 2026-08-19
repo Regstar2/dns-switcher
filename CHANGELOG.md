@@ -2,28 +2,39 @@
 
 ## Unreleased
 
+No unreleased user-facing changes.
+
+## [1.5.0] - 2026-08-19
+
 ### Added
 
 - Configurable optional tray-menu groups in Desktop Settings with backward-compatible defaults and live Tray refresh.
 - About and Help surfaces with the installed assembly version and canonical GitHub repository link, plus direct Health, About, and Help navigation from the main-window **More** menu.
-- Detailed in-app Help covering DNS profiles, adapter selection, diagnostics, Health Failover, Split DNS, Agent, Tray, import/export, settings, updates, config, and logs with usage guidance and relevant limitations.
+- Detailed in-app Help covering DNS profiles, adapter selection, diagnostics, Health Failover, Split DNS, Agent, Tray, import/export, settings, updates, config, and logs.
 - Manual stable-channel update checks and an opt-out automatic update preference.
 - Typed SemVer comparison, anonymous GitHub Releases discovery, strict Windows x64 installer selection, SHA-256 validation, and installer handoff through Windows/UAC.
 - Persisted update-check throttle/last-notified state without storing credentials or installer binaries.
-- General Windows CI and a stable release-candidate workflow that builds installer, portable ZIP, checksums, and exact-commit evidence.
-- Repo-local project contract aligned with the applicable v9 project rules.
+- Windows CI and exact-commit release packaging for installer, portable ZIP, and checksums.
+- Real Windows UI screenshots for Main, Tray, Settings, DNS Health Failover, Split DNS, and Agent surfaces.
 
 ### Changed
 
-- Refined Main, Settings, DNS Health Failover, and Split DNS windows while preserving their existing DNS/NRPT/Agent contracts.
-- Installer builds remain self-contained by default; final packaging now emits `SHA256SUMS.txt` for installer and portable assets.
-- Release version metadata is prepared for `1.5.0`, with `Directory.Build.props` as the canonical source version for normal builds.
-- Russian and English README/release documentation has been aligned with the final `v1.5.0` delivery model.
+- Refined Main, Settings, DNS Health Failover, and Split DNS windows while preserving existing DNS/NRPT/Agent contracts.
+- Installer and portable builds are self-contained; final packaging emits `SHA256SUMS.txt` for both binary assets.
+- Version metadata is `1.5.0`, with `Directory.Build.props` as the canonical source for normal builds.
+- Russian and English README/release documentation now describe the stable `v1.5.0` delivery model.
+- Tray status/detail formatting was consolidated for consistent RU/EN presentation.
 
 ### Fixed
 
+- Tray status, Health, Split DNS, and Agent detail dialogs no longer show duplicated localized punctuation.
 - Installer packaging no longer requires a separately installed .NET Desktop Runtime on target Windows machines.
-- Release packaging uses the current bilingual README filenames and retains exact-commit candidate evidence.
+- Release packaging uses the current bilingual README filenames and includes screenshot assets referenced by packaged documentation.
+
+### Security
+
+- Downloaded installers are not launched until the expected entry in `SHA256SUMS.txt` matches the local SHA-256.
+- Update delivery does not embed GitHub credentials and accepts only expected HTTPS GitHub release URLs.
 
 ## [1.4.1] - 2026-04-30
 
@@ -86,7 +97,7 @@ Public release preparation with portable and installer delivery tracks.
 
 ### Added
 
-- Shared domain core for DNS profiles, validation, adapter selection, status matching, and diagnostics.
+- Shared domain core for DNS profiles, validation, adapter selection, matching, and diagnostics.
 - Windows infrastructure for config storage, DNS management, logging, and connectivity probing.
 - CLI, Desktop UI, Tray, and privileged Windows Agent/Named Pipes.
 - Portable config/log layout and friendly error formatting.

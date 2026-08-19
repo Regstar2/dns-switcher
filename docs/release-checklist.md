@@ -1,123 +1,72 @@
-# Release Checklist
+# Release Checklist — DnsSwitcher v1.5.0
 
-Этот checklist описывает текущий release process. Исторический tag `v1.4.1` не перемещается и не пересоздаётся.
+Дата финализации: 2026-08-19.
 
-## Перед началом
+## Release identity
 
-До выбора новой версии должны быть утверждены scope и критерии готовности. Текущий repository metadata version остаётся `1.4.1`, пока отдельная release-задача не требует изменения.
-
-Проверьте working tree:
-
-```powershell
-git status --short
-git diff --cached --name-only
-```
-
-Перед commit проверьте `git status`, staged diff и `.gitignore`. В commit не должны попадать ignored local files, secrets, runtime configuration, build output или generated artifacts.
+- [x] Version metadata: `1.5.0`.
+- [x] Stable tag target: `v1.5.0`.
+- [x] Previous stable version: `v1.4.1`.
+- [x] `Directory.Build.props`, README, CHANGELOG и release notes согласованы.
 
 ## Build и tests
 
-Команды, зафиксированные в репозитории:
+Финальный publish workflow выполняет на exact release commit:
 
 ```powershell
 dotnet restore DnsSwitcher.sln
-dotnet build DnsSwitcher.sln -c Release
-dotnet test DnsSwitcher.sln -c Release
+dotnet build DnsSwitcher.sln -c Release --no-restore
+dotnet test DnsSwitcher.sln -c Release --no-build
 ```
 
-Упавшая обязательная проверка не заменяется более простой проверкой без явного указания ограничения.
+- [x] Automated validation пройдена на release-candidate линии.
+- [x] Manual Windows validation завершена.
+- [x] DNS apply/reset/status проверены.
+- [x] Agent / Named Pipe IPC проверены.
+- [x] DNS Health Failover проверен.
+- [x] Split DNS / NRPT проверен.
+- [x] Tray customization проверена.
+- [x] RU/EN, темы и scaling проверены.
 
-## Release documentation
+## Packaging
 
-До создания tag:
-
-1. обновить `CHANGELOG.md`;
-2. создать синхронные `docs/releases/vX.Y.Z.md` и `docs/releases/vX.Y.Z_EN.md`;
-3. указать только реально выполненные проверки;
-4. указать known issues/limitations;
-5. проверить все ссылки;
-6. убедиться, что release notes уже входят в release commit.
-
-Для исторического `v1.4.1` это условие выполнить задним числом нельзя без переписывания tag; это зафиксированное legacy-исключение.
-
-## Portable package
-
-Текущий portable script framework-dependent по умолчанию:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1 -Version 1.4.1 -Runtime win-x64
-```
-
-Для self-contained portable package:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1 -Version 1.4.1 -Runtime win-x64 -SelfContained
-```
-
-`1.4.1` здесь показывает текущую metadata version и не является инструкцией повторно публиковать существующий release.
-
-## Installer package
-
-Current `main` принудительно передаёт self-contained publishing для installer build:
-
-```powershell
-.\installer\build-installer.ps1 -Version 1.4.1 -Runtime win-x64
-```
-
-Ожидаемый локальный output для этой версии:
+Ожидаемые stable assets:
 
 ```text
-artifacts\installer\v1.4.1\DnsSwitcher-1.4.1-win-x64-setup.exe
+DnsSwitcher-1.5.0-win-x64-setup.exe
+DnsSwitcher-1.5.0-win-x64.zip
+SHA256SUMS.txt
 ```
 
-Installer build требует Inno Setup 6.
+- [x] Installer self-contained.
+- [x] Portable package self-contained.
+- [x] `SHA256SUMS.txt` создаётся из фактических final assets.
+- [x] Installer и portable собираются одним workflow из exact release commit.
+- [x] Upgrade `v1.4.1 → v1.5.0` проверен с сохранением пользовательских данных.
+- [x] Uninstall/service cleanup проверены.
 
-## Manual validation
+## Documentation
 
-Используйте [`testing/manual-test-plan.md`](testing/manual-test-plan.md). Минимально для release candidate должны быть отдельно рассмотрены:
+- [x] `README.md` и `README_EN.md` синхронизированы.
+- [x] `CHANGELOG.md` содержит секцию `1.5.0` от 2026-08-19.
+- [x] RU/EN release notes синхронизированы.
+- [x] Реальные Windows screenshots добавлены.
+- [x] Исторические beta evidence не переписаны задним числом.
+- [x] Private governance files исключены из публикуемого дерева.
 
-- UI / CLI / Tray startup;
-- profiles read/write;
-- DNS apply / reset / status;
-- diagnostics;
-- Agent lifecycle и IPC;
-- Split DNS;
-- DNS Health Failover;
-- portable package;
-- installer install/uninstall/upgrade, когда применимо.
+## Known limitation
 
-Не отмечайте сценарий выполненным без фактического запуска.
+Production anonymous update discovery через GitHub Releases недоступен, пока основной repository private. Это ограничение явно указано в README и release notes; embedded GitHub credentials не используются.
 
-## Tag и GitHub Release
+## Publication
 
-Только после проверенного release commit:
+Publish workflow на `main`:
 
-```powershell
-git tag vX.Y.Z
-git push origin vX.Y.Z
-```
+1. повторяет restore/build/test;
+2. собирает installer + portable + checksums;
+3. проверяет наличие и соответствие assets;
+4. создаёт stable tag/release `v1.5.0` из exact commit;
+5. загружает три release assets;
+6. очищает устаревшие рабочие ветки после успешной публикации.
 
-`vX.Y.Z` в этой команде означает уже утверждённую release version; не используйте команду до её выбора.
-
-GitHub Release должен:
-
-- указывать на неизменяемый tag;
-- содержать короткое summary;
-- ссылаться на RU/EN notes из того же tag;
-- перечислять только фактически загруженные assets;
-- не дублировать полные notes HTML-мусором;
-- не заменять опубликованные binaries без отдельного исправляющего release.
-
-## Финальный контроль
-
-- [ ] release commit содержит RU/EN notes;
-- [ ] changelog обновлён;
-- [ ] build выполнен;
-- [ ] tests выполнены;
-- [ ] manual checks зафиксированы;
-- [ ] ignored/local runtime files отсутствуют;
-- [ ] version согласована между metadata/scripts/docs;
-- [ ] tag указывает на release commit;
-- [ ] assets собраны из release commit;
-- [ ] GitHub Release body короткий и tag-relative;
-- [ ] checksums получены из финальных assets, если публикуются.
+Stable assets не заменяются после публикации; исправления выпускаются отдельной версией.
