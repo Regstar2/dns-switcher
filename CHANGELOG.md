@@ -5,7 +5,8 @@
 ### Added
 
 - Configurable optional tray-menu groups in Desktop Settings with backward-compatible defaults and live Tray refresh.
-- About and Help sections in Desktop Settings with the installed assembly version and canonical GitHub repository link.
+- About and Help surfaces with the installed assembly version and canonical GitHub repository link, plus direct Health, About, and Help navigation from the main-window **More** menu.
+- Detailed in-app Help covering DNS profiles, adapter selection, diagnostics, Health Failover, Split DNS, Agent, Tray, import/export, settings, updates, config, and logs with usage guidance and relevant limitations.
 - Manual stable-channel update checks and an opt-out automatic update preference.
 - Typed SemVer comparison, anonymous GitHub Releases discovery, strict Windows x64 installer selection, SHA-256 validation, and installer handoff through Windows/UAC.
 - Persisted update-check throttle/last-notified state without storing credentials or installer binaries.
