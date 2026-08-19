@@ -12,6 +12,7 @@
 - Persisted update-check throttle/last-notified state without storing credentials or installer binaries.
 - General Windows CI and a stable release-candidate workflow that builds installer, portable ZIP, checksums, and exact-commit evidence.
 - Repo-local project contract aligned with the applicable v9 project rules.
+- Real Windows UI screenshots for Main, Tray, Settings, DNS Health Failover, Split DNS, and Agent surfaces.
 
 ### Changed
 
@@ -25,6 +26,7 @@
 - Tray status, Health, Split DNS, and Agent detail dialogs now use localized RU/EN labels and no longer show duplicated label punctuation.
 - Installer packaging no longer requires a separately installed .NET Desktop Runtime on target Windows machines.
 - Release packaging uses the current bilingual README filenames and retains exact-commit candidate evidence.
+- Portable and installer packages include screenshot assets referenced by the bundled README files.
 
 ## [1.4.1] - 2026-04-30
 

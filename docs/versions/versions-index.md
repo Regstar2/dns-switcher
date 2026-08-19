@@ -24,5 +24,5 @@
 - Build/tests: должен дать фактический Windows CI result на final candidate commit.
 - Installer/portable/checksums: должны быть собраны одним workflow из того же commit.
 - Update source: `BLOCKED`, пока release source private/не читается anonymous client.
-- Screenshots: `BLOCKED`, пока не добавлен реальный Windows capture.
+- Screenshots: реальные Windows screenshots добавлены в `docs/assets/screenshots/`.
 - Stable tag/release: только после отдельного подтверждения владельца.

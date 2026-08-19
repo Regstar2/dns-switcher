@@ -144,9 +144,23 @@ data/
 
 ## Screenshots
 
-`v1.5.0` requires real Windows screenshots of the final UI. This branch intentionally does not substitute mockups, Figma renders, or synthetic images: `SCREENSHOTS REQUIRED — awaiting real Windows capture`.
+Real Windows screenshots of the current `v1.5.0` candidate:
 
-After capture, expected files under `docs/assets/screenshots/` cover Main, Tray, Settings/About, DNS Health, and Split DNS.
+| Main | Tray |
+|---|---|
+| ![DnsSwitcher main window](docs/assets/screenshots/main.png) | ![DnsSwitcher system tray menu](docs/assets/screenshots/tray.png) |
+
+| Settings | Settings: Tray |
+|---|---|
+| ![DnsSwitcher settings](docs/assets/screenshots/settings.png) | ![System tray settings](docs/assets/screenshots/settings-tray.png) |
+
+| Settings: Updates | DNS Health |
+|---|---|
+| ![Update settings](docs/assets/screenshots/settings-updates.png) | ![DNS Health Failover](docs/assets/screenshots/dns-health.png) |
+
+| Split DNS | Agent |
+|---|---|
+| ![Split DNS](docs/assets/screenshots/split-dns.png) | ![DnsSwitcher Agent management](docs/assets/screenshots/agent-manager.png) |
 
 ## Architecture
 
@@ -200,8 +214,7 @@ System scenarios: [`docs/testing/manual-test-plan.md`](docs/testing/manual-test-
 - Windows-specific project; other operating systems are not claimed as supported;
 - Split DNS uses Windows NRPT and may be bypassed by applications with their own DNS/DoH stack;
 - the exact minimum Windows version is not encoded as a dedicated project property;
-- the `v1.5.0` production update source is blocked while the repository/release channel is not anonymously readable;
-- final real screenshots still require Windows capture.
+- the `v1.5.0` production update source is blocked while the repository/release channel is not anonymously readable.
 
 ## License
 

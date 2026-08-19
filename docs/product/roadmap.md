@@ -35,6 +35,5 @@ Roadmap фиксирует только подтверждённую текущ�
 ### Текущие blockers
 
 - основной GitHub repository private, поэтому production GitHub Releases недоступны anonymous client;
-- финальные screenshots требуют реального Windows capture.
 
-До закрытия этих пунктов `v1.5.0` не считается готовым к публикации, даже если код и candidate artifacts собраны успешно.
+До закрытия этого пункта `v1.5.0` не считается готовым к публикации, даже если код, screenshots и candidate artifacts собраны успешно.

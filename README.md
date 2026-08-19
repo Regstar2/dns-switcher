@@ -144,9 +144,23 @@ data/
 
 ## Скриншоты
 
-Для `v1.5.0` требуются реальные Windows screenshots финального UI. В текущей ветке они намеренно не заменены mockup/Figma/синтетическими изображениями: `SCREENSHOTS REQUIRED — awaiting real Windows capture`.
+Реальные Windows screenshots текущего `v1.5.0` candidate:
 
-После capture ожидаются файлы в `docs/assets/screenshots/`: Main, Tray, Settings/About, DNS Health и Split DNS.
+| Main | Tray |
+|---|---|
+| ![Главное окно DnsSwitcher](docs/assets/screenshots/main.png) | ![Меню системного трея DnsSwitcher](docs/assets/screenshots/tray.png) |
+
+| Settings | Settings: Tray |
+|---|---|
+| ![Настройки DnsSwitcher](docs/assets/screenshots/settings.png) | ![Настройки системного трея](docs/assets/screenshots/settings-tray.png) |
+
+| Settings: Updates | DNS Health |
+|---|---|
+| ![Настройки обновлений](docs/assets/screenshots/settings-updates.png) | ![DNS Health Failover](docs/assets/screenshots/dns-health.png) |
+
+| Split DNS | Agent |
+|---|---|
+| ![Split DNS](docs/assets/screenshots/split-dns.png) | ![Управление агентом DnsSwitcher](docs/assets/screenshots/agent-manager.png) |
 
 ## Архитектура
 
@@ -200,8 +214,7 @@ Windows CI: [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Финаль
 - Windows-specific проект; поддержка других ОС не заявляется;
 - Split DNS основан на Windows NRPT и может обходиться приложениями со своим DNS/DoH stack;
 - точная минимальная версия Windows не закреплена отдельным project property;
-- production update source для `v1.5.0` заблокирован, пока repository/release channel недоступен анонимно;
-- финальные реальные screenshots ещё требуют Windows capture.
+- production update source для `v1.5.0` заблокирован, пока repository/release channel недоступен анонимно.
 
 ## Лицензия
 
