@@ -1,0 +1,227 @@
+name: Publish v1.5.0
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/publish-v1.5.0.yml'
+      - 'docs/releases/v1.5.0-github-release.md'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Build and publish v1.5.0
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          clean: true
+
+      - name: Check release does not already exist
+        id: existing
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            try {
+              await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: 'v1.5.0'
+              });
+              return 'true';
+            } catch (error) {
+              if (error.status === 404) return 'false';
+              throw error;
+            }
+
+      - name: Stop if v1.5.0 already exists
+        if: steps.existing.outputs.result == 'true'
+        shell: pwsh
+        run: |
+          Write-Host "v1.5.0 already exists; refusing to replace an immutable stable release."
+
+      - name: Verify checkout
+        if: steps.existing.outputs.result != 'true'
+        shell: pwsh
+        run: |
+          git status --short
+          git rev-parse HEAD
+          if ((git rev-parse HEAD) -ne "$env:GITHUB_SHA") {
+            throw "Checkout does not match GITHUB_SHA."
+          }
+
+      - name: Restore
+        if: steps.existing.outputs.result != 'true'
+        shell: pwsh
+        run: dotnet restore DnsSwitcher.sln
+
+      - name: Build Release
+        if: steps.existing.outputs.result != 'true'
+        shell: pwsh
+        run: dotnet build DnsSwitcher.sln -c Release --no-restore
+
+      - name: Test Release
+        if: steps.existing.outputs.result != 'true'
+        shell: pwsh
+        run: dotnet test DnsSwitcher.sln -c Release --no-build
+
+      - name: Build final installer and portable package
+        if: steps.existing.outputs.result != 'true'
+        shell: pwsh
+        run: .\installer\build-installer.ps1 -Version "1.5.0" -Runtime win-x64
+
+      - name: Verify final assets and checksums
+        if: steps.existing.outputs.result != 'true'
+        shell: pwsh
+        run: |
+          $installer = ".\artifacts\installer\v1.5.0\DnsSwitcher-1.5.0-win-x64-setup.exe"
+          $portable = ".\artifacts\release\v1.5.0\DnsSwitcher-1.5.0-win-x64.zip"
+          $checksums = ".\artifacts\installer\v1.5.0\SHA256SUMS.txt"
+
+          foreach ($path in @($installer, $portable, $checksums)) {
+            if (-not (Test-Path $path)) {
+              throw "Expected release asset not found: $path"
+            }
+          }
+
+          $installerHash = (Get-FileHash $installer -Algorithm SHA256).Hash
+          $portableHash = (Get-FileHash $portable -Algorithm SHA256).Hash
+          $checksumText = Get-Content $checksums -Raw
+
+          if ($checksumText -notmatch [regex]::Escape($installerHash)) {
+            throw "SHA256SUMS.txt does not contain the installer hash."
+          }
+          if ($checksumText -notmatch [regex]::Escape($portableHash)) {
+            throw "SHA256SUMS.txt does not contain the portable hash."
+          }
+
+          Write-Host "release_commit=$env:GITHUB_SHA"
+          Write-Host "installer_sha256=$installerHash"
+          Write-Host "portable_sha256=$portableHash"
+          Get-Content $checksums
+
+      - name: Upload release evidence
+        if: steps.existing.outputs.result != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: DnsSwitcher-v1.5.0-final
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            artifacts/installer/v1.5.0/DnsSwitcher-1.5.0-win-x64-setup.exe
+            artifacts/release/v1.5.0/DnsSwitcher-1.5.0-win-x64.zip
+            artifacts/installer/v1.5.0/SHA256SUMS.txt
+
+      - name: Create immutable stable release
+        if: steps.existing.outputs.result != 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const tag = 'v1.5.0';
+            const body = fs.readFileSync('docs/releases/v1.5.0-github-release.md', 'utf8');
+
+            const created = await github.rest.repos.createRelease({
+              owner,
+              repo,
+              tag_name: tag,
+              target_commitish: context.sha,
+              name: 'DnsSwitcher v1.5.0',
+              body,
+              draft: true,
+              prerelease: false,
+              generate_release_notes: false
+            });
+
+            const releaseId = created.data.id;
+            const assets = [
+              'artifacts/installer/v1.5.0/DnsSwitcher-1.5.0-win-x64-setup.exe',
+              'artifacts/release/v1.5.0/DnsSwitcher-1.5.0-win-x64.zip',
+              'artifacts/installer/v1.5.0/SHA256SUMS.txt'
+            ];
+
+            try {
+              for (const assetPath of assets) {
+                const data = fs.readFileSync(assetPath);
+                await github.rest.repos.uploadReleaseAsset({
+                  owner,
+                  repo,
+                  release_id: releaseId,
+                  name: path.basename(assetPath),
+                  headers: {
+                    'content-type': 'application/octet-stream',
+                    'content-length': data.length
+                  },
+                  data
+                });
+              }
+
+              await github.rest.repos.updateRelease({
+                owner,
+                repo,
+                release_id: releaseId,
+                draft: false,
+                prerelease: false,
+                name: 'DnsSwitcher v1.5.0',
+                body
+              });
+            } catch (error) {
+              await github.rest.repos.deleteRelease({ owner, repo, release_id: releaseId });
+              try {
+                await github.rest.git.deleteRef({ owner, repo, ref: `tags/${tag}` });
+              } catch (_) {
+                // Best-effort cleanup of a tag created with the failed draft release.
+              }
+              throw error;
+            }
+
+      - name: Remove obsolete branches
+        if: steps.existing.outputs.result != 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const branches = [
+              'agent/add-mit-license',
+              'agent/v1.5.0-beta.1-validation',
+              'agent/finalize-v1.5.0',
+              'chore/project-rules-v7',
+              'feat/health-failover-ui-refresh',
+              'feat/main-window-ui-refresh',
+              'feat/settings-window-ui-refresh',
+              'feat/tray-menu-customization',
+              'feat/ui-redesign',
+              'fix/release-readme-copy',
+              'fix/self-contained-installer',
+              'release/v1.5.0',
+              'ui/split-dns-redesign'
+            ];
+
+            for (const branch of branches) {
+              try {
+                await github.rest.git.deleteRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `heads/${branch}`
+                });
+                core.info(`Deleted branch ${branch}`);
+              } catch (error) {
+                if (error.status === 404 || error.status === 422) {
+                  core.info(`Branch ${branch} was already absent or cannot be deleted: ${error.message}`);
+                  continue;
+                }
+                throw error;
+              }
+            }
