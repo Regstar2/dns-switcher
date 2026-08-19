@@ -590,11 +590,13 @@ public sealed class TrayApplicationContext : ApplicationContext
     {
         logger.LogInformation("Tray requested DNS health check.");
         var result = await host.DnsHealthFailoverService.EvaluateAsync().ConfigureAwait(true);
-        var summary = $"Health: {result.Status}. {result.Details}";
+        var summary = $"{localizer["HealthCheckTitle"]}: {TrayTextFormatter.BuildHealthStatusText(result.Status, localizer)}. {result.Details}";
 
         if (!traySettings.NotificationsEnabled || result.SwitchedProfile || result.Status == DnsHealthStatus.Failed)
         {
-            ShowInformation($"{localizer["DnsSwitcherTrayTitle"]} {localizer["HealthCheckTitle"]}", BuildHealthDetails(result));
+            ShowInformation(
+                $"{localizer["DnsSwitcherTrayTitle"]} {localizer["HealthCheckTitle"]}",
+                TrayTextFormatter.BuildHealthDetails(result, localizer));
             return;
         }
 
@@ -646,22 +648,16 @@ public sealed class TrayApplicationContext : ApplicationContext
 
             SyncPreferredProfile(configuration, status);
 
-            var lines = new List<string>
-            {
-                $"{localizer["TrayStatusLabel"]}: {TrayTextFormatter.BuildStatusLabel(configuration, status, localizer)}",
-                $"{localizer["TrayAdapterLabel"]}: {status.AdapterName ?? localizer["NoneValue"]}",
-                $"{localizer["TrayModeLabel"]}: {status.Mode}",
-                $"{localizer["TrayMatchedProfileLabel"]}: {status.MatchedProfileId ?? localizer["NoneValue"]}",
-                $"{localizer["TraySelectedProfileLabel"]}: {preferredProfileId ?? localizer["NoneValue"]}",
-                $"{localizer["HealthMonitorLabel"]}: {(healthSettings.Enabled ? localizer["EnabledValue"] : localizer["DisabledValue"])} ({healthState.Status})",
-                $"{localizer["SplitDnsLabel"]}: {(splitDnsConfiguration.Enabled ? localizer["EnabledValue"] : localizer["DisabledValue"])} ({splitDnsConfiguration.Rules.Count} rule(s))",
-                $"{localizer["TrayIpv4Label"]}: {FormatServers(status.Ipv4.NameServers)}",
-                $"{localizer["TrayIpv6Label"]}: {FormatServers(status.Ipv6.NameServers)}",
-            };
-
             ShowInformation(
                 localizer["DnsSwitcherTrayTitle"],
-                string.Join(Environment.NewLine, lines));
+                TrayTextFormatter.BuildOverviewDetails(
+                    configuration,
+                    status,
+                    healthSettings,
+                    healthState,
+                    splitDnsConfiguration,
+                    preferredProfileId,
+                    localizer));
         }
         catch (Exception exception)
         {
@@ -718,7 +714,9 @@ public sealed class TrayApplicationContext : ApplicationContext
         try
         {
             var configuration = await host.SplitDnsRuleService.GetConfigurationAsync().ConfigureAwait(true);
-            ShowInformation($"{localizer["DnsSwitcherTrayTitle"]} {localizer["SplitDnsTitle"]}", BuildSplitDnsDetails(configuration));
+            ShowInformation(
+                $"{localizer["DnsSwitcherTrayTitle"]} {localizer["SplitDnsTitle"]}",
+                TrayTextFormatter.BuildSplitDnsDetails(configuration, localizer));
         }
         catch (Exception exception)
         {
@@ -734,12 +732,12 @@ public sealed class TrayApplicationContext : ApplicationContext
             var agentAvailable = await host.AgentDnsSwitchService.IsAgentAvailableAsync().ConfigureAwait(true);
             ShowInformation(
                 $"{localizer["DnsSwitcherTrayTitle"]} {localizer["AgentManagerButton"]}",
-                $"Service status: {info.Status}{Environment.NewLine}" +
-                $"Agent pipe available: {agentAvailable}{Environment.NewLine}" +
-                $"Service binary path: {info.ServiceBinaryPath ?? "<not installed>"}{Environment.NewLine}" +
-                $"Expected binary path: {info.ExpectedBinaryPath}{Environment.NewLine}" +
-                $"Path current: {info.PointsToExpectedPath}" +
-                $"{(info.IsStalePath ? $"{Environment.NewLine}Warning: service points to a stale path. Use Reinstall Agent." : string.Empty)}");
+                $"{TrayTextFormatter.BuildDetailLine(localizer["AgentServiceStatusLine"], info.Status.ToString())}{Environment.NewLine}" +
+                $"{TrayTextFormatter.BuildDetailLine(localizer["AgentPipeAvailableLine"], agentAvailable ? localizer["YesValue"] : localizer["NoValue"])}{Environment.NewLine}" +
+                $"{TrayTextFormatter.BuildDetailLine(localizer["AgentServicePathLine"], info.ServiceBinaryPath ?? localizer["NotInstalledValue"])}{Environment.NewLine}" +
+                $"{TrayTextFormatter.BuildDetailLine(localizer["AgentExpectedPathLine"], info.ExpectedBinaryPath)}{Environment.NewLine}" +
+                $"{TrayTextFormatter.BuildDetailLine(localizer["AgentPathCurrentLine"], info.PointsToExpectedPath ? localizer["YesValue"] : localizer["NoValue"])}" +
+                $"{(info.IsStalePath ? $"{Environment.NewLine}{localizer["AgentStalePathWarning"]}" : string.Empty)}");
         }
         catch (Exception exception)
         {
@@ -750,25 +748,25 @@ public sealed class TrayApplicationContext : ApplicationContext
     private async Task RunElevatedServiceCommandAsync(string command)
     {
         var cliPath = DesktopClientLayout.TryGetCliExecutablePath(AppContext.BaseDirectory)
-            ?? throw new FileNotFoundException("DnsSwitcher.Cli.exe could not be found. Rebuild or reinstall the package.");
+            ?? throw new FileNotFoundException(localizer["AgentCliNotFound"]);
         using var process = StartElevatedCli(cliPath, command);
 
         if (process is null)
         {
-            throw new InvalidOperationException("Failed to start elevated CLI process.");
+            throw new InvalidOperationException(localizer["AgentFailedStartElevated"]);
         }
 
         await process.WaitForExitAsync().ConfigureAwait(true);
 
         if (process.ExitCode != 0)
         {
-            throw new InvalidOperationException($"Service command '{command}' failed with exit code {process.ExitCode}.");
+            throw new InvalidOperationException(localizer.Format("AgentCommandFinishedFormat", $"service {command}", process.ExitCode));
         }
 
-        ShowSuccess($"Agent service command completed: {command}.");
+        ShowSuccess(localizer.Format("AgentCommandFinishedFormat", $"service {command}", process.ExitCode));
     }
 
-    private static Process? StartElevatedCli(string cliPath, string command)
+    private Process? StartElevatedCli(string cliPath, string command)
     {
         try
         {
@@ -783,7 +781,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         }
         catch (Win32Exception exception) when (exception.NativeErrorCode == 1223)
         {
-            throw new InvalidOperationException("UAC prompt was cancelled by the user.", exception);
+            throw new InvalidOperationException(localizer["AgentUacCancelled"], exception);
         }
     }
 
@@ -1045,54 +1043,6 @@ public sealed class TrayApplicationContext : ApplicationContext
     }
 
     private bool IsDarkThemeActive() => ThemeModeResolver.IsDarkTheme(appPreferences.Theme);
-
-    private static string BuildHealthDetails(DnsHealthEvaluationResult result)
-    {
-        return
-            $"Status: {result.Status}{Environment.NewLine}" +
-            $"Switched profile: {result.SwitchedProfile}{Environment.NewLine}" +
-            $"Active profile: {result.ActiveProfileId ?? "<none>"}{Environment.NewLine}" +
-            $"Target profile: {result.TargetProfileId ?? "<none>"}{Environment.NewLine}" +
-            $"Last action: {result.State.LastAction ?? "<none>"}{Environment.NewLine}" +
-            $"Last failure: {result.State.LastFailureReason ?? "<none>"}{Environment.NewLine}" +
-            $"Last checked UTC: {result.State.LastCheckedUtc?.ToString("O") ?? "<never>"}{Environment.NewLine}" +
-            $"Cooldown until UTC: {result.State.CooldownUntilUtc?.ToString("O") ?? "<none>"}{Environment.NewLine}" +
-            $"{Environment.NewLine}{result.Details}";
-    }
-
-    private static string BuildSplitDnsDetails(SplitDnsConfiguration configuration)
-    {
-        var lines = new List<string>
-        {
-            $"Enabled: {configuration.Enabled}",
-            $"Mode: {configuration.Mode}",
-            $"Default behavior: {configuration.DefaultBehavior}",
-            $"Rules: {configuration.Rules.Count}",
-            string.Empty,
-        };
-
-        foreach (var rule in configuration.Rules
-            .OrderByDescending(rule => rule.Priority)
-            .ThenBy(rule => rule.Namespace, StringComparer.OrdinalIgnoreCase))
-        {
-            lines.Add(
-                $"{rule.Id}: {rule.Namespace} -> {rule.ProfileId} | " +
-                $"enabled={rule.Enabled} priority={rule.Priority}" +
-                $"{(string.IsNullOrWhiteSpace(rule.Comment) ? string.Empty : $" | {rule.Comment}")}");
-        }
-
-        if (configuration.Rules.Count == 0)
-        {
-            lines.Add("No Split DNS rules configured. Use CLI or edit data\\config\\split-dns-rules.json.");
-        }
-
-        return string.Join(Environment.NewLine, lines);
-    }
-
-    private string FormatServers(IReadOnlyList<string> servers)
-    {
-        return servers.Count == 0 ? localizer["NoneValue"] : string.Join(", ", servers);
-    }
 
     private async Task RefreshAppPreferencesAsync(bool forceApply)
     {

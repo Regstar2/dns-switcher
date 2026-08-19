@@ -22,6 +22,7 @@
 
 ### Fixed
 
+- Tray status, Health, Split DNS, and Agent detail dialogs now use localized RU/EN labels and no longer show duplicated label punctuation.
 - Installer packaging no longer requires a separately installed .NET Desktop Runtime on target Windows machines.
 - Release packaging uses the current bilingual README filenames and retains exact-commit candidate evidence.
 

@@ -11,6 +11,9 @@ public sealed class AppLocalizerTests
         var localizer = new AppLocalizer(AppLanguage.Russian);
 
         Assert.Equal("Профили", localizer["ProfilesHeader"]);
+        Assert.Equal("Агент", localizer["AgentManagerButton"]);
+        Assert.Equal("Проверка DNS Health", localizer["HealthCheckTitle"]);
+        Assert.Equal("Мониторинг DNS:", localizer["HealthMonitorLabel"]);
     }
 
     [Fact]
@@ -19,6 +22,8 @@ public sealed class AppLocalizerTests
         var localizer = new AppLocalizer(AppLanguage.English);
 
         Assert.Equal("Profiles", localizer["ProfilesHeader"]);
+        Assert.Equal("Agent", localizer["AgentManagerButton"]);
+        Assert.Equal("DNS Health Check", localizer["HealthCheckTitle"]);
     }
 
     [Fact]

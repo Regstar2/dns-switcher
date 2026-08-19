@@ -86,6 +86,81 @@ public sealed class TrayTextFormatterTests
         Assert.Contains("...", text, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void BuildOverviewDetails_LocalizesRussianTrayStatusDetails()
+    {
+        var configuration = CreateConfiguration("Cloudflare");
+        var status = CreateStatus(matchedProfileId: "test-profile", adapterName: "Wi-Fi");
+        var localizer = new AppLocalizer(AppLanguage.Russian);
+        var splitDnsConfiguration = new SplitDnsConfiguration
+        {
+            Enabled = true,
+            Rules =
+            [
+                new SplitDnsRule
+                {
+                    Id = "corp",
+                    Namespace = ".corp.test",
+                    ProfileId = "test-profile",
+                    Priority = 10,
+                },
+            ],
+        };
+
+        var text = TrayTextFormatter.BuildOverviewDetails(
+            configuration,
+            status,
+            new DnsHealthSettings { Enabled = true },
+            new DnsHealthState { Status = DnsHealthStatus.Healthy },
+            splitDnsConfiguration,
+            preferredProfileId: "test-profile",
+            localizer);
+
+        Assert.Contains("Мониторинг DNS: Включено (Исправен)", text, StringComparison.Ordinal);
+        Assert.Contains("Split DNS: Включено (Правил: 1)", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("::", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("rule(s)", text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void BuildHealthDetails_UsesLocalizedLabelsAndValues()
+    {
+        var localizer = new AppLocalizer(AppLanguage.Russian);
+        var result = new DnsHealthEvaluationResult(
+            DnsHealthStatus.Failed,
+            SwitchedProfile: false,
+            ActiveProfileId: null,
+            TargetProfileId: "fallback",
+            Details: "DNS query timed out.",
+            State: new DnsHealthState
+            {
+                Status = DnsHealthStatus.Failed,
+                LastAction = null,
+                LastFailureReason = "timeout",
+            },
+            TestResult: null);
+
+        var text = TrayTextFormatter.BuildHealthDetails(result, localizer);
+
+        Assert.Contains("Статус: Ошибка", text, StringComparison.Ordinal);
+        Assert.Contains("Профиль переключён: Нет", text, StringComparison.Ordinal);
+        Assert.Contains("Активный профиль: <нет>", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Switched profile:", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildSplitDnsDetails_UsesLocalizedLabelsAndEmptyState()
+    {
+        var localizer = new AppLocalizer(AppLanguage.Russian);
+
+        var text = TrayTextFormatter.BuildSplitDnsDetails(SplitDnsConfiguration.Default, localizer);
+
+        Assert.Contains("Split DNS включён: Выключено", text, StringComparison.Ordinal);
+        Assert.Contains("Правил: 0", text, StringComparison.Ordinal);
+        Assert.Contains("Правила Split DNS не настроены.", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("No Split DNS rules configured.", text, StringComparison.Ordinal);
+    }
+
     private static AppConfig CreateConfiguration(string profileName)
     {
         return new AppConfig
