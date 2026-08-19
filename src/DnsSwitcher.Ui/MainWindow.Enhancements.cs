@@ -11,6 +11,9 @@ public partial class MainWindow
 {
     private bool mainWindowEnhancementsInitialized;
     private MenuItem? exportAllProfilesMenuItem;
+    private MenuItem? healthSettingsMenuItem;
+    private MenuItem? aboutMenuItem;
+    private MenuItem? helpMenuItem;
     private JsonTraySettingsStore? traySettingsStore;
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -83,6 +86,21 @@ public partial class MainWindow
         MoreToolsContextMenu.Items.Add(exportAllProfilesMenuItem);
         MoreToolsContextMenu.Opened += OnMoreToolsContextMenuOpened;
 
+        AdditionalContextMenu.Items.Add(new Separator());
+        healthSettingsMenuItem = new MenuItem();
+        healthSettingsMenuItem.Click += OnOpenHealthFromMoreClicked;
+        AdditionalContextMenu.Items.Add(healthSettingsMenuItem);
+
+        AdditionalContextMenu.Items.Add(new Separator());
+        aboutMenuItem = new MenuItem();
+        aboutMenuItem.Click += OnOpenAboutClicked;
+        AdditionalContextMenu.Items.Add(aboutMenuItem);
+
+        helpMenuItem = new MenuItem();
+        helpMenuItem.Click += OnOpenHelpClicked;
+        AdditionalContextMenu.Items.Add(helpMenuItem);
+        AdditionalContextMenu.Opened += OnAdditionalContextMenuOpened;
+
         ApplyContextMenuStyle(ChecksContextMenu);
         ApplyContextMenuStyle(MoreToolsContextMenu);
         ApplyContextMenuStyle(AdditionalContextMenu);
@@ -116,12 +134,56 @@ public partial class MainWindow
         UpdateEnhancementLocalization();
     }
 
+    private void OnAdditionalContextMenuOpened(object sender, RoutedEventArgs e)
+    {
+        UpdateEnhancementLocalization();
+    }
+
     private void UpdateEnhancementLocalization()
     {
         if (exportAllProfilesMenuItem is not null)
         {
             exportAllProfilesMenuItem.Header = localizer.GetUpdateText("ExportAllProfilesMenu");
         }
+
+        if (healthSettingsMenuItem is not null)
+        {
+            healthSettingsMenuItem.Header = localizer.GetUpdateText("MoreHealthMenu");
+        }
+
+        if (aboutMenuItem is not null)
+        {
+            aboutMenuItem.Header = localizer.GetUpdateText("MoreAboutMenu");
+        }
+
+        if (helpMenuItem is not null)
+        {
+            helpMenuItem.Header = localizer.GetUpdateText("MoreHelpMenu");
+        }
+    }
+
+    private async void OnOpenHealthFromMoreClicked(object sender, RoutedEventArgs e)
+    {
+        await OpenHealthSettingsAsync(this).ConfigureAwait(true);
+    }
+
+    private void OnOpenAboutClicked(object sender, RoutedEventArgs e)
+    {
+        var window = new AboutWindow(localizer, App.Host.ApplicationMetadata)
+        {
+            Owner = this,
+        };
+        window.OpenRepositoryRequested += (_, _) => OpenRepositoryPage(window);
+        window.ShowDialog();
+    }
+
+    private void OnOpenHelpClicked(object sender, RoutedEventArgs e)
+    {
+        var window = new HelpWindow(localizer)
+        {
+            Owner = this,
+        };
+        window.ShowDialog();
     }
 
     private async void OnOpenSettingsWithTraySettingsClicked(object sender, RoutedEventArgs e)
