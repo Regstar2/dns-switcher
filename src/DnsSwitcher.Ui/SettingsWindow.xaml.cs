@@ -22,6 +22,7 @@ public partial class SettingsWindow : Window
         AppTheme selectedTheme,
         bool startWithWindowsEnabled,
         bool minimizeToTrayEnabled,
+        TraySettings traySettings,
         bool isDarkTheme)
     {
         InitializeComponent();
@@ -34,6 +35,13 @@ public partial class SettingsWindow : Window
         ThemeComboBox.SelectedValue = selectedTheme;
         StartWithWindowsCheckBox.IsChecked = startWithWindowsEnabled;
         MinimizeToTrayCheckBox.IsChecked = minimizeToTrayEnabled;
+        ShowDnsActionsCheckBox.IsChecked = traySettings.ShowDnsActions;
+        ShowDiagnosticsCheckBox.IsChecked = traySettings.ShowDiagnostics;
+        ShowSplitDnsCheckBox.IsChecked = traySettings.ShowSplitDns;
+        ShowAgentCheckBox.IsChecked = traySettings.ShowAgent;
+        ShowProfilesCheckBox.IsChecked = traySettings.ShowProfiles;
+        ShowAdapterNameCheckBox.IsChecked = traySettings.ShowAdapterName;
+        NotificationsEnabledCheckBox.IsChecked = traySettings.NotificationsEnabled;
 
         ApplyLocalization(isDarkTheme);
     }
@@ -52,6 +60,17 @@ public partial class SettingsWindow : Window
 
     public bool ContinueInTrayEnabled => MinimizeToTrayCheckBox.IsChecked == true;
 
+    public TraySettings EditedTraySettings => new()
+    {
+        NotificationsEnabled = NotificationsEnabledCheckBox.IsChecked == true,
+        ShowAdapterName = ShowAdapterNameCheckBox.IsChecked == true,
+        ShowDnsActions = ShowDnsActionsCheckBox.IsChecked == true,
+        ShowDiagnostics = ShowDiagnosticsCheckBox.IsChecked == true,
+        ShowSplitDns = ShowSplitDnsCheckBox.IsChecked == true,
+        ShowAgent = ShowAgentCheckBox.IsChecked == true,
+        ShowProfiles = ShowProfilesCheckBox.IsChecked == true,
+    };
+
     private void ApplyLocalization(bool isDarkTheme)
     {
         Title = localizer["SettingsWindowTitle"];
@@ -59,6 +78,7 @@ public partial class SettingsWindow : Window
         SettingsSubtitleTextBlock.Text = localizer["SettingsSubtitle"];
         GeneralHeaderTextBlock.Text = localizer["SettingsGeneralHeader"];
         BehaviorHeaderTextBlock.Text = localizer["SettingsBehaviorHeader"];
+        SystemTrayHeaderTextBlock.Text = localizer["SettingsSystemTrayHeader"];
         AdvancedHeaderTextBlock.Text = localizer["SettingsAdvancedHeader"];
 
         LanguageLabelTextBlock.Text = localizer["SettingsLanguageHeader"];
@@ -69,10 +89,51 @@ public partial class SettingsWindow : Window
         StartWithWindowsDescriptionTextBlock.Text = localizer["SettingsStartWithWindowsDescription"];
         CloseToTrayTitleTextBlock.Text = localizer["CloseToTrayCheckBox"];
         CloseToTrayDescriptionTextBlock.Text = localizer["SettingsCloseToTrayDescription"];
-        AutomationProperties.SetName(StartWithWindowsCheckBox, StartWithWindowsTitleTextBlock.Text);
-        AutomationProperties.SetHelpText(StartWithWindowsCheckBox, StartWithWindowsDescriptionTextBlock.Text);
-        AutomationProperties.SetName(MinimizeToTrayCheckBox, CloseToTrayTitleTextBlock.Text);
-        AutomationProperties.SetHelpText(MinimizeToTrayCheckBox, CloseToTrayDescriptionTextBlock.Text);
+        SetAccessibility(StartWithWindowsCheckBox, StartWithWindowsTitleTextBlock.Text, StartWithWindowsDescriptionTextBlock.Text);
+        SetAccessibility(MinimizeToTrayCheckBox, CloseToTrayTitleTextBlock.Text, CloseToTrayDescriptionTextBlock.Text);
+
+        ApplyTraySettingLocalization(
+            ShowDnsActionsCheckBox,
+            TrayDnsActionsTitleTextBlock,
+            TrayDnsActionsDescriptionTextBlock,
+            "SettingsTrayDnsActionsTitle",
+            "SettingsTrayDnsActionsDescription");
+        ApplyTraySettingLocalization(
+            ShowDiagnosticsCheckBox,
+            TrayDiagnosticsTitleTextBlock,
+            TrayDiagnosticsDescriptionTextBlock,
+            "SettingsTrayDiagnosticsTitle",
+            "SettingsTrayDiagnosticsDescription");
+        ApplyTraySettingLocalization(
+            ShowProfilesCheckBox,
+            TrayProfilesTitleTextBlock,
+            TrayProfilesDescriptionTextBlock,
+            "SettingsTrayProfilesTitle",
+            "SettingsTrayProfilesDescription");
+        ApplyTraySettingLocalization(
+            ShowSplitDnsCheckBox,
+            TraySplitDnsTitleTextBlock,
+            TraySplitDnsDescriptionTextBlock,
+            "SettingsTraySplitDnsTitle",
+            "SettingsTraySplitDnsDescription");
+        ApplyTraySettingLocalization(
+            ShowAgentCheckBox,
+            TrayAgentTitleTextBlock,
+            TrayAgentDescriptionTextBlock,
+            "SettingsTrayAgentTitle",
+            "SettingsTrayAgentDescription");
+        ApplyTraySettingLocalization(
+            ShowAdapterNameCheckBox,
+            TrayAdapterNameTitleTextBlock,
+            TrayAdapterNameDescriptionTextBlock,
+            "SettingsTrayAdapterNameTitle",
+            "SettingsTrayAdapterNameDescription");
+        ApplyTraySettingLocalization(
+            NotificationsEnabledCheckBox,
+            TrayNotificationsTitleTextBlock,
+            TrayNotificationsDescriptionTextBlock,
+            "SettingsTrayNotificationsTitle",
+            "SettingsTrayNotificationsDescription");
 
         AgentManagerTitleTextBlock.Text = localizer["AgentManagerSettingsButton"];
         AgentManagerDescriptionTextBlock.Text = localizer["SettingsAgentDescription"];
@@ -84,6 +145,24 @@ public partial class SettingsWindow : Window
         UpdateThemePreview(isDarkTheme);
         SaveButton.Content = localizer["SaveButton"];
         CancelButton.Content = localizer["CancelButton"];
+    }
+
+    private void ApplyTraySettingLocalization(
+        System.Windows.Controls.CheckBox checkBox,
+        System.Windows.Controls.TextBlock title,
+        System.Windows.Controls.TextBlock description,
+        string titleKey,
+        string descriptionKey)
+    {
+        title.Text = localizer[titleKey];
+        description.Text = localizer[descriptionKey];
+        SetAccessibility(checkBox, title.Text, description.Text);
+    }
+
+    private static void SetAccessibility(System.Windows.Controls.CheckBox checkBox, string name, string helpText)
+    {
+        AutomationProperties.SetName(checkBox, name);
+        AutomationProperties.SetHelpText(checkBox, helpText);
     }
 
     private static IReadOnlyList<LanguageOption> BuildLanguageOptions(AppLocalizer localizer)
