@@ -1,115 +1,72 @@
 # Технологический стек
 
-Документ описывает фактический стек текущего `main`. Версии взяты из `global.json`, `.csproj`, build scripts и installer scripts; зависимости не обновлялись ради документации.
+Документ описывает фактический стек release-candidate `v1.5.0`.
 
-## Выбранный стек
+## Основной стек
 
 | Область | Технология |
 |---|---|
-| Язык и runtime | C# / .NET 10 |
-| SDK selection | `global.json`, базовая версия `10.0.201`, `rollForward: latestFeature` |
+| Язык / runtime | C# / .NET 10 |
+| SDK selection | `global.json`, base `10.0.201`, `rollForward: latestFeature` |
 | Desktop UI | WPF, `net10.0-windows` |
 | Tray | Windows Forms, `net10.0-windows` |
-| CLI | .NET console application, `net10.0` |
-| Core | class library, `net10.0` |
-| Windows infrastructure | class library, `net10.0` с Windows-specific реализацией |
+| CLI / Core | .NET `net10.0` |
+| Windows infrastructure | .NET class library с Windows implementations |
 | Agent | .NET host / Windows Service, `net10.0-windows` |
 | IPC | Named Pipes |
 | Split DNS | Windows NRPT |
-| Конфигурация | локальные JSON-файлы |
-| Логирование | `Microsoft.Extensions.Logging` |
+| Config/state | локальные JSON-файлы |
+| Update metadata | GitHub Releases REST API over HTTPS |
+| Update integrity | SHA-256 / `SHA256SUMS.txt` |
+| Logging | `Microsoft.Extensions.Logging` |
 | Unit / integration tests | xUnit |
 | Installer | Inno Setup 6 |
-| Build | `dotnet` CLI + PowerShell scripts |
+| Build | `dotnet` CLI + PowerShell |
+| CI | GitHub Actions на self-hosted Windows x64 runner |
 
-## Почему выбран именно он
+## Update delivery
 
-Текущая реализация использует .NET и Windows desktop frameworks непосредственно для Windows-specific задачи. WPF обслуживает основное desktop UI, Windows Forms — tray-клиент, а общий Core отделён от системных реализаций.
+`v1.5.0` не добавляет стороннюю updater-библиотеку. SemVer comparison находится в Core, а Windows infrastructure использует стандартные .NET `HttpClient`, `System.Text.Json`, `SHA256` и `ProcessStartInfo` для release discovery, checksum verification и installer handoff.
 
-Исходная историческая мотивация выбора WPF, Windows Forms, Named Pipes или Inno Setup полностью не зафиксирована. Документ не приписывает авторам решения, которых нельзя подтвердить по истории.
-
-## Что сознательно не используем
-
-По текущему solution и project files нет обязательного:
-
-- собственного web backend;
-- внешней базы данных;
-- cloud synchronization service;
-- кроссплатформенного UI framework.
-
-Это описание текущей архитектуры, а не запрет на будущие изменения.
+Production client не содержит GitHub credential. Пока repository private, anonymous GitHub Releases source недоступен и update release gate остаётся `BLOCKED`.
 
 ## Зафиксированные версии
 
-### SDK и framework
-
-- .NET SDK base version: `10.0.201`;
-- SDK roll-forward: `latestFeature` внутри совместимого .NET 10 диапазона;
+- .NET SDK base: `10.0.201`, `rollForward: latestFeature`;
+- UI / Tray / Agent / IPC integration tests: `net10.0-windows`;
 - Core / Contracts / CLI / Infrastructure: `net10.0`;
-- UI / Tray / Agent / IPC integration tests: `net10.0-windows`.
+- `Microsoft.Extensions.Logging` family: .NET 10-compatible versions from project files;
+- xUnit test stack from `tests/*.csproj`;
+- Inno Setup major line: 6; exact patch is not pinned in the repository.
 
-### Основные NuGet packages
+## Среда и ограничения
 
-- `Microsoft.Extensions.Logging` — `10.0.5` в UI, CLI, Tray и Windows infrastructure;
-- `Microsoft.Extensions.Logging.Abstractions` — `10.0.5` в Core и Windows infrastructure;
-- `Microsoft.Extensions.Hosting` — `10.0.0` в Agent;
-- `Microsoft.Extensions.Hosting.WindowsServices` — `10.0.0` в Agent;
-- `Microsoft.NET.Test.Sdk` — `17.14.1`;
-- `xunit` — `2.9.3`;
-- `xunit.runner.visualstudio` — `3.1.4`;
-- `coverlet.collector` — `6.0.4` в unit-test проекте.
+- полноценный desktop/Agent runtime и manual UI smoke требуют Windows;
+- DNS/Windows Service/NRPT operations могут требовать elevation;
+- installer build требует Inno Setup 6 на build machine;
+- `.github/workflows/ci.yml` выполняет Release restore/build/test;
+- `.github/workflows/release-candidate.yml` собирает exact-commit installer/portable/checksums;
+- self-hosted runner environment warnings не считаются project errors, если build/test result остаётся успешным и warning не относится к source/configuration проекта.
 
-### Installer
-
-Build script ищет Inno Setup 6 (`ISCC.exe`). Конкретный patch Inno Setup в репозитории не закреплён.
-
-## Ограничения среды
-
-- полноценная сборка desktop/Agent частей и ручная проверка требуют Windows;
-- DNS, Windows Service и NRPT сценарии могут требовать административных прав;
-- installer build требует установленный Inno Setup 6;
-- GitHub Actions в репозитории не настроены;
-- текущий `main` делает installer self-contained по умолчанию, тогда как standalone portable script без `-SelfContained` остаётся framework-dependent.
-
-## Сборка
+## Сборка и тестирование
 
 ```powershell
 dotnet restore DnsSwitcher.sln
-dotnet build DnsSwitcher.sln -c Release
+dotnet build DnsSwitcher.sln -c Release --no-restore
+dotnet test DnsSwitcher.sln -c Release --no-build
 ```
 
-Repository helper:
+Final candidate package:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev-setup.ps1
+.\installer\build-installer.ps1 -Version 1.5.0 -Runtime win-x64
 ```
 
-## Запуск
-
-WPF UI из исходников:
-
-```powershell
-dotnet run --project src/DnsSwitcher.Ui -c Release
-```
-
-CLI help:
-
-```powershell
-dotnet run --project src/DnsSwitcher.Cli -- help
-```
-
-## Тестирование
-
-```powershell
-dotnet test DnsSwitcher.sln -c Release
-```
-
-Unit tests находятся в `tests/DnsSwitcher.Tests`, Windows-specific IPC integration tests — в `tests/DnsSwitcher.IntegrationTests`.
+Unit tests находятся в `tests/DnsSwitcher.Tests`, Windows IPC integration tests — в `tests/DnsSwitcher.IntegrationTests`.
 
 ## Официальные источники технологий
 
-- .NET `global.json` and SDK roll-forward: https://learn.microsoft.com/dotnet/core/tools/global-json — применяется к .NET SDK, включая используемую ветку .NET 10.
-- WPF for .NET 10: https://learn.microsoft.com/dotnet/desktop/wpf/whats-new/net100 — относится к `net10.0-windows` UI.
-- Windows Service with .NET hosting: https://learn.microsoft.com/dotnet/core/extensions/windows-service — описывает integration model, используемую `Microsoft.Extensions.Hosting.WindowsServices`.
-- Inno Setup 6 documentation: https://jrsoftware.org/ishelp/ — относится к installer toolchain.
-- Inno Setup 6 downloads/revision line: https://jrsoftware.org/isdl.php — подтверждает ветку Inno Setup 6; проект закрепляет major line, а не patch.
+- .NET SDK / `global.json`: https://learn.microsoft.com/dotnet/core/tools/global-json
+- WPF .NET 10: https://learn.microsoft.com/dotnet/desktop/wpf/whats-new/net100
+- Windows Service hosting: https://learn.microsoft.com/dotnet/core/extensions/windows-service
+- Inno Setup 6: https://jrsoftware.org/ishelp/

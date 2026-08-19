@@ -27,7 +27,7 @@ public sealed class JsonAppPreferencesStoreTests : IDisposable
         var paths = new PortableAppPaths(rootPath);
         var store = new JsonAppPreferencesStore(paths, NullLogger<JsonAppPreferencesStore>.Instance);
         Directory.CreateDirectory(paths.ConfigDirectory);
-        await File.WriteAllTextAsync(store.FilePath, "{\"language\":\"Russian\",\"theme\":\"Dark\"}");
+        await File.WriteAllTextAsync(store.FilePath, "{\"language\":2,\"theme\":2}");
 
         var preferences = await store.LoadAsync();
 

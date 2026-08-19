@@ -1,123 +1,74 @@
 # Portable Release
 
-## What is portable
+## Package model
 
-The application binaries are portable:
-- `cli\`
-- `ui\`
-- `tray\`
-- `agent\`
-
-Runtime data is stored beside the package under `data\`.
-
-## What is not strictly portable
-
-The agent is a Windows Service. Installing it registers a service in Windows and requires administrator rights.
-
-The service executable is copied into:
+The portable package contains:
 
 ```text
+cli\
+ui\
+tray\
+agent\
 service\agent\
+data\config\
+data\logs\
 ```
 
-This is intentional. Do not register the service directly against `agent\`.
+Runtime data stays beside the package under `data\`. Installing the Agent registers a Windows Service and therefore is not a strictly portable operation.
 
-## Layout
+## Config layout
+
+Typical `data/config/` files include:
 
 ```text
-DnsSwitcher\
-  cli\
-  ui\
-  tray\
-  agent\
-  service\
-    agent\
-  data\
-    config\
-      profiles.json
-      app-preferences.json
-      tray-settings.json
-      ui-settings.json
-      dns-benchmark-history.json
-      dns-health-settings.json
-      dns-health-state.json
-      split-dns-rules.json
-    logs\
-      dns-switcher.log
+profiles.json
+app-preferences.json
+tray-settings.json
+ui-settings.json
+dns-benchmark-history.json
+dns-health-settings.json
+dns-health-state.json
+split-dns-rules.json
+update-state.json
 ```
+
+`update-state.json` stores only update-check throttle/notification state. It does not store credentials or downloaded installer binaries.
 
 ## Root scripts
 
-Portable release contains:
-- `Install Agent.bat`
-- `Reinstall Agent.bat`
-- `Uninstall Agent.bat`
-- `Start Agent.bat`
-- `Stop Agent.bat`
-- `Agent Status.bat`
-- `Create Shortcuts.bat`
-- `_RunAsAdmin.bat`
-
-All scripts:
-- run relative to `%~dp0`
-- request UAC automatically when needed
-- call `cli\DnsSwitcher.Cli.exe service ...`
-- do not hardcode an install path
-- handle paths with spaces by quoting `%~dp0`
-- keep the service registered against `service\agent\`, not `agent\`
-
-`Create Shortcuts.bat` does not require administrator rights. It creates a Desktop shortcut for the UI and Start Menu shortcuts for UI, Tray, and CLI for the current Windows user.
+Portable release contains Agent lifecycle and shortcut helper BAT files. They run relative to `%~dp0`, elevate only when required, and keep the Windows Service registered against `service\agent\` rather than the development/publish `agent\` directory.
 
 ## Running
 
-UI:
-
 ```powershell
 .\ui\DnsSwitcher.Ui.exe
-```
-
-Tray:
-
-```powershell
 .\tray\DnsSwitcher.Tray.exe
-```
-
-CLI:
-
-```powershell
 .\cli\DnsSwitcher.Cli.exe status
 ```
 
-Typical first run:
-
-```text
-Install Agent.bat
-Start Agent.bat
-Create Shortcuts.bat
-ui\DnsSwitcher.Ui.exe
-```
-
-After install, the UI Agent window and Tray Agent submenu can manage the service without manually opening PowerShell.
-
-## Building portable release
+## Building `v1.5.0`
 
 ```powershell
-.\scripts\publish-release.ps1 -Version 1.4.1 -Runtime win-x64
+.\scripts\publish-release.ps1 -Version 1.5.0 -Runtime win-x64 -SelfContained
 ```
 
-Output:
+Expected archive:
 
 ```text
-artifacts\release\v1.4.1\DnsSwitcher-1.4.1-win-x64.zip
+artifacts\release\v1.5.0\DnsSwitcher-1.5.0-win-x64.zip
 ```
 
-## Updating portable release
+The final installer build calls the same publish script with self-contained delivery enabled and subsequently creates `SHA256SUMS.txt` for both installer and portable ZIP.
+
+## Updating portable builds
 
 Recommended flow:
-1. Stop tray/UI.
-2. Run `Stop Agent.bat`.
-3. Extract new package over the old package or into a new folder.
-4. Run `Reinstall Agent.bat`.
-5. Start tray/UI again.
 
-If the folder was moved, run `Reinstall Agent.bat` so the Windows Service points to the new `service\agent\` runtime copy.
+1. close UI/Tray;
+2. stop Agent;
+3. back up `data/config/`;
+4. extract the new package to a new directory or replace the application files while preserving `data/`;
+5. run `Reinstall Agent.bat` if the package path changed;
+6. start Tray/UI again.
+
+The in-app installer update path is intended for installed builds; portable users should use the portable package and preserve their local `data/` directory explicitly.
