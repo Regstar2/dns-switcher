@@ -1,0 +1,33 @@
+name: Tray menu customization CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - feat/tray-menu-customization
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: Release build and tests
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore
+        shell: pwsh
+        run: dotnet restore DnsSwitcher.sln
+
+      - name: Build Release
+        shell: pwsh
+        run: dotnet build DnsSwitcher.sln -c Release --no-restore
+
+      - name: Test Release
+        shell: pwsh
+        run: dotnet test DnsSwitcher.sln -c Release --no-build

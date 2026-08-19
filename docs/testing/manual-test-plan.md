@@ -35,6 +35,7 @@
 | MT-12 | DNS Health Failover | Не выполнено |
 | MT-13 | Portable package | Не выполнено |
 | MT-14 | Installer package | Не выполнено |
+| MT-15 | Настройка состава tray menu | Не выполнено |
 
 ## MT-01 — WPF UI
 
@@ -168,6 +169,23 @@
 
 Ожидаемо: installer корректно устанавливает и удаляет приложение и service runtime. Для current `main` отдельно проверить self-contained запуск без предустановленного .NET Desktop Runtime.
 
+## MT-15 — Настройка меню системного трея
+
+Статус: `Не выполнено`.
+
+1. Запустить новую сборку с default `tray-settings.json` и проверить, что состав tray menu соответствует прежнему поведению.
+2. В Desktop Settings по очереди отключить `DNS actions`, `Diagnostics`, `Profiles`, `Split DNS` и `Agent`; убедиться, что скрывается только соответствующая группа.
+3. Отключить несколько групп одновременно и проверить итоговый состав menu.
+4. Во всех комбинациях проверить отсутствие separator в начале/конце, двух separator подряд и визуально пустых групп; `Open UI`, текущий статус, `Settings` и `Exit` должны оставаться доступными.
+5. Сохранить настройки, перезапустить UI и Tray и проверить сохранение значений в `data/config/tray-settings.json`.
+6. При уже работающем Tray изменить несколько флагов через Desktop Settings и убедиться, что menu обновляется без перезапуска, практически сразу.
+7. Переключить `Show adapter name` через существующий Tray Settings submenu, затем повторно открыть Desktop Settings и проверить синхронизацию; повторить в обратную сторону.
+8. Проверить секцию System tray и подписи controls на RU и EN.
+9. Проверить Settings и Tray в Light, Dark и System theme; отдельно проверить удобство Settings при Windows scaling 100%, 125% и 150% и работу keyboard navigation/scrolling.
+10. Подложить старый `tray-settings.json`, содержащий только `notificationsEnabled` и `showAdapterName`, и убедиться, что новые группы остаются включёнными по умолчанию без ручной миграции.
+
+Ожидаемо: visibility влияет только на представление tray menu и не включает/отключает DNS Health, Split DNS, Agent или сетевую конфигурацию. Результат MT-15 нельзя отмечать как пройденный до отдельной проверки на Windows VM.
+
 ## Автоматические проверки рядом с ручным планом
 
 Перед release candidate на Windows:
@@ -178,4 +196,4 @@ dotnet build DnsSwitcher.sln -c Release
 dotnet test DnsSwitcher.sln -c Release
 ```
 
-Автоматический test pass не заменяет MT-05, MT-06, MT-09, MT-11, MT-13 и MT-14.
+Автоматический test pass не заменяет MT-05, MT-06, MT-09, MT-11, MT-13, MT-14 и MT-15.

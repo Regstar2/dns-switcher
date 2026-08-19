@@ -8,6 +8,7 @@
 - Revised the Russian and English `v1.4.1` release notes to the current release standard without modifying the historical tag.
 - Aligned the bilingual README files with the current documentation standard, including language-switch order and factual badges.
 - Added factual product, architecture, version, and manual-testing documentation for the existing project.
+- Added configurable optional tray-menu groups in Desktop Settings with backward-compatible defaults and live Tray refresh after `tray-settings.json` changes.
 
 ### Fixed
 

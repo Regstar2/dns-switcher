@@ -20,4 +20,24 @@ public sealed class AppLocalizerTests
 
         Assert.Equal("Profiles", localizer["ProfilesHeader"]);
     }
+
+    [Fact]
+    public void GetTraySettingsText_ReturnsEnglishTraySettingsStrings()
+    {
+        var localizer = new AppLocalizer(AppLanguage.English);
+
+        Assert.Equal("System tray", localizer.GetTraySettingsText("SettingsSystemTrayHeader"));
+        Assert.Equal("DNS actions", localizer.GetTraySettingsText("SettingsTrayDnsActionsTitle"));
+        Assert.Contains("benchmark", localizer.GetTraySettingsText("SettingsTrayDiagnosticsDescription"), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void GetTraySettingsText_ReturnsRussianTraySettingsStrings()
+    {
+        var localizer = new AppLocalizer(AppLanguage.Russian);
+
+        Assert.Equal("Системный трей", localizer.GetTraySettingsText("SettingsSystemTrayHeader"));
+        Assert.Equal("Действия DNS", localizer.GetTraySettingsText("SettingsTrayDnsActionsTitle"));
+        Assert.Contains("Показывать", localizer.GetTraySettingsText("SettingsTrayDiagnosticsDescription"), StringComparison.Ordinal);
+    }
 }

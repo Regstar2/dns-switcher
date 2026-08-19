@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using DnsSwitcher.Infrastructure.Windows.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 
 namespace DnsSwitcher.Ui;
@@ -9,6 +10,7 @@ public partial class MainWindow
 {
     private bool mainWindowEnhancementsInitialized;
     private MenuItem? exportAllProfilesMenuItem;
+    private JsonTraySettingsStore? traySettingsStore;
 
     protected override void OnSourceInitialized(EventArgs e)
     {
@@ -20,12 +22,17 @@ public partial class MainWindow
         }
 
         mainWindowEnhancementsInitialized = true;
+        traySettingsStore = new JsonTraySettingsStore(
+            App.Host.Paths,
+            App.Host.LoggerFactory.CreateLogger<JsonTraySettingsStore>());
         LoadMainWindowEnhancementResources();
         ApplyMainWindowButtonStyles();
         ConfigureMainWindowMenus();
 
         ReloadButton.Click -= OnRefreshClicked;
         ReloadButton.Click += OnSmoothRefreshClicked;
+        SettingsButton.Click -= OnOpenSettingsClicked;
+        SettingsButton.Click += OnOpenSettingsWithTraySettingsClicked;
     }
 
     private void LoadMainWindowEnhancementResources()
@@ -118,6 +125,72 @@ public partial class MainWindow
         exportAllProfilesMenuItem.Header = GetEnhancementText(
             english: "Export all profiles",
             russian: "Экспорт всех профилей");
+    }
+
+    private async void OnOpenSettingsWithTraySettingsClicked(object sender, RoutedEventArgs e)
+    {
+        if (isBusy || traySettingsStore is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var traySettings = await LoadTraySettingsForSettingsWindowAsync().ConfigureAwait(true);
+            var settingsWindow = new SettingsWindow(
+                localizer,
+                appPreferences.Language,
+                appPreferences.Theme,
+                IsTrayAutostartEnabled(),
+                uiSettings.MinimizeToTray,
+                traySettings,
+                App.IsDarkThemeActive)
+            {
+                Owner = this,
+            };
+            settingsWindow.AgentManagerRequested += async (_, _) =>
+            {
+                await OpenAgentManagerAsync(settingsWindow).ConfigureAwait(true);
+            };
+            settingsWindow.HealthSettingsRequested += async (_, _) =>
+            {
+                await OpenHealthSettingsAsync(settingsWindow).ConfigureAwait(true);
+            };
+            settingsWindow.SplitDnsSettingsRequested += async (_, _) =>
+            {
+                await OpenSplitDnsRulesAsync(settingsWindow).ConfigureAwait(true);
+            };
+
+            if (settingsWindow.ShowDialog() != true)
+            {
+                return;
+            }
+
+            await traySettingsStore.SaveAsync(settingsWindow.EditedTraySettings).ConfigureAwait(true);
+            await ApplySettingsAsync(settingsWindow).ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            HandleException(exception);
+        }
+    }
+
+    private async Task<TraySettings> LoadTraySettingsForSettingsWindowAsync()
+    {
+        if (traySettingsStore is null)
+        {
+            return TraySettings.Default;
+        }
+
+        try
+        {
+            return await traySettingsStore.LoadAsync().ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Tray settings could not be loaded in Desktop Settings. Default tray settings will be shown.");
+            return TraySettings.Default;
+        }
     }
 
     private async void OnExportAllProfilesClicked(object sender, RoutedEventArgs e)
