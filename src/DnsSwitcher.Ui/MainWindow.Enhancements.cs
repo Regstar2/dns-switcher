@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using DnsSwitcher.Infrastructure.Windows.Configuration;
+using DnsSwitcher.Infrastructure.Windows.Presentation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 
@@ -117,14 +118,10 @@ public partial class MainWindow
 
     private void UpdateEnhancementLocalization()
     {
-        if (exportAllProfilesMenuItem is null)
+        if (exportAllProfilesMenuItem is not null)
         {
-            return;
+            exportAllProfilesMenuItem.Header = localizer.GetUpdateText("ExportAllProfilesMenu");
         }
-
-        exportAllProfilesMenuItem.Header = GetEnhancementText(
-            english: "Export all profiles",
-            russian: "Экспорт всех профилей");
     }
 
     private async void OnOpenSettingsWithTraySettingsClicked(object sender, RoutedEventArgs e)
@@ -144,6 +141,8 @@ public partial class MainWindow
                 IsTrayAutostartEnabled(),
                 uiSettings.MinimizeToTray,
                 traySettings,
+                appPreferences.AutomaticUpdateChecksEnabled,
+                App.Host.ApplicationMetadata.DisplayVersion,
                 App.IsDarkThemeActive)
             {
                 Owner = this,
@@ -160,6 +159,11 @@ public partial class MainWindow
             {
                 await OpenSplitDnsRulesAsync(settingsWindow).ConfigureAwait(true);
             };
+            settingsWindow.CheckForUpdatesRequested += async (_, _) =>
+            {
+                await CheckForUpdatesAsync(settingsWindow).ConfigureAwait(true);
+            };
+            settingsWindow.OpenRepositoryRequested += (_, _) => OpenRepositoryPage(settingsWindow);
 
             if (settingsWindow.ShowDialog() != true)
             {
@@ -167,6 +171,10 @@ public partial class MainWindow
             }
 
             await traySettingsStore.SaveAsync(settingsWindow.EditedTraySettings).ConfigureAwait(true);
+            appPreferences = appPreferences with
+            {
+                AutomaticUpdateChecksEnabled = settingsWindow.AutomaticUpdateChecksEnabled,
+            };
             await ApplySettingsAsync(settingsWindow).ConfigureAwait(true);
         }
         catch (Exception exception)
@@ -202,9 +210,7 @@ public partial class MainWindow
 
         var dialog = new SaveFileDialog
         {
-            Title = GetEnhancementText(
-                english: "Export all DNS profiles",
-                russian: "Экспорт всех DNS-профилей"),
+            Title = localizer.GetUpdateText("ExportAllProfilesDialogTitle"),
             Filter = localizer["JsonFilesFilter"],
             FileName = "dns-profiles.json",
             AddExtension = true,
@@ -225,11 +231,7 @@ public partial class MainWindow
             await profileExchangeService
                 .ExportProfilesAsync(dialog.FileName, configuration.Profiles)
                 .ConfigureAwait(true);
-            SetOperationStatus(
-                GetEnhancementText(
-                    english: "All DNS profiles were exported.",
-                    russian: "Все DNS-профили экспортированы."),
-                isError: false);
+            SetOperationStatus(localizer.GetUpdateText("ExportAllProfilesSuccess"), isError: false);
         }
         catch (Exception exception)
         {
@@ -272,10 +274,5 @@ public partial class MainWindow
         AdapterGroupBox.IsHitTestVisible = enabled;
         MainContentGrid.IsHitTestVisible = enabled;
         BottomBarGrid.IsHitTestVisible = enabled;
-    }
-
-    private string GetEnhancementText(string english, string russian)
-    {
-        return localizer.EffectiveLanguage == AppLanguage.Russian ? russian : english;
     }
 }

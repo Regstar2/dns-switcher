@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Windows;
 using System.Windows.Automation;
 using DnsSwitcher.Infrastructure.Windows.Configuration;
@@ -9,12 +10,17 @@ namespace DnsSwitcher.Ui;
 public partial class SettingsWindow : Window
 {
     private readonly AppLocalizer localizer;
+    private readonly string applicationVersion;
 
     public event EventHandler? AgentManagerRequested;
 
     public event EventHandler? HealthSettingsRequested;
 
     public event EventHandler? SplitDnsSettingsRequested;
+
+    public event EventHandler? CheckForUpdatesRequested;
+
+    public event EventHandler? OpenRepositoryRequested;
 
     public SettingsWindow(
         AppLocalizer localizer,
@@ -30,6 +36,8 @@ public partial class SettingsWindow : Window
             startWithWindowsEnabled,
             minimizeToTrayEnabled,
             TraySettings.Default,
+            AppPreferences.Default.AutomaticUpdateChecksEnabled,
+            ResolveApplicationVersion(),
             isDarkTheme)
     {
     }
@@ -42,10 +50,34 @@ public partial class SettingsWindow : Window
         bool minimizeToTrayEnabled,
         TraySettings traySettings,
         bool isDarkTheme)
+        : this(
+            localizer,
+            selectedLanguage,
+            selectedTheme,
+            startWithWindowsEnabled,
+            minimizeToTrayEnabled,
+            traySettings,
+            AppPreferences.Default.AutomaticUpdateChecksEnabled,
+            ResolveApplicationVersion(),
+            isDarkTheme)
+    {
+    }
+
+    public SettingsWindow(
+        AppLocalizer localizer,
+        AppLanguage selectedLanguage,
+        AppTheme selectedTheme,
+        bool startWithWindowsEnabled,
+        bool minimizeToTrayEnabled,
+        TraySettings traySettings,
+        bool automaticUpdateChecksEnabled,
+        string applicationVersion,
+        bool isDarkTheme)
     {
         InitializeComponent();
         WindowThemeService.Attach(this);
         this.localizer = localizer;
+        this.applicationVersion = applicationVersion;
 
         LanguageComboBox.ItemsSource = BuildLanguageOptions(localizer);
         LanguageComboBox.SelectedValue = selectedLanguage;
@@ -60,6 +92,7 @@ public partial class SettingsWindow : Window
         ShowProfilesCheckBox.IsChecked = traySettings.ShowProfiles;
         ShowAdapterNameCheckBox.IsChecked = traySettings.ShowAdapterName;
         NotificationsEnabledCheckBox.IsChecked = traySettings.NotificationsEnabled;
+        AutomaticUpdateChecksCheckBox.IsChecked = automaticUpdateChecksEnabled;
 
         ApplyLocalization(isDarkTheme);
     }
@@ -77,6 +110,8 @@ public partial class SettingsWindow : Window
     public bool StartWithWindowsEnabled => StartWithWindowsCheckBox.IsChecked == true;
 
     public bool ContinueInTrayEnabled => MinimizeToTrayCheckBox.IsChecked == true;
+
+    public bool AutomaticUpdateChecksEnabled => AutomaticUpdateChecksCheckBox.IsChecked == true;
 
     public TraySettings EditedTraySettings => new()
     {
@@ -110,48 +145,13 @@ public partial class SettingsWindow : Window
         SetAccessibility(StartWithWindowsCheckBox, StartWithWindowsTitleTextBlock.Text, StartWithWindowsDescriptionTextBlock.Text);
         SetAccessibility(MinimizeToTrayCheckBox, CloseToTrayTitleTextBlock.Text, CloseToTrayDescriptionTextBlock.Text);
 
-        ApplyTraySettingLocalization(
-            ShowDnsActionsCheckBox,
-            TrayDnsActionsTitleTextBlock,
-            TrayDnsActionsDescriptionTextBlock,
-            "SettingsTrayDnsActionsTitle",
-            "SettingsTrayDnsActionsDescription");
-        ApplyTraySettingLocalization(
-            ShowDiagnosticsCheckBox,
-            TrayDiagnosticsTitleTextBlock,
-            TrayDiagnosticsDescriptionTextBlock,
-            "SettingsTrayDiagnosticsTitle",
-            "SettingsTrayDiagnosticsDescription");
-        ApplyTraySettingLocalization(
-            ShowProfilesCheckBox,
-            TrayProfilesTitleTextBlock,
-            TrayProfilesDescriptionTextBlock,
-            "SettingsTrayProfilesTitle",
-            "SettingsTrayProfilesDescription");
-        ApplyTraySettingLocalization(
-            ShowSplitDnsCheckBox,
-            TraySplitDnsTitleTextBlock,
-            TraySplitDnsDescriptionTextBlock,
-            "SettingsTraySplitDnsTitle",
-            "SettingsTraySplitDnsDescription");
-        ApplyTraySettingLocalization(
-            ShowAgentCheckBox,
-            TrayAgentTitleTextBlock,
-            TrayAgentDescriptionTextBlock,
-            "SettingsTrayAgentTitle",
-            "SettingsTrayAgentDescription");
-        ApplyTraySettingLocalization(
-            ShowAdapterNameCheckBox,
-            TrayAdapterNameTitleTextBlock,
-            TrayAdapterNameDescriptionTextBlock,
-            "SettingsTrayAdapterNameTitle",
-            "SettingsTrayAdapterNameDescription");
-        ApplyTraySettingLocalization(
-            NotificationsEnabledCheckBox,
-            TrayNotificationsTitleTextBlock,
-            TrayNotificationsDescriptionTextBlock,
-            "SettingsTrayNotificationsTitle",
-            "SettingsTrayNotificationsDescription");
+        ApplyTraySettingLocalization(ShowDnsActionsCheckBox, TrayDnsActionsTitleTextBlock, TrayDnsActionsDescriptionTextBlock, "SettingsTrayDnsActionsTitle", "SettingsTrayDnsActionsDescription");
+        ApplyTraySettingLocalization(ShowDiagnosticsCheckBox, TrayDiagnosticsTitleTextBlock, TrayDiagnosticsDescriptionTextBlock, "SettingsTrayDiagnosticsTitle", "SettingsTrayDiagnosticsDescription");
+        ApplyTraySettingLocalization(ShowProfilesCheckBox, TrayProfilesTitleTextBlock, TrayProfilesDescriptionTextBlock, "SettingsTrayProfilesTitle", "SettingsTrayProfilesDescription");
+        ApplyTraySettingLocalization(ShowSplitDnsCheckBox, TraySplitDnsTitleTextBlock, TraySplitDnsDescriptionTextBlock, "SettingsTraySplitDnsTitle", "SettingsTraySplitDnsDescription");
+        ApplyTraySettingLocalization(ShowAgentCheckBox, TrayAgentTitleTextBlock, TrayAgentDescriptionTextBlock, "SettingsTrayAgentTitle", "SettingsTrayAgentDescription");
+        ApplyTraySettingLocalization(ShowAdapterNameCheckBox, TrayAdapterNameTitleTextBlock, TrayAdapterNameDescriptionTextBlock, "SettingsTrayAdapterNameTitle", "SettingsTrayAdapterNameDescription");
+        ApplyTraySettingLocalization(NotificationsEnabledCheckBox, TrayNotificationsTitleTextBlock, TrayNotificationsDescriptionTextBlock, "SettingsTrayNotificationsTitle", "SettingsTrayNotificationsDescription");
 
         AgentManagerTitleTextBlock.Text = localizer["AgentManagerSettingsButton"];
         AgentManagerDescriptionTextBlock.Text = localizer["SettingsAgentDescription"];
@@ -159,6 +159,23 @@ public partial class SettingsWindow : Window
         HealthSettingsDescriptionTextBlock.Text = localizer["SettingsHealthDescription"];
         SplitDnsSettingsTitleTextBlock.Text = localizer["SplitDnsButton"];
         SplitDnsSettingsDescriptionTextBlock.Text = localizer["SettingsSplitDnsDescription"];
+
+        UpdatesHeaderTextBlock.Text = localizer.GetUpdateText("SettingsUpdatesHeader");
+        AutomaticUpdateChecksTitleTextBlock.Text = localizer.GetUpdateText("SettingsAutomaticUpdateCheckTitle");
+        AutomaticUpdateChecksDescriptionTextBlock.Text = localizer.GetUpdateText("SettingsAutomaticUpdateCheckDescription");
+        CheckForUpdatesButton.Content = localizer.GetUpdateText("CheckForUpdatesButton");
+        SetAccessibility(AutomaticUpdateChecksCheckBox, AutomaticUpdateChecksTitleTextBlock.Text, AutomaticUpdateChecksDescriptionTextBlock.Text);
+        AutomationProperties.SetName(CheckForUpdatesButton, CheckForUpdatesButton.Content?.ToString() ?? string.Empty);
+
+        AboutHeaderTextBlock.Text = localizer.GetUpdateText("SettingsAboutHeader");
+        AboutProductTextBlock.Text = "DnsSwitcher";
+        AboutVersionTextBlock.Text = localizer.FormatUpdateText("AboutVersionFormat", applicationVersion);
+        AboutDescriptionTextBlock.Text = localizer.GetUpdateText("SettingsAboutDescription");
+        HelpHeaderTextBlock.Text = localizer.GetUpdateText("SettingsHelpHeader");
+        HelpDescriptionTextBlock.Text = localizer.GetUpdateText("SettingsHelpDescription");
+        OpenGitHubButton.Content = localizer.GetUpdateText("OpenGitHubButton");
+        AutomationProperties.SetName(OpenGitHubButton, OpenGitHubButton.Content?.ToString() ?? string.Empty);
+        AutomationProperties.SetHelpText(OpenGitHubButton, HelpDescriptionTextBlock.Text);
 
         UpdateThemePreview(isDarkTheme);
         SaveButton.Content = localizer["SaveButton"];
@@ -242,5 +259,22 @@ public partial class SettingsWindow : Window
     private void OnSplitDnsSettingsClicked(object sender, RoutedEventArgs e)
     {
         SplitDnsSettingsRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnCheckForUpdatesClicked(object sender, RoutedEventArgs e)
+    {
+        CheckForUpdatesRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnOpenGitHubClicked(object sender, RoutedEventArgs e)
+    {
+        OpenRepositoryRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private static string ResolveApplicationVersion()
+    {
+        var assembly = typeof(SettingsWindow).Assembly;
+        var informationalVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        return informationalVersion?.Split('+', 2)[0] ?? assembly.GetName().Version?.ToString(3) ?? string.Empty;
     }
 }

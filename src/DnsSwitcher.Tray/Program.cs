@@ -23,7 +23,10 @@ internal static class Program
         {
             logger.LogInformation("DnsSwitcher Tray starting. Profiles file: {ProfilesFilePath}", host.Paths.ProfilesFilePath);
             host.ProfileService.EnsureInitializedAsync().GetAwaiter().GetResult();
-            Application.Run(new TrayApplicationContext(host));
+            using var context = new TrayApplicationContext(host);
+            using var updateMonitor = new AutomaticUpdateMonitor(host);
+            updateMonitor.Start();
+            Application.Run(context);
             logger.LogInformation("DnsSwitcher Tray stopped.");
         }
         catch (Exception exception)
