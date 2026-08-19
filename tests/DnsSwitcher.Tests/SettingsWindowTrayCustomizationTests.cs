@@ -8,6 +8,8 @@ public sealed class SettingsWindowTrayCustomizationTests
         var xaml = File.ReadAllText(FindRepositoryFile("src", "DnsSwitcher.Ui", "SettingsWindow.xaml"));
 
         Assert.Contains("<ScrollViewer", xaml, StringComparison.Ordinal);
+        Assert.Contains("CanContentScroll=\"False\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("CanContentScroll=\"True\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"SystemTrayHeaderTextBlock\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"ShowDnsActionsCheckBox\"", xaml, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"ShowDiagnosticsCheckBox\"", xaml, StringComparison.Ordinal);
