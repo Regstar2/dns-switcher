@@ -96,7 +96,7 @@ public partial class SettingsWindow : Window
         SettingsSubtitleTextBlock.Text = localizer["SettingsSubtitle"];
         GeneralHeaderTextBlock.Text = localizer["SettingsGeneralHeader"];
         BehaviorHeaderTextBlock.Text = localizer["SettingsBehaviorHeader"];
-        SystemTrayHeaderTextBlock.Text = localizer["SettingsSystemTrayHeader"];
+        SystemTrayHeaderTextBlock.Text = localizer.GetTraySettingsText("SettingsSystemTrayHeader");
         AdvancedHeaderTextBlock.Text = localizer["SettingsAdvancedHeader"];
 
         LanguageLabelTextBlock.Text = localizer["SettingsLanguageHeader"];
@@ -172,8 +172,8 @@ public partial class SettingsWindow : Window
         string titleKey,
         string descriptionKey)
     {
-        title.Text = localizer[titleKey];
-        description.Text = localizer[descriptionKey];
+        title.Text = localizer.GetTraySettingsText(titleKey);
+        description.Text = localizer.GetTraySettingsText(descriptionKey);
         SetAccessibility(checkBox, title.Text, description.Text);
     }
 
