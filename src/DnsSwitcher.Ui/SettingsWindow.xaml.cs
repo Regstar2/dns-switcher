@@ -22,6 +22,24 @@ public partial class SettingsWindow : Window
         AppTheme selectedTheme,
         bool startWithWindowsEnabled,
         bool minimizeToTrayEnabled,
+        bool isDarkTheme)
+        : this(
+            localizer,
+            selectedLanguage,
+            selectedTheme,
+            startWithWindowsEnabled,
+            minimizeToTrayEnabled,
+            TraySettings.Default,
+            isDarkTheme)
+    {
+    }
+
+    public SettingsWindow(
+        AppLocalizer localizer,
+        AppLanguage selectedLanguage,
+        AppTheme selectedTheme,
+        bool startWithWindowsEnabled,
+        bool minimizeToTrayEnabled,
         TraySettings traySettings,
         bool isDarkTheme)
     {
