@@ -19,6 +19,7 @@ namespace DnsSwitcher.Tray;
 public sealed class TrayApplicationContext : ApplicationContext
 {
     private const int RefreshIntervalMilliseconds = 15000;
+    private const int SettingsDebounceMilliseconds = 250;
     private static readonly MethodInfo? ShowContextMenuMethod = typeof(NotifyIcon).GetMethod(
         "ShowContextMenu",
         BindingFlags.Instance | BindingFlags.NonPublic);
@@ -58,9 +59,12 @@ public sealed class TrayApplicationContext : ApplicationContext
     private readonly ToolStripMenuItem notificationsMenuItem;
     private readonly ToolStripMenuItem showAdapterNameMenuItem;
     private readonly ToolStripMenuItem exitMenuItem;
+    private readonly ToolStripSeparator optionalGroupsSeparator;
     private readonly System.Windows.Forms.Timer refreshTimer;
     private readonly System.Windows.Forms.Timer appPreferencesChangedTimer;
+    private readonly System.Windows.Forms.Timer traySettingsChangedTimer;
     private readonly FileSystemWatcher appPreferencesWatcher;
+    private readonly FileSystemWatcher traySettingsWatcher;
     private readonly Control synchronizationControl;
     private readonly TrayIconProvider trayIconProvider = new();
     private readonly DnsProfileSelectionService profileSelectionService = new();
@@ -78,6 +82,7 @@ public sealed class TrayApplicationContext : ApplicationContext
     private bool isRefreshing;
     private bool isActionInProgress;
     private bool isAppPreferencesRefreshInProgress;
+    private bool isTraySettingsRefreshInProgress;
     private bool forceAppPreferencesRefresh;
 
     public TrayApplicationContext(WindowsDnsSwitcherHost host)
@@ -92,13 +97,22 @@ public sealed class TrayApplicationContext : ApplicationContext
         traySettings = LoadTraySettingsOrDefault();
         synchronizationControl = new Control();
         _ = synchronizationControl.Handle;
+
         appPreferencesWatcher = CreateAppPreferencesWatcher();
         appPreferencesWatcher.SynchronizingObject = synchronizationControl;
         appPreferencesChangedTimer = new System.Windows.Forms.Timer
         {
-            Interval = 250,
+            Interval = SettingsDebounceMilliseconds,
         };
         appPreferencesChangedTimer.Tick += OnAppPreferencesChangedTimerTick;
+
+        traySettingsWatcher = CreateTraySettingsWatcher();
+        traySettingsWatcher.SynchronizingObject = synchronizationControl;
+        traySettingsChangedTimer = new System.Windows.Forms.Timer
+        {
+            Interval = SettingsDebounceMilliseconds,
+        };
+        traySettingsChangedTimer.Tick += OnTraySettingsChangedTimerTick;
 
         openUiMenuItem = new ToolStripMenuItem(localizer["TrayOpenUi"]);
         statusMenuItem = new ToolStripMenuItem(localizer["TrayStatusLoading"])
@@ -185,6 +199,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         agentMenuItem.DropDownItems.Add(agentStopMenuItem);
         agentMenuItem.DropDownItems.Add(agentReinstallMenuItem);
 
+        optionalGroupsSeparator = new ToolStripSeparator();
         contextMenu = new ContextMenuStrip();
         contextMenu.Items.Add(openUiMenuItem);
         contextMenu.Items.Add(new ToolStripSeparator());
@@ -198,11 +213,12 @@ public sealed class TrayApplicationContext : ApplicationContext
         contextMenu.Items.Add(splitDnsMenuItem);
         contextMenu.Items.Add(agentMenuItem);
         contextMenu.Items.Add(profilesMenuItem);
-        contextMenu.Items.Add(new ToolStripSeparator());
+        contextMenu.Items.Add(optionalGroupsSeparator);
         contextMenu.Items.Add(settingsMenuItem);
         contextMenu.Items.Add(new ToolStripSeparator());
         contextMenu.Items.Add(exitMenuItem);
         contextMenu.Opening += async (_, _) => await RefreshStateAsync().ConfigureAwait(true);
+        ApplyTrayMenuVisibility();
         ApplyTheme(appPreferences.Theme);
 
         notifyIcon = new NotifyIcon
@@ -224,6 +240,7 @@ public sealed class TrayApplicationContext : ApplicationContext
 
         refreshTimer.Tick += async (_, _) => await RefreshStateAsync().ConfigureAwait(true);
         appPreferencesWatcher.EnableRaisingEvents = true;
+        traySettingsWatcher.EnableRaisingEvents = true;
         SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
         Application.Idle += HandleApplicationIdle;
     }
@@ -235,8 +252,11 @@ public sealed class TrayApplicationContext : ApplicationContext
             Application.Idle -= HandleApplicationIdle;
             SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
             appPreferencesWatcher.EnableRaisingEvents = false;
+            traySettingsWatcher.EnableRaisingEvents = false;
             appPreferencesWatcher.Dispose();
+            traySettingsWatcher.Dispose();
             appPreferencesChangedTimer.Dispose();
+            traySettingsChangedTimer.Dispose();
             synchronizationControl.Dispose();
             refreshTimer.Dispose();
             notifyIcon.Dispose();
@@ -283,6 +303,27 @@ public sealed class TrayApplicationContext : ApplicationContext
         return watcher;
     }
 
+    private FileSystemWatcher CreateTraySettingsWatcher()
+    {
+        var directory = Path.GetDirectoryName(traySettingsStore.FilePath) ?? ".";
+        Directory.CreateDirectory(directory);
+
+        var watcher = new FileSystemWatcher(directory, JsonTraySettingsStore.FileName)
+        {
+            IncludeSubdirectories = false,
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.CreationTime,
+            EnableRaisingEvents = false,
+        };
+
+        watcher.Changed += OnTraySettingsFileChanged;
+        watcher.Created += OnTraySettingsFileChanged;
+        watcher.Deleted += OnTraySettingsFileChanged;
+        watcher.Renamed += OnTraySettingsFileRenamed;
+        watcher.Error += OnTraySettingsWatcherError;
+
+        return watcher;
+    }
+
     private void OnAppPreferencesFileChanged(object sender, FileSystemEventArgs eventArgs)
     {
         ScheduleAppPreferencesRefresh();
@@ -291,6 +332,16 @@ public sealed class TrayApplicationContext : ApplicationContext
     private void OnAppPreferencesFileRenamed(object sender, RenamedEventArgs eventArgs)
     {
         ScheduleAppPreferencesRefresh();
+    }
+
+    private void OnTraySettingsFileChanged(object sender, FileSystemEventArgs eventArgs)
+    {
+        ScheduleTraySettingsRefresh();
+    }
+
+    private void OnTraySettingsFileRenamed(object sender, RenamedEventArgs eventArgs)
+    {
+        ScheduleTraySettingsRefresh();
     }
 
     private void OnUserPreferenceChanged(object? sender, UserPreferenceChangedEventArgs eventArgs)
@@ -304,6 +355,11 @@ public sealed class TrayApplicationContext : ApplicationContext
     private void OnAppPreferencesWatcherError(object sender, ErrorEventArgs eventArgs)
     {
         logger.LogWarning(eventArgs.GetException(), "App preferences watcher failed. Tray will refresh preferences on the next regular refresh.");
+    }
+
+    private void OnTraySettingsWatcherError(object sender, ErrorEventArgs eventArgs)
+    {
+        logger.LogWarning(eventArgs.GetException(), "Tray settings watcher failed. Tray will refresh settings on the next regular refresh.");
     }
 
     private void ScheduleAppPreferencesRefresh(bool forceApply = false)
@@ -331,12 +387,42 @@ public sealed class TrayApplicationContext : ApplicationContext
         appPreferencesChangedTimer.Start();
     }
 
+    private void ScheduleTraySettingsRefresh()
+    {
+        if (synchronizationControl.IsDisposed || !synchronizationControl.IsHandleCreated)
+        {
+            return;
+        }
+
+        if (synchronizationControl.InvokeRequired)
+        {
+            try
+            {
+                synchronizationControl.BeginInvoke((System.Windows.Forms.MethodInvoker)ScheduleTraySettingsRefresh);
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
+            return;
+        }
+
+        traySettingsChangedTimer.Stop();
+        traySettingsChangedTimer.Start();
+    }
+
     private async void OnAppPreferencesChangedTimerTick(object? sender, EventArgs eventArgs)
     {
         appPreferencesChangedTimer.Stop();
         var forceApply = forceAppPreferencesRefresh;
         forceAppPreferencesRefresh = false;
         await RefreshAppPreferencesAsync(forceApply).ConfigureAwait(true);
+    }
+
+    private async void OnTraySettingsChangedTimerTick(object? sender, EventArgs eventArgs)
+    {
+        traySettingsChangedTimer.Stop();
+        await RefreshTraySettingsAsync().ConfigureAwait(true);
     }
 
     private async void HandleApplicationIdle(object? sender, EventArgs eventArgs)
@@ -363,6 +449,7 @@ public sealed class TrayApplicationContext : ApplicationContext
         {
             appPreferences = await LoadAppPreferencesOrDefaultAsync().ConfigureAwait(true);
             localizer = new AppLocalizer(appPreferences.Language);
+            await ReloadTraySettingsForRegularRefreshAsync().ConfigureAwait(true);
             ApplyTheme(appPreferences.Theme);
             var configuration = await host.ProfileService.GetConfigurationAsync().ConfigureAwait(true);
             var status = await host.DnsManager.GetStatusAsync().ConfigureAwait(true);
@@ -761,7 +848,6 @@ public sealed class TrayApplicationContext : ApplicationContext
 
         statusMenuItem.Text = TrayTextFormatter.BuildStatusMenuText(configuration, status, localizer);
         adapterMenuItem.Text = TrayTextFormatter.BuildAdapterMenuText(status, traySettings, localizer) ?? localizer["TrayHiddenAdapter"];
-        adapterMenuItem.Visible = traySettings.ShowAdapterName;
         enableDnsMenuItem.Text = TrayTextFormatter.BuildEnableMenuText(enableProfile, localizer);
         switchNextMenuItem.Text = TrayTextFormatter.BuildSwitchNextMenuText(nextProfile, localizer);
         openUiMenuItem.Text = localizer["TrayOpenUi"];
@@ -818,6 +904,24 @@ public sealed class TrayApplicationContext : ApplicationContext
         darkThemeMenuItem.Checked = appPreferences.Theme == AppTheme.Dark;
         notificationsMenuItem.Checked = traySettings.NotificationsEnabled;
         showAdapterNameMenuItem.Checked = traySettings.ShowAdapterName;
+        ApplyTrayMenuVisibility();
+    }
+
+    private void ApplyTrayMenuVisibility()
+    {
+        openUiMenuItem.Visible = true;
+        statusMenuItem.Visible = true;
+        settingsMenuItem.Visible = true;
+        exitMenuItem.Visible = true;
+        adapterMenuItem.Visible = traySettings.ShowAdapterName;
+        enableDnsMenuItem.Visible = traySettings.ShowDnsActions;
+        disableDnsMenuItem.Visible = traySettings.ShowDnsActions;
+        switchNextMenuItem.Visible = traySettings.ShowDnsActions;
+        testsMenuItem.Visible = traySettings.ShowDiagnostics;
+        splitDnsMenuItem.Visible = traySettings.ShowSplitDns;
+        agentMenuItem.Visible = traySettings.ShowAgent;
+        profilesMenuItem.Visible = traySettings.ShowProfiles;
+        optionalGroupsSeparator.Visible = TrayMenuVisibilityPolicy.HasOptionalGroups(traySettings);
     }
 
     private void UpdateNotifyIcon(AppConfig? configuration, DnsStatus? status, Exception? error)
@@ -859,7 +963,6 @@ public sealed class TrayApplicationContext : ApplicationContext
     private void SetBusyMenuState()
     {
         statusMenuItem.Text = localizer["TrayBusyStatus"];
-        adapterMenuItem.Visible = traySettings.ShowAdapterName;
         openUiMenuItem.Enabled = false;
         enableDnsMenuItem.Enabled = false;
         disableDnsMenuItem.Enabled = false;
@@ -882,10 +985,13 @@ public sealed class TrayApplicationContext : ApplicationContext
         agentReinstallMenuItem.Enabled = false;
         profilesMenuItem.Enabled = false;
         settingsMenuItem.Enabled = false;
+        ApplyTrayMenuVisibility();
     }
 
     private void ApplyPresentationState(bool forceNotifyIconRedraw = false)
     {
+        ApplyTrayMenuVisibility();
+
         if (lastRefreshError is not null)
         {
             SetBusyMenuState();
@@ -1014,6 +1120,48 @@ public sealed class TrayApplicationContext : ApplicationContext
         finally
         {
             isAppPreferencesRefreshInProgress = false;
+        }
+    }
+
+    private async Task RefreshTraySettingsAsync()
+    {
+        if (isTraySettingsRefreshInProgress)
+        {
+            return;
+        }
+
+        isTraySettingsRefreshInProgress = true;
+
+        try
+        {
+            var updatedSettings = await traySettingsStore.LoadAsync().ConfigureAwait(true);
+            if (updatedSettings == traySettings)
+            {
+                return;
+            }
+
+            traySettings = updatedSettings;
+            ApplyPresentationState();
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Tray settings could not be reloaded. Existing tray settings will remain active.");
+        }
+        finally
+        {
+            isTraySettingsRefreshInProgress = false;
+        }
+    }
+
+    private async Task ReloadTraySettingsForRegularRefreshAsync()
+    {
+        try
+        {
+            traySettings = await traySettingsStore.LoadAsync().ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Tray settings could not be loaded during regular refresh. Existing tray settings will remain active.");
         }
     }
 
