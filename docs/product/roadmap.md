@@ -1,39 +1,27 @@
 # Дорожная карта
 
-Roadmap фиксирует только подтверждённую текущую цель; следующие версии не придумываются заранее.
+Roadmap фиксирует только подтверждённые цели и не придумывает будущие версии заранее.
 
-## v1.5.0 — Update Delivery / stable release
+## v1.5.0 — Stable release
 
-Статус: подготовка финального release candidate.
+Статус: **завершено 2026-08-19**.
 
-### Цель
+В `v1.5.0` завершены:
 
-Завершить уже реализованную пользовательскую базу DnsSwitcher и обеспечить нормальный stable delivery для устанавливаемого Windows-приложения.
-
-### Scope
-
-- настраиваемое tray menu;
-- финальные UI improvements Main/Settings/DNS Health/Split DNS;
+- настраиваемое Tray menu;
+- финальные UI improvements Main / Settings / DNS Health / Split DNS;
 - About и Help;
-- manual update check;
-- отключаемая automatic update check из Tray;
-- SemVer stable-channel selection;
-- installer download только после SHA-256 verification;
+- manual update check и отключаемая automatic Tray check;
+- stable SemVer selection;
+- SHA-256 verification перед installer launch;
 - self-contained installer + portable ZIP + `SHA256SUMS.txt`;
 - RU/EN README и release notes;
-- Windows CI/release-candidate evidence.
+- Windows CI, final smoke и release packaging.
 
-### Критерии готовности
+## Следующая версия
 
-- build/tests проходят на exact release commit;
-- production update source читается приложением анонимно по HTTPS без embedded secret;
-- real Windows screenshots добавлены;
-- About/Update Windows smoke пройден;
-- installer/portable/checksums связаны с exact commit;
-- stable tag/release создаются только после отдельного подтверждения.
+Отдельный scope следующей версии пока не утверждён. Новые задачи добавляются в roadmap только после выбора конкретной цели и критериев готовности.
 
-### Текущие blockers
+## Текущее ограничение
 
-- основной GitHub repository private, поэтому production GitHub Releases недоступны anonymous client;
-
-До закрытия этого пункта `v1.5.0` не считается готовым к публикации, даже если код, screenshots и candidate artifacts собраны успешно.
+Основной GitHub repository остаётся private, поэтому anonymous in-app update discovery через GitHub Releases недоступен. Это ограничение release source; embedded credentials не используются.
